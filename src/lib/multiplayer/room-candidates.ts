@@ -1,11 +1,13 @@
 import { forEachCatalogSlice, sortCatalogRows, yieldCatalogTask } from "../catalog-work.ts";
 import type { LibraryVideo } from "../videos/types.ts";
+import { publicVideoBoundary, type PublicFolder } from '../videos/public-visibility.ts';
 import { roomMediaKey } from "./room-media.ts";
 
 const DEMO_TITLE = /\b(blender|big buck bunny|cosmos laundromat|tears of steel|elephants dream|sintel|night rain|empty house|golden coast|tungsten reel)\b/i;
 
 export type RoomCandidateOptions = {
   videos: readonly LibraryVideo[];
+  folders?: readonly PublicFolder[];
   shared: Record<string, LibraryVideo>;
   guest: boolean;
   favorites: Record<string, unknown>;
@@ -29,6 +31,9 @@ export async function prepareRoomCandidates(options: RoomCandidateOptions, turn 
     await forEachCatalogSlice(Object.values(options.shared), video => { if (!ids.has(video.id)) sharedOnly.push(video); }, turn);
     catalog = sharedOnly.length ? options.videos.concat(sharedOnly) : options.videos;
   }
+  const publicTitle = publicVideoBoundary(options.folders);
+  const privateKeys = new Set<string>();
+  await forEachCatalogSlice(options.videos,video=>{if(!publicTitle(video))privateKeys.add(roomMediaKey(video));},turn);
   const played = new Set<string>();
   await forEachCatalogSlice(options.history, entry => played.add(entry.id), turn);
 
@@ -36,7 +41,7 @@ export async function prepareRoomCandidates(options: RoomCandidateOptions, turn 
   const ranks: number[] = [];
   const order: number[] = [];
   await forEachCatalogSlice(catalog, video => {
-    if (video.isSample || !video.remote && DEMO_TITLE.test(`${video.name} ${video.tagline ?? ""}`) ||
+    if (!publicTitle(video) || privateKeys.has(roomMediaKey(video)) || video.isSample || !video.remote && DEMO_TITLE.test(`${video.name} ${video.tagline ?? ""}`) ||
       options.unavailable[video.id] || options.hidden[video.id] || !options.canStage(video)) return;
     const index = videos.length;
     videos.push(video);

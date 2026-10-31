@@ -1,0 +1,8 @@
+npm notice run typecheck
+npm notice run tsc --noEmit
+companion/platform-capabilities.mjs(2,34): error TS7006: Parameter 'platform' implicitly has an 'any' type.
+companion/platform-capabilities.mjs(3,39): error TS7006: Parameter 'values' implicitly has an 'any' type.
+companion/platform-capabilities.mjs(3,46): error TS7006: Parameter 'platform' implicitly has an 'any' type.
+companion/platform-capabilities.mjs(3,77): error TS7006: Parameter 'value' implicitly has an 'any' type.
+companion/platform-capabilities.mjs(4,37): error TS7006: Parameter 'path' implicitly has an 'any' type.
+companion/platform-capabilities.mjs(4,42): error TS7006: Parameter 'platform' implicitly has an 'any' type.

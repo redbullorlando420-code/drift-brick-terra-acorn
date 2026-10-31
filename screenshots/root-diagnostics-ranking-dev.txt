@@ -1,0 +1,112 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "errors": [],
+      "checks": [
+        "Save Data controls pause optional work and have accessible selected state",
+        "Observed transfer summary separates measured and unknown totals without recording resource URLs",
+        "Real Twitch recommendation path completes with bounded preparation timings in diagnostic export",
+        "Saved mode survives reload and optional work can be enabled again",
+        "100k instrumented packing keeps a 16ms input heartbeat below the declared 100ms gap limit"
+      ],
+      "ranking": {
+        "active": 0,
+        "deferred": 0,
+        "coalesced": 2,
+        "budget": {
+          "settleMs": 80,
+          "sliceMs": 3,
+          "sliceRows": 256,
+          "samples": 32
+        },
+        "samples": [
+          {
+            "kind": "twitch",
+            "outcome": "complete",
+            "rows": 3600,
+            "slices": 15,
+            "maxSliceMs": 3,
+            "cpuMs": 11.599999979138374,
+            "elapsedMs": 12.799999997019768
+          }
+        ]
+      },
+      "latency": {
+        "finished": true,
+        "responded": true,
+        "beats": 131,
+        "worstHeartbeatMs": 28.399999991059303,
+        "checksum": -2089162320,
+        "sample": {
+          "kind": "youtube",
+          "outcome": "complete",
+          "rows": 100000,
+          "slices": 391,
+          "maxSliceMs": 1.1000000089406967,
+          "cpuMs": 54.29999968409538,
+          "elapsedMs": 2097.3999999910593
+        }
+      }
+    },
+    {
+      "mobile": true,
+      "errors": [],
+      "checks": [
+        "Save Data controls pause optional work and have accessible selected state",
+        "Observed transfer summary separates measured and unknown totals without recording resource URLs",
+        "Real Twitch recommendation path completes with bounded preparation timings in diagnostic export",
+        "Saved mode survives reload and optional work can be enabled again",
+        "100k instrumented packing keeps a 16ms input heartbeat below the declared 100ms gap limit"
+      ],
+      "ranking": {
+        "active": 0,
+        "deferred": 0,
+        "coalesced": 0,
+        "budget": {
+          "settleMs": 80,
+          "sliceMs": 3,
+          "sliceRows": 256,
+          "samples": 32
+        },
+        "samples": [
+          {
+            "kind": "twitch",
+            "outcome": "complete",
+            "rows": 3600,
+            "slices": 15,
+            "maxSliceMs": 1.2000000029802322,
+            "cpuMs": 5.899999991059303,
+            "elapsedMs": 7.699999988079071
+          },
+          {
+            "kind": "twitch",
+            "outcome": "complete",
+            "rows": 3600,
+            "slices": 15,
+            "maxSliceMs": 2.3999999910593033,
+            "cpuMs": 10.599999979138374,
+            "elapsedMs": 12.900000005960464
+          }
+        ]
+      },
+      "latency": {
+        "finished": true,
+        "responded": true,
+        "beats": 121,
+        "worstHeartbeatMs": 17.400000005960464,
+        "checksum": -2089162320,
+        "sample": {
+          "kind": "youtube",
+          "outcome": "complete",
+          "rows": 100000,
+          "slices": 391,
+          "maxSliceMs": 0.7000000029802322,
+          "cpuMs": 36.400000125169754,
+          "elapsedMs": 1947.0999999940395
+        }
+      }
+    }
+  ]
+}

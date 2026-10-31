@@ -1,0 +1,23 @@
+✔ failed admission retains all forty prior receipts in memory and on disk (9.8144ms)
+✔ restart restores active and queued work as interrupted without starting anything; explicit resume retains ID and clears old browser consent (22.1662ms)
+✔ completed receipt survives restart and a repeated enqueue/resume never starts another process without an explicit new-download request (38.3702ms)
+✔ a failed receipt commit cannot start a downloader and leaves the prior manifest readable (16.9079ms)
+✔ future or malformed manifests are preserved and cannot be overwritten by a new operation (6.9792ms)
+✔ legacy receipt migration allowlists fields and does not expose URLs or injected credential headers (19.4631ms)
+✔ cancellation and timeout outcomes cannot be changed to complete by a late process exit (18.1335ms)
+✔ receipt history remains bounded while partial files are retained and offline URLs cannot carry embedded credentials (302.4262ms)
+✔ approved files remain usable while unapproved and traversal paths are denied (22.26ms)
+✔ revocation aborts held work immediately, persists across restart and leaves other roots usable (8.024ms)
+✔ renamed/replaced root identity cannot inherit permission at the same path (7.086ms)
+✔ a retargeted directory junction is rejected before a delayed write or read (10.1782ms)
+✔ new files check real ancestors and existing target links before committing (25.2568ms)
+✔ revoked queued and active downloads cannot dispatch or report a late completion (55.3579ms)
+✔ folder replacement inside an approved root invalidates a held downloader lease (92.64ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 533.1282

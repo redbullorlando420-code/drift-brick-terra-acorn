@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useMemo, useEffect, useRef } from "react";
+import { lazy, memo, Suspense, useState, useEffect, useRef } from "react";
 import { useLibrary, selectVisible } from "@/lib/videos/store";
 import { loadVideoPlayer, loadVideoPreview } from "./video-overlay-loader";
 import { setPullViewerOpen } from '@/lib/pull-control';
@@ -10,6 +10,7 @@ import type { LibraryVideo } from '@/lib/videos/types';
 import { viewerDetails } from '@/lib/videos/viewer-details';
 import { ViewerDialog, useViewerInitialFocus } from './viewer-dialog';
 import { Button } from '@/components/ui/button';
+import { scheduleBackgroundWork } from '@/lib/interaction-budget';
 const Player = lazy(async () => ({ default: (await loadVideoPlayer()).Player }));
 const PreVideo = lazy(async () => ({ default: (await loadVideoPreview()).PreVideo }));
 const EMPTY_VIDEOS: LibraryVideo[] = [];
@@ -34,26 +35,34 @@ export const VideoOverlays = memo(function VideoOverlays() {
   const hidden = useLibrary(s => s.activeId ? s.hiddenVideos : EMPTY_FLAGS);
   const unavailable = useLibrary(s => s.activeId ? s.unavailable : EMPTY_FLAGS);
   const queue = useRef<{ sourceId: string; query: string; ids: string[] } | undefined>(undefined);
-  const playlist = useMemo(() => {
-    if (!activeId) { queue.current = undefined; return []; }
-    if (queue.current?.sourceId === sourceId && queue.current.query === query && queue.current.ids.includes(activeId)) {
-      // The queue owns IDs, never stale cards from a previous catalog save.
-      // Playback lookup reads current metadata using bounded position hints.
-      return queue.current.ids.filter(id => id === activeId || !hidden[id] && !unavailable[id]);
-    }
-    const current = lookupVideo(videos, activeId);
-    if (!current) return [];
-    const visible = selectVisible.peek(useLibrary.getState());
-    const owner = peekYoutubeOwner(videos, current);
-    const rows = visible?.includes(current) ? playbackWindow(visible, current)
-      : owner.length ? playbackWindow(owner, current)
-      : previewCandidates(videos, current, [], 512).filter(video => video.id === current.id || video.folderId === current.folderId && !video.remote?.live);
-    const ids = rows.filter(video => video.id === current.id || !hidden[video.id] && !unavailable[video.id]).map(video => video.id);
-    // Next/Previous retain their position as playback advances; a new active
-    // title must not reshuffle the queue or reset the index to zero.
-    queue.current = { sourceId, query, ids };
-    return ids;
+  const [preparedQueue, setPreparedQueue] = useState<string[]>([]);
+  useEffect(() => {
+    if (!activeId) { queue.current = undefined; setPreparedQueue([]); return; }
+    return scheduleBackgroundWork(() => {
+      const prepare = () => {
+        if (!activeId) { queue.current = undefined; return []; }
+        if (queue.current?.sourceId === sourceId && queue.current.query === query && queue.current.ids.includes(activeId)) {
+          // The queue owns IDs, never stale cards from a previous catalog save.
+          // Playback lookup reads current metadata using bounded position hints.
+          return queue.current.ids.filter(id => id === activeId || !hidden[id] && !unavailable[id]);
+        }
+        const current = lookupVideo(videos, activeId);
+        if (!current) return [];
+        const visible = selectVisible.peek(useLibrary.getState());
+        const owner = peekYoutubeOwner(videos, current);
+        const rows = visible?.includes(current) ? playbackWindow(visible, current)
+          : owner.length ? playbackWindow(owner, current)
+          : previewCandidates(videos, current, [], 512).filter(video => video.id === current.id || video.folderId === current.folderId && !video.remote?.live);
+        const ids = rows.filter(video => video.id === current.id || !hidden[video.id] && !unavailable[video.id]).map(video => video.id);
+        // Next/Previous retain their position as playback advances; a new active
+        // title must not reshuffle the queue or reset the index to zero.
+        queue.current = { sourceId, query, ids };
+        return ids;
+          };
+      setPreparedQueue(prepare());
+    });
   }, [videos, activeId, sourceId, query, hidden, unavailable]);
+  const playlist = activeId && preparedQueue.includes(activeId) ? preparedQueue : activeId ? [activeId] : [];
   useEffect(() => {
     setPullViewerOpen(Boolean(activeId || previewId));
     viewerDetails.releaseCommentsExcept(activeId ?? previewId);

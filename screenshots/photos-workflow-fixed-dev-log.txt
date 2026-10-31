@@ -1,0 +1,2 @@
+{"mobile":false,"checks":["Real sequential typing works in people, gallery tags and full-screen tags; labels normalize and deduplicate on blur","Upload, viewer, download, search/no-match, hide/restore, navigation flush and metadata reload after explicit file reattachment pass"],"ok":true}
+{"mobile":true,"checks":["Real sequential typing works in people, gallery tags and full-screen tags; labels normalize and deduplicate on blur","Upload, viewer, download, search/no-match, hide/restore, navigation flush and metadata reload after explicit file reattachment pass"],"ok":true}

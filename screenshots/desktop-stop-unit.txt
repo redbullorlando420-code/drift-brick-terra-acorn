@@ -1,0 +1,24 @@
+✔ starts stopped services then waits (0.9701ms)
+✔ reuses ready or starting services (0.1767ms)
+✔ refuses foreign listeners (0.3886ms)
+✔ bounds startup (0.1667ms)
+✔ requires identity and trusted origin (16.5286ms)
+✔ process selection matches exact own Vite dev entry and Companion without eval/string/foreign-port matches (1.6639ms)
+✔ legacy relative Companion needs a verified older launcher parent from this installation (0.2132ms)
+✔ read-only status and repeated stop never kill unknown processes (0.6479ms)
+✔ reused PID or changed command cannot inherit termination from an old observation (0.2208ms)
+✔ new same-installation process remains running and is reported instead of killed (1.0294ms)
+✔ verified Companion IPC cleanup runs before fallback and server termination (0.2493ms)
+✔ failed termination stays failed without looping/repeated kills (0.4432ms)
+✔ real local IPC rejects stale instance approvals and runs stop only once (249.4075ms)
+✔ inventory separates implementation from setup and native verification without a probe (0.4413ms)
+✔ installed model, available downloader and RustDesk launcher never prove execution (0.2333ms)
+✔ missing capabilities, failed probes, foreign and incompatible health remain visibly unsupported/unavailable (0.14ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 380.5502

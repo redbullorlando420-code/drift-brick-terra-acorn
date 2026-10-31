@@ -1,6 +1,8 @@
 import type { LiveThroughput } from './youtube-live-throughput';
 import type { FollowedChannel } from './types.ts';
-import { selectLiveRefreshChannels, selectDueLiveRefreshChannels } from './live-refresh-selection.ts';
+import { selectLiveRefreshChannels } from './live-refresh-selection.ts';
+
+import { allocateYoutubeLive, type YoutubeLiveAllocation } from './youtube-live-allocation.ts';
 
 export const YOUTUBE_QUICK_LIVE = {
   requestChannels: 24,
@@ -16,9 +18,11 @@ export const YOUTUBE_QUICK_LIVE = {
 } as const;
 
 /** Known-live deadlines and oldest-first discovery share each batch. */
-export function selectYoutubeQuickLiveChannels(channels: readonly FollowedChannel[], limit: number, scheduled = false, now = Date.now()) {
+export function selectYoutubeQuickLiveChannels(channels: readonly FollowedChannel[], limit: number, scheduled = false, now = Date.now(), report?: (allocation: YoutubeLiveAllocation) => void, excluded?: ReadonlySet<string>) {
   if (!scheduled) return selectLiveRefreshChannels(channels, 'youtube', channels.length, now).slice(0, Math.max(0, limit));
-  return selectDueLiveRefreshChannels(channels, 'youtube', limit, YOUTUBE_QUICK_LIVE.knownLiveMs, YOUTUBE_QUICK_LIVE.discoveryMs, now);
+  const result = allocateYoutubeLive(channels, limit, now, YOUTUBE_QUICK_LIVE.knownLiveMs, YOUTUBE_QUICK_LIVE.discoveryMs, excluded);
+  report?.(result.allocation);
+  return result.channels;
 }
 
 export type YoutubeLiveProgress = {
@@ -27,4 +31,5 @@ export type YoutubeLiveProgress = {
   retryAt?: number; error?: string;
   automatic?: boolean;
   throughput?: LiveThroughput;
+  allocation?: YoutubeLiveAllocation;
 };

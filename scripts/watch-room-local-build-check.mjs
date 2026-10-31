@@ -33,6 +33,10 @@ try {
   if (await guest.getByRole("button", { name: "Play on this device" }).count()) await guest.getByRole("button", { name: "Play on this device" }).click();
   await guest.waitForFunction(() => document.querySelector("video[data-room-stream]")?.getVideoPlaybackQuality().totalVideoFrames > 10, null, { timeout: 30000 });
   const decodedFrames = await incoming.evaluate((video) => video.getVideoPlaybackQuality().totalVideoFrames);
+   const captions=guest.getByLabel('Captions on this device',{exact:true});await captions.locator('summary').click();
+   await captions.getByText('The host’s streamed video does not carry separate subtitle tracks. Use a matching local copy with subtitles if available; captions burned into the picture remain visible.',{exact:true}).waitFor();
+   const guestRequests=await guest.evaluate(()=>window.__seekPackets.length);await captions.getByRole('checkbox',{name:'Prefer captions when available'}).check();await captions.getByRole('textbox',{name:'Preferred caption language'}).fill('es');await captions.getByRole('button',{name:'Save caption preference',exact:true}).click();assert.equal(await guest.evaluate(()=>window.__seekPackets.length),guestRequests);
+   assert(await captions.getByRole('button',{name:'Save caption preference',exact:true}).evaluate(button=>document.activeElement===button));
   await guest.getByRole("button", { name: "Pause", exact: true }).first().click();
   await host.waitForFunction(() => document.querySelector("video")?.paused);
   for(const seconds of [2,0]){
@@ -54,5 +58,5 @@ try {
   await guest.getByRole("button", { name: "Leave room", exact: true }).click();
   assert.equal(await guest.locator("video[data-room-stream]").count(), 0);
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ production: true, decodedFrames, guestSelectedFiles: 0, checks: ["consent gate", "local playback reaches empty phone without file copy", "guest pause and resume", "keyboard range seeks reach the host", "mobile no overflow", "leave releases stream player"], errors }, null, 2));
+  console.log(JSON.stringify({ target: origin, decodedFrames, guestSelectedFiles: 0, checks: ["consent gate", "device caption preferences and honest RTC track fallback preserve playback and focus", "local playback reaches empty phone without file copy", "guest pause and resume", "keyboard range seeks reach the host", "mobile no overflow", "leave releases stream player"], errors }, null, 2));
 } finally { await browser.close(); }

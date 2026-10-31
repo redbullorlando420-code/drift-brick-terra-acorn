@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Empty profile gets offline-first choices; review/dismiss/resume persist and neither Home nor explicit readiness checks launch scans, downloads or grants.",
+        "Native grants require explicit review; browser choices persist, cross-tab revocation updates controls, unrelated permission remains, and failed storage never claims a grant.",
+        "Revoking native model access cancels the held transfer fixture and keeps independent browser permission and library content.",
+        "Revoked draft composer opens no popup, Copy still works, explicit grant opens a filled fixture composer without marking published.",
+        "Returning populated catalog/source profile stays collapsed; older Companion reports the unsupported permission capability before dispatch."
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Empty profile gets offline-first choices; review/dismiss/resume persist and neither Home nor explicit readiness checks launch scans, downloads or grants.",
+        "Native grants require explicit review; browser choices persist, cross-tab revocation updates controls, unrelated permission remains, and failed storage never claims a grant.",
+        "Revoking native model access cancels the held transfer fixture and keeps independent browser permission and library content.",
+        "Revoked draft composer opens no popup, Copy still works, explicit grant opens a filled fixture composer without marking published.",
+        "Returning populated catalog/source profile stays collapsed; older Companion reports the unsupported permission capability before dispatch."
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ],
+  "limitations": "Isolated desktop and touch-mobile Chrome profiles; native/provider actions use controlled fixtures. Native revocation is separately checked in copied-service HTTP tests. No real account, download, cookie read or user profile was changed."
+}

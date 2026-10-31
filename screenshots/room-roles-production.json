@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "checks": [
+    "an open reliable channel is distinct from a pending room handshake",
+    "preview and cancel never change current guest privileges or the queue",
+    "revoked and regranted roles reject older queue and playback packets; custom changes invalidate a stale role preview and never grant library access",
+    "current co-controller requests still edit the queue and seek without changing paused playback",
+    "Contributor sends reviewed suggestions without editing canonical queue or playback",
+    "autoplay block is device-local; room connectivity, Ready and chat remain available",
+    "malformed signaling produces a separate retry state; signaling-only recovery preserves healthy channels and queue",
+    "diagnostic copy exports only bounded stage evidence and queue counts, without room IDs, invitations, names or media",
+    "clipboard denial has selectable fallback; guest reload restores effective role and host queue",
+    "a reloaded replacement host establishes a fresh permission revision and subsequent role changes still reach the guest"
+  ],
+  "errors": [],
+  "limitation": "Real WebRTC between isolated desktop/touch-phone Chrome contexts with controlled provider documents and a malformed signaling response; physical phone and external TURN are unmeasured."
+}

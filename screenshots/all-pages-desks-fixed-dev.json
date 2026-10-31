@@ -1,0 +1,16 @@
+{
+  "ok": false,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "an old Twitch observation is shown as needing a check, not as an ended broadcast; a live-only refresh restores both channels while archive pulling is paused",
+        "Movies contains only the feature-length local film and explicit public full movie; short/unknown-duration titles, gameplay, vlog and anime episode are excluded",
+        "Anime recognizes local and YouTube episodes and an anime film while rejecting reaction/review videos and an unrelated provider-generated anime tag"
+      ],
+      "errors": [],
+      "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/tag: strategy/) to be visible\u001b[22m\n\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\refined-desks-browser-check.mjs:44:400"
+    }
+  ],
+  "limitation": "Isolated desktop/mobile Chromium; 3,009 catalog titles, real persistence and app selectors, deterministic provider/player fixtures. Actual Twitch batching is checked separately."
+}

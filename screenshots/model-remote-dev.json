@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Saved receipt loads without resuming; explicit identity review gates resume, pause/reload retains progress, changed identity blocks append, and reviewed fresh download requires its own acknowledgement.",
+        "Remote page starts no probe or launch; expiry denies stale approval, missing launch response is resolved through explicit status without retry, stop remains a request, and native session permissions stay unverified."
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Saved receipt loads without resuming; explicit identity review gates resume, pause/reload retains progress, changed identity blocks append, and reviewed fresh download requires its own acknowledgement.",
+        "Remote page starts no probe or launch; expiry denies stale approval, missing launch response is resolved through explicit status without retry, stop remains a request, and native session permissions stay unverified."
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ],
+  "limitations": "Isolated desktop/touch-mobile Chrome profiles and controlled Companion/provider responses. No real model transfer, RustDesk peer, native login or user data was used. Actual transfer bytes are separately verified by filesystem and copied-service tests."
+}

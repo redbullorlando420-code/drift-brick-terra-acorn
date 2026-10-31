@@ -1,3 +1,6 @@
+import { CatalogWriterStatus } from './catalog-writer-status';
+import { startTransferAccounting } from '@/lib/transfer-accounting';
+import {ProviderRecentSection} from './provider-recent-section';
 import { getTopicAliasRevision } from '@/lib/videos/topic-aliases';
 import { MovieRuntimeRepair } from './movie-runtime-repair';
 import { TwitchLiveCheckStatus } from './twitch-live-check-status';
@@ -322,7 +325,8 @@ export function LibraryApp() {
     };
     const storage = (event: StorageEvent) => { if (event.key === 'reelcase.debug-panel' || event.key === 'reelcase.artwork-mode' || event.key === null) sync(); };
     sync(); window.addEventListener('reelcase:diagnostics-settings', sync); window.addEventListener('storage', storage);
-    return () => { window.removeEventListener('reelcase:diagnostics-settings', sync); window.removeEventListener('storage', storage); setRenderBudgetMonitoring(false); };
+    const stopTransfers = startTransferAccounting();
+    return () => { stopTransfers(); window.removeEventListener('reelcase:diagnostics-settings', sync); window.removeEventListener('storage', storage); setRenderBudgetMonitoring(false); };
   }, []);
   const [sessionIdle, setSessionIdle] = useState(false);
   useEffect(() => trackSessionActivity(() => {
@@ -341,7 +345,7 @@ export function LibraryApp() {
   }, []);
 
   useEffect(() => {
-    const failed = () => toast.error("Library changes could not be saved. Browser storage is unavailable or full.");
+    const failed = () => toast.error("Library changes could not be saved. Browser storage is unavailable or full.",{id:"library-save-error"});
     window.addEventListener("reelcase:save-error", failed);
     return () => window.removeEventListener("reelcase:save-error", failed);
   }, []);
@@ -1213,8 +1217,9 @@ export function LibraryApp() {
             <h1 className="font-display text-3xl text-fg">{navigationSourceLabel(requestedSource, folders)}</h1>
             <p className="mt-3 text-sm text-muted">Preparing your library…</p>
           </section> : <>
+          <CatalogWriterStatus />
           {sourceId !== "home" && <PullStatusBanner />}
-          {sourceId === "home" && !query ? <LightHome /> : isHubSection ? (
+          {sourceId === "home" && !query ? <LightHome onAddFolder={addHeaderFolder}/> : isHubSection ? (
             <Suspense fallback={<section className="rounded-xl bg-elevated p-8 text-sm text-muted shadow-border">Loading this library workspace…</section>}>
             <>
               {sourceId === "prints" && <PrintsSection />}
@@ -1277,6 +1282,7 @@ export function LibraryApp() {
                     <div className="flex flex-wrap items-center gap-3 border-t border-border px-5 py-3 text-sm sm:px-7"><span className="text-muted" aria-label="YouTube source coverage" aria-live="polite" aria-busy={youtubeCoverageUpdating}>{youtubeCoverageUpdating ? "Updating saved catalog coverage…" : `${youtubeCoverage.ready.toLocaleString()} / ${youtubeCoverage.total.toLocaleString()} verified sources have saved uploads${youtubeCoverage.missing.length ? ` · ${youtubeCoverage.missing.length.toLocaleString()} have no cached uploads` : ""}. Hidden videos still count toward coverage.`}</span>{youtubeCoverage.missing.length > 0 && <Button size="sm" variant="secondary" disabled={refreshing || remoteBusy || youtubeCoverageUpdating} onClick={() => void refreshYoutubeCatalog(true)}>Fill empty sources</Button>}<span className="text-xs text-muted" aria-label="YouTube duplicate check" aria-busy={youtubeCoverageUpdating}>{youtubeCoverageUpdating ? "Checking saved video IDs…" : `${youtubeIdentityHealth.distinctVideos.toLocaleString()} distinct video IDs · ${youtubeIdentityHealth.duplicateRows.toLocaleString()} duplicate cached rows.`} Creator and playlist memberships share one video record.</span></div>{youtubeHealthVisible && <YoutubeFirstClickStatus />}
                     {youtubeHealthVisible && <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{youtubeHealth.map((channel) => <article key={channel.id} className="rounded-sm bg-bg/45 p-3"><p className="truncate text-sm font-medium text-fg">{channel.title}</p><p className="mt-1 text-xs text-muted">{channel.cached.toLocaleString()} cached · last result {channel.lastResponseCount ?? 0} rows</p><p className="mt-1 text-xs text-muted">{channel.newest ? `Newest ${new Date(channel.newest).toLocaleDateString()}` : "No published item cached"} · {channel.lastCheckedAt ? `checked ${new Date(channel.lastCheckedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "not checked yet"}</p><p className="mt-1 text-xs text-muted">{channel.catalogCursor ? "Archive paging in progress" : channel.catalogExhaustedAt ? "Public archive reached" : "Archive sweep not started"} · {channel.lastProviderFailure ? `${channel.lastProviderFailure.message} · ${channel.lastProviderFailure.recovery}` : channel.retryAt && channel.retryAt > Date.now() ? `Retry ${new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Provider ready"}</p><p className="mt-1 text-xs text-muted">{channel.cache ? `${channel.cache.scope === "catalog" ? "Catalog cache" : channel.cache.scope === "feed" ? "Feed cache" : "Not retained"} · ${Math.max(0, Math.floor((Date.now() - channel.cache.at) / 1_000))}s old · ${Math.round(channel.cache.hits / Math.max(1, channel.cache.hits + channel.cache.misses) * 100)}% hit rate` : "Cache telemetry appears after the first refresh"}</p>{channel.lastProviderFailure && channel.retryAt && channel.retryAt > Date.now() && <p className="mt-1 text-xs text-accent">Retry {new Date(channel.retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}</p>}</article>)}</div>}
                   </section>
+                  <ProviderRecentSection kind="youtube" />
                   <YoutubeLiveCheckStatus />
                   <YoutubeOfflineAudit />
                   <FollowManager kind="youtube" />
@@ -1306,6 +1312,7 @@ export function LibraryApp() {
                   <div className="mb-5"><Button variant="secondary" aria-expanded={twitchArchiveSearchVisible} onClick={() => setTwitchArchiveSearchVisible(value => !value)}>{twitchArchiveSearchVisible ? 'Hide saved archive search' : 'Search saved Twitch archive'}</Button></div>
                   {twitchArchiveSearchVisible && <Suspense fallback={<p role="status" className="mb-5 text-sm text-muted">Opening archive search…</p>}><TwitchArchiveSearch videos={twitchVideos} follows={follows} onClose={() => setTwitchArchiveSearchVisible(false)} /></Suspense>}
                   <section className="mb-5 rounded-lg border border-border p-4" aria-label="Twitch fast start"><p className="text-sm text-muted">Fast start keeps live streams and your creator mix ready. Open the larger shelves when you need them; closing them releases their prepared catalogs.</p><div className="mt-3 flex flex-wrap gap-2"><Button variant="secondary" aria-expanded={twitchExploreVisible} onClick={() => setTwitchExploreVisible(value => !value)}>{twitchExploreVisible ? 'Hide Twitch recommendations' : 'Explore Twitch recommendations'}</Button><Button variant="secondary" aria-expanded={twitchCatalogVisible} onClick={() => setTwitchCatalogVisible(value => !value)}>{twitchCatalogVisible ? 'Close full Twitch catalog' : 'Open full Twitch catalog'}</Button></div></section>
+                  <ProviderRecentSection kind="twitch" />
                   <TwitchLiveCheckStatus action={false} />
                   <FollowManager kind="twitch" />
                   <ProviderPullPanel kind="twitch" />

@@ -1,7 +1,7 @@
 import { copyCatalogArray, forEachCatalogSlice, sortCatalogRows } from '../catalog-work.ts';
 import type { HistoryEntry, LibraryVideo } from './types.ts';
 
-export type CreatorVideoSort = 'newest' | 'oldest' | 'title' | 'popular';
+export type CreatorVideoSort = 'newest' | 'oldest' | 'title' | 'popular' | 'playlist';
 export type CreatorVideoFilter = 'all' | 'unwatched' | 'favorites';
 export type CreatorVideoSource = { id: string; channelId?: string };
 export type CreatorVideoActivity = { watched: Set<string>; favorites: number; watchedCount: number; newest: number };
@@ -18,9 +18,9 @@ export async function prepareCreatorVideos(videos: LibraryVideo[], source: Creat
   return rows;
 }
 
-export async function orderCreatorVideos(rows: LibraryVideo[], sort: CreatorVideoSort, turn: () => Promise<void>) {
+export async function orderCreatorVideos(rows: LibraryVideo[], sort: CreatorVideoSort, turn: () => Promise<void>, sourceId?:string) {
   const copy = await copyCatalogArray(rows, turn);
-  return sortCatalogRows(copy, (a, b) => sort === 'title' ? a.name.localeCompare(b.name)
+  return sortCatalogRows(copy, (a, b) => sort === 'playlist' ? (a.remote?.playlistMemberships?.[sourceId??'']?.order??Infinity)-(b.remote?.playlistMemberships?.[sourceId??'']?.order??Infinity)||a.id.localeCompare(b.id) : sort === 'title' ? a.name.localeCompare(b.name)
     : sort === 'oldest' ? a.addedAt - b.addedAt
     : sort === 'popular' ? (b.remote?.views ?? 0) - (a.remote?.views ?? 0) || b.addedAt - a.addedAt
     : b.addedAt - a.addedAt, turn);

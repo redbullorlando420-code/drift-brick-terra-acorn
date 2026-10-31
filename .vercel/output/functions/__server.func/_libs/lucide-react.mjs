@@ -536,6 +536,29 @@ var Cpu = createLucideIcon("cpu", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var Database = createLucideIcon("database", [
+	["ellipse", {
+		cx: "12",
+		cy: "5",
+		rx: "9",
+		ry: "3",
+		key: "msslwz"
+	}],
+	["path", {
+		d: "M3 5V19A9 3 0 0 0 21 19V5",
+		key: "1wlel7"
+	}],
+	["path", {
+		d: "M3 12A9 3 0 0 0 21 12",
+		key: "mv7ke4"
+	}]
+]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var Download = createLucideIcon("download", [
 	["path", {
 		d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4",
@@ -1872,6 +1895,19 @@ var Plus = createLucideIcon("plus", [["path", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var Power = createLucideIcon("power", [["path", {
+	d: "M12 2v10",
+	key: "mnfbl"
+}], ["path", {
+	d: "M18.4 6.6a9 9 0 1 1-12.77.04",
+	key: "obofu9"
+}]]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var QrCode = createLucideIcon("qr-code", [
 	["rect", {
 		width: "5",
@@ -2741,4 +2777,4 @@ var Youtube = createLucideIcon("youtube", [["path", {
 	key: "1jp15x"
 }]]);
 //#endregion
-export { MessageCircle as $, Bot as $t, Search as A, FlaskConical as At, Pin as B, Cpu as Bt, SkipBack as C, HeartPulse as Ct, ShieldCheck as D, Folder as Dt, Shield as E, Gamepad2 as Et, RefreshCw as F, Eye as Ft, PanelLeftClose as G, CircleCheck as Gt, PictureInPicture2 as H, Clock3 as Ht, Radio as I, EyeOff as It, Music2 as J, ChevronLeft as Jt, PackageSearch as K, CircleAlert as Kt, QrCode as L, ExternalLink as Lt, Route as M, Flag as Mt, RotateCcw as N, Film as Nt, Settings2 as O, FolderSearch as Ot, Rocket as P, FileText as Pt, Minimize2 as Q, Box as Qt, Plus as R, Expand as Rt, SkipForward as S, Heart as St, ShoppingBag as T, Glasses as Tt, Pause as U, ClipboardList as Ut, PinOff as V, Copy as Vt, PanelLeftOpen as W, Clapperboard as Wt, MonitorPlay as X, Check as Xt, Monitor as Y, ChevronDown as Yt, Minimize as Z, ChartColumn as Zt, Sun as _, Images as _t, Volume2 as a, ArrowRight as an, LockOpen as at, Smartphone as b, ImageOff as bt, Upload as c, ListVideo as ct, TriangleAlert as d, Link2 as dt, Bookmark as en, Menu as et, Trash2 as f, Lightbulb as ft, Swords as g, Keyboard as gt, Tag as h, Laptop as ht, VolumeX as i, ArrowUp as in, Lock as it, Save as j, Flame as jt, Send as k, FolderPlus as kt, Undo2 as l, ListPlus as lt, ThumbsDown as m, LayoutDashboard as mt, X as n, Bell as nn, Maximize as nt, Video as o, ArrowLeft as on, LoaderCircle as ot, ThumbsUp as p, LayoutGrid as pt, OctagonX as q, ChevronRight as qt, Wifi as r, BellOff as rn, Maximize2 as rt, Users as s, ArrowDown as sn, List as st, Youtube as t, BookmarkPlus as tn, Megaphone as tt, Twitch as u, ListChecks as ut, Star as v, Image as vt, Shuffle as w, Grid3x3 as wt, SlidersHorizontal as x, History as xt, Sparkles as y, ImagePlus as yt, Play as z, Download as zt };
+export { Minimize2 as $, ChartColumn as $t, Search as A, FolderPlus as At, Play as B, Download as Bt, SkipBack as C, Heart as Ct, ShieldCheck as D, Gamepad2 as Dt, Shield as E, Glasses as Et, RefreshCw as F, FileText as Ft, PanelLeftOpen as G, ClipboardList as Gt, PinOff as H, Cpu as Ht, Radio as I, Eye as It, OctagonX as J, CircleAlert as Jt, PanelLeftClose as K, Clapperboard as Kt, QrCode as L, EyeOff as Lt, Route as M, Flame as Mt, RotateCcw as N, Flag as Nt, Settings2 as O, Folder as Ot, Rocket as P, Film as Pt, Minimize as Q, Check as Qt, Power as R, ExternalLink as Rt, SkipForward as S, History as St, ShoppingBag as T, Grid3x3 as Tt, PictureInPicture2 as U, Copy as Ut, Pin as V, Database as Vt, Pause as W, Clock3 as Wt, Monitor as X, ChevronLeft as Xt, Music2 as Y, ChevronRight as Yt, MonitorPlay as Z, ChevronDown as Zt, Sun as _, Keyboard as _t, Volume2 as a, BellOff as an, Lock as at, Smartphone as b, ImagePlus as bt, Upload as c, ArrowLeft as cn, List as ct, TriangleAlert as d, ListChecks as dt, Box as en, MessageCircle as et, Trash2 as f, Link2 as ft, Swords as g, Laptop as gt, Tag as h, LayoutDashboard as ht, VolumeX as i, Bell as in, Maximize2 as it, Save as j, FlaskConical as jt, Send as k, FolderSearch as kt, Undo2 as l, ArrowDown as ln, ListVideo as lt, ThumbsDown as m, LayoutGrid as mt, X as n, Bookmark as nn, Megaphone as nt, Video as o, ArrowUp as on, LockOpen as ot, ThumbsUp as p, Lightbulb as pt, PackageSearch as q, CircleCheck as qt, Wifi as r, BookmarkPlus as rn, Maximize as rt, Users as s, ArrowRight as sn, LoaderCircle as st, Youtube as t, Bot as tn, Menu as tt, Twitch as u, ListPlus as ut, Star as v, Images as vt, Shuffle as w, HeartPulse as wt, SlidersHorizontal as x, ImageOff as xt, Sparkles as y, Image as yt, Plus as z, Expand as zt };

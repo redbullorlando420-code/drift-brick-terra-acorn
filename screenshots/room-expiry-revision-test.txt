@@ -1,0 +1,16 @@
+✔ lost acknowledgement checks a receipt and confirms an applied operation without replaying it (1.237ms)
+✔ missing receipt retries once with stable identity and only an unchanged queue, selection and host (0.1994ms)
+✔ consumed or removed titles cannot reappear after a reconnect, even if the old original arrives after the receipt query (0.1029ms)
+✔ offline intents remain pending, reconnect queries precede retry, and orphaned work expires without mutations (0.1216ms)
+✔ receipts and query fences are isolated by peer, bounded, retained beyond intent expiry and cleared per room (1.4717ms)
+✔ pending operations and completed history stay bounded, duplicate receipts do not grow history (0.1594ms)
+✔ receipt queries reject oversized/duplicate identities and old host generations cannot authorize edits (0.1561ms)
+✔ delayed original expires at the host even after receipt and query histories have been pruned (0.0988ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 103.2305

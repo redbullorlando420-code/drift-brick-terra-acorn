@@ -1,0 +1,31 @@
+✔ low space pauses before creating an output folder or native process, and reload preserves the pause (55.9502ms)
+✔ verified partial files survive a low-space pause and resume with the same receipt and no-overwrite flags (98.7282ms)
+✔ altered partials and legacy unowned files cannot be adopted; a fresh copy uses a separate destination (113.0111ms)
+✔ queued work rechecks disk space at dispatch instead of trusting its admission time (62.1105ms)
+✔ unknown sizes and unavailable disk measurements stay explicit; invalid estimates cannot shrink the allowance (61.7207ms)
+✔ destination identity replacement and revoked roots cannot resume a pending download (65.6784ms)
+✔ concurrent identical clicks share one literal Windows launcher request and receipt (16.0949ms)
+✔ another game is independent; the short deduplication window expires for an explicit new request (14.5472ms)
+✔ missing, revoked, directory and unsupported shortcuts fail before native dispatch (5.5648ms)
+✔ asynchronous launch failure is a reusable failure receipt and permits an appropriate retry (11.04ms)
+✔ pending revocation cancels dispatch observation and never promotes a late spawn to acceptance (7.298ms)
+✔ restart keeps pending work interrupted without launching; malformed receipt storage fails closed (11.4794ms)
+✖ unsupported OS never invokes a Windows command and receipts remain bounded (188.3231ms)
+ℹ Error: Test "unsupported OS never invokes a Windows command and receipts remain bounded" at scripts\game-launch-receipts.test.mjs:142:1 generated asynchronous activity after the test ended. This activity created the error "Error: Launch receipts cannot be saved. Check Companion storage before launching." and would have caused the test to fail, but instead triggered an unhandledRejection event.
+ℹ tests 13
+ℹ suites 0
+ℹ pass 12
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 910.0008
+
+✖ failing tests:
+
+test at scripts\game-launch-receipts.test.mjs:142:1
+✖ unsupported OS never invokes a Windows command and receipts remain bounded (188.3231ms)
+  Error: fixture
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/game-launch-receipts.test.mjs:149:44)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

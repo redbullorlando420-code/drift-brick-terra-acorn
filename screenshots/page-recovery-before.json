@@ -1,0 +1,165 @@
+{
+  "ok": false,
+  "reports": [
+    {
+      "mobile": false,
+      "stored": null,
+      "name": "Games",
+      "errors": [],
+      "ok": false,
+      "error": "Something went wrong\n\nCannot read properties of null (reading 'games')"
+    },
+    {
+      "mobile": false,
+      "stored": null,
+      "name": "3D prints",
+      "errors": [],
+      "ok": false,
+      "error": "Something went wrong\n\nCannot read properties of null (reading 'prints')"
+    },
+    {
+      "mobile": false,
+      "stored": null,
+      "name": "Settings",
+      "errors": [],
+      "ok": false,
+      "error": "Something went wrong\n\nCannot read properties of null (reading 'prints')"
+    },
+    {
+      "mobile": false,
+      "stored": {
+        "games": {},
+        "prints": [
+          null,
+          {
+            "name": "Kept sample.stl",
+            "path": "Samples/kept.stl",
+            "size": 100,
+            "addedAt": 1
+          }
+        ]
+      },
+      "name": "Games",
+      "errors": [],
+      "ok": false,
+      "error": "Something went wrong\n\nsaved.map is not a function"
+    },
+    {
+      "mobile": false,
+      "stored": {
+        "games": {},
+        "prints": [
+          null,
+          {
+            "name": "Kept sample.stl",
+            "path": "Samples/kept.stl",
+            "size": 100,
+            "addedAt": 1
+          }
+        ]
+      },
+      "name": "3D prints",
+      "errors": [],
+      "ok": false,
+      "error": "Something went wrong\n\nCannot read properties of null (reading 'id')"
+    },
+    {
+      "mobile": false,
+      "stored": {
+        "games": {},
+        "prints": [
+          null,
+          {
+            "name": "Kept sample.stl",
+            "path": "Samples/kept.stl",
+            "size": 100,
+            "addedAt": 1
+          }
+        ]
+      },
+      "name": "Settings",
+      "errors": [],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "stored": null,
+      "name": "Games",
+      "errors": [],
+      "ok": false,
+      "error": "Something went wrong\n\nCannot read properties of null (reading 'games')"
+    },
+    {
+      "mobile": true,
+      "stored": null,
+      "name": "3D prints",
+      "errors": [],
+      "ok": false,
+      "error": "Something went wrong\n\nCannot read properties of null (reading 'prints')"
+    },
+    {
+      "mobile": true,
+      "stored": null,
+      "name": "Settings",
+      "errors": [],
+      "ok": false,
+      "error": "Something went wrong\n\nCannot read properties of null (reading 'prints')"
+    },
+    {
+      "mobile": true,
+      "stored": {
+        "games": {},
+        "prints": [
+          null,
+          {
+            "name": "Kept sample.stl",
+            "path": "Samples/kept.stl",
+            "size": 100,
+            "addedAt": 1
+          }
+        ]
+      },
+      "name": "Games",
+      "errors": [],
+      "ok": false,
+      "error": "Something went wrong\n\nsaved.map is not a function"
+    },
+    {
+      "mobile": true,
+      "stored": {
+        "games": {},
+        "prints": [
+          null,
+          {
+            "name": "Kept sample.stl",
+            "path": "Samples/kept.stl",
+            "size": 100,
+            "addedAt": 1
+          }
+        ]
+      },
+      "name": "3D prints",
+      "errors": [],
+      "ok": false,
+      "error": "Something went wrong\n\nCannot read properties of null (reading 'id')"
+    },
+    {
+      "mobile": true,
+      "stored": {
+        "games": {},
+        "prints": [
+          null,
+          {
+            "name": "Kept sample.stl",
+            "path": "Samples/kept.stl",
+            "size": 100,
+            "addedAt": 1
+          }
+        ]
+      },
+      "name": "Settings",
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

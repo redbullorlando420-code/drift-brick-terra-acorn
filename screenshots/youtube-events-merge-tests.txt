@@ -1,0 +1,23 @@
+✔ routine refreshes keep historical YouTube uploads that were not repeated by the provider (1.4863ms)
+✔ a successful live check reports stale broadcast cards while marking them offline (0.186ms)
+✔ catalog sweeps reuse unchanged rows and append new uploads without dropping saved details (0.6433ms)
+✔ an archive row with an unknown date retains a known feed publication date (0.2172ms)
+✔ compact YouTube archive rows retain known views and duration while accepting explicit fresh values (0.1923ms)
+✔ unchanged million-entry pages visit the catalog once without copying it (437.4037ms)
+✔ staged changes preserve sequential duplicates, canonical identity and newer live observations (0.9825ms)
+✔ async refreshes share unchanged arrays and preserve removals, live transitions and new rows (68.111ms)
+✔ cancellation of staged catalog work leaves all original references intact (1.0838ms)
+✔ large change batches and late removals match sequential merge behavior without mutating the input (761.0429ms)
+✔ indexed sweep preparation yields before reads, never scans its index, and reuses unchanged catalogs (6.598ms)
+✔ indexed sweep staging matches sequential merges, canonical aliases and duplicate page rows (0.5891ms)
+✔ cancelled indexed copies leave the original catalog and every index position intact (10.0069ms)
+✔ saved refresh preparation handles dense sparse ledgers without sorting/exporting their patch keys (140.5499ms)
+✔ routine refresh cancellation reaches prefix materialization and preserves all existing cards (1.6754ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1590.9796

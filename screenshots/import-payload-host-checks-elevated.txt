@@ -1,0 +1,21 @@
+✔ the flag predicate matches src/lib/auth (0.6214ms)
+✔ reads the value a live dev server resolved (0.1461ms)
+✔ a server started without the flag reads as sign-in on (0.0655ms)
+✔ agreement passes (0.1281ms)
+✔ divergence fails in either direction (0.1229ms)
+✔ an unobservable dev server is indeterminate, not agreement (0.0662ms)
+✔ a dev server that cannot be reached probes as null (0.0894ms)
+✔ a server without the endpoint probes as null, not as agreement (0.156ms)
+✔ only a divergence warns the smoke verdict (0.4797ms)
+✔ the build side resolves the template's shipped app-env (1.0482ms)
+✔ the CLI reports rather than silently passing when run via a symlink (83.6461ms)
+✔ local media byte ranges handle seeking, suffixes and malformed/out-of-bounds requests (0.8528ms)
+✔ completed local media serves bounded ranges and HEAD, with truthful missing/invalid responses (38.1084ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 292.7194

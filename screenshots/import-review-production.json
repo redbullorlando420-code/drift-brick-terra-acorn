@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "errors": [],
+      "checks": [
+        "10k held names mount at most 10 review rows and trigger no automatic identity lookups",
+        "End/Space selection, filter and logical anchor survive reload through the existing import session",
+        "Ambiguous identity failure stays visible and saved without an automatic retry or verified follow",
+        "Explicit retry can admit a verified identity; saved rows are disabled and not re-submitted"
+      ],
+      "requests": 2
+    },
+    {
+      "mobile": true,
+      "errors": [],
+      "checks": [
+        "10k held names mount at most 10 review rows and trigger no automatic identity lookups",
+        "End/Space selection, filter and logical anchor survive reload through the existing import session",
+        "Ambiguous identity failure stays visible and saved without an automatic retry or verified follow",
+        "Explicit retry can admit a verified identity; saved rows are disabled and not re-submitted"
+      ],
+      "requests": 2
+    }
+  ],
+  "limitation": "Isolated 10k-name session fixtures and controlled provider responses. Desktop/mobile Chromium emulation; no real follows, account cookies or provider requests."
+}

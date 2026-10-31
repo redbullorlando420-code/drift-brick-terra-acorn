@@ -11,7 +11,8 @@ try{for(const viewport of [{name:'desktop',width:1280,height:800},{name:'mobile'
  let job=null,installed=false,finish=true,reads=0,cancelled=0,uploadBytes=0,generations=[];
  await context.route('http://127.0.0.1:43123/**',async route=>{
   const req=route.request(),path=new URL(req.url()).pathname,headers={'access-control-allow-origin':'*','access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type'};if(req.method()==='OPTIONS')return route.fulfill({status:204,headers});let body={ok:true};
-  if(path==='/studio/models'){reads++;if(job?.state==='running'&&finish){job={...job,state:'done',received:100,total:100,note:'Verified fixture installed.'};installed=true;}body={ok:true,models:installed?[{name:'new-model.safetensors',role:'checkpoints',engine:'a1111'}]:[],job};}
+  if(path==='/health')body={ok:true,service:'reelcase-companion',version:12,capabilities:['studio-models']};
+   if(path==='/studio/models'){reads++;if(job?.state==='running'&&finish){job={...job,state:'done',received:100,total:100,note:'Verified fixture installed.'};installed=true;}body={ok:true,models:installed?[{name:'new-model.safetensors',role:'checkpoints',engine:'a1111'}]:[],job};}
   if(path==='/studio/models/inspect')body={ok:true,files:[{file:'new-model.safetensors',name:'new-model.safetensors',bytes:100,role:'checkpoints',supported:true}]};
   if(path==='/studio/models/install'){assert.ok(req.postDataJSON().bundle||req.postDataJSON().file==='new-model.safetensors');job={id:'remote',label:'Model fixture',state:'running',received:20,total:100,note:'Downloading fixture…'};body={ok:true,job};}
   if(path==='/studio/models/cancel'){cancelled++;job={...job,state:'cancelled',note:'Transfer cancelled.'};}

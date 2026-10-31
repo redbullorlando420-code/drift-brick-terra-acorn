@@ -1,3 +1,4 @@
+import { videoIsPrivate } from './public-visibility.ts';
 import type { TopicCatalogInput } from './topic-catalog';
 import { forEachCatalogSlice } from '../catalog-work.ts';
 import { TOPICS,baseCanonicalTopic } from './topic-taxonomy.ts';
@@ -17,7 +18,7 @@ export async function inspectAliasCandidates(input:TopicCatalogInput,ledger:Topi
  const candidates=new Map<string,{count:number;sources:Set<string>;samples:string[];suggested?:string;ambiguous:boolean}>(),memo=new Map<string,ReturnType<typeof suggestAliasTopic>>();
  const exact=requested?aliasLabel(requested):undefined;let examined=0,truncated=false;
  await forEachCatalogSlice(input.videos,video=>{
-  if(privateFolders.has(video.folderId)||isAdultPullKind(video.remote?.kind)||video.remote&&!['youtube','twitch'].includes(video.remote.kind)||input.hiddenVideos[video.id]||input.unavailable[video.id]||video.isSample||!known.has(video.folderId)&&!video.remote)return;
+  if(videoIsPrivate(privateFolders,video)||isAdultPullKind(video.remote?.kind)||video.remote&&!['youtube','twitch'].includes(video.remote.kind)||input.hiddenVideos[video.id]||input.unavailable[video.id]||video.isSample||!known.has(video.folderId)&&!video.remote)return;
   const labels=new Set((input.tags[video.id]??[]).slice(0,128).map(aliasLabel));
   for(const alias of labels){
    if(exact&&alias!==exact||approved.has(alias)||baseCanonicalTopic(alias)||!validAliasLabel(alias))continue;

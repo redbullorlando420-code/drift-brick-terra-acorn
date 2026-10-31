@@ -18,7 +18,7 @@ export function useImportSession(kind:FollowKind){
    const hide=()=>{void flush();};window.addEventListener('pagehide',hide);
    return()=>{cancelled=true;mounted.current=false;window.removeEventListener('pagehide',hide);if(timer.current!==undefined)void flush();};
  },[kind,flush]);
- const update=useCallback((patch:Partial<Pick<ImportSession,'draft'|'query'|'profile'|'saved'>>)=>{
+ const update=useCallback((patch:Partial<Pick<ImportSession,'draft'|'query'|'profile'|'saved'|'review'>>)=>{
    const base=current.current.kind===kind?current.current:readLocalImportSession(kind);
    const next={...base,...patch,updatedAt:Math.max(Date.now(),base.updatedAt+1)};
    current.current=next;setValue(next);stageImportSession(next);setNotice('Saving…');

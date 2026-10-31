@@ -50,7 +50,7 @@ try {
       await page.getByRole('button', { name: 'Copy X', exact: true }).click();
       assert.equal((await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, '\n'), edited);
       assert.equal(await page.getByRole('button', { name: 'Mark X shared', exact: true }).count(), 1);
-      const popupPromise = page.waitForEvent('popup'); await page.getByRole('link', { name: 'Compose on X', exact: true }).click();
+      await page.getByRole('button',{name:'Allow draft composers',exact:true}).click(); const popupPromise = page.waitForEvent('popup'); await page.getByRole('link', { name: 'Compose on X', exact: true }).click();
       const popup = await popupPromise; await popup.waitForLoadState('domcontentloaded');
       assert.equal(new URL(popup.url()).searchParams.get('text'), edited); await popup.close();
       assert.equal(await page.getByRole('button', { name: 'Mark X shared', exact: true }).count(), 1);

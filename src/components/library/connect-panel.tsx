@@ -1,3 +1,5 @@
+import { emptyImportReview, cleanImportReview } from '@/lib/videos/import-review';
+import { CreatorImportReview } from './import-review';
 import { memo, useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
   Check,
@@ -41,9 +43,11 @@ export const ConnectPanel=memo(function ConnectPanel({ defaultKind = "youtube", 
   const [found, setFound] = useState<ImportCandidate[]>([]);
   const [finding, setFinding] = useState(false);
   useEffect(() => { if (lockedKind) setKind(lockedKind); }, [lockedKind]);
-  const savedLists=useMemo(()=>kind==='youtube'?repairYoutubeImport(session.saved,bulk).queries:session.saved,[kind,session.saved,bulk]);
+  const savedLists=useMemo(()=>kind==='youtube'&&session.saved.length>0&&!session.review?repairYoutubeImport(session.saved,bulk).queries:session.saved,[kind,session.saved,session.review,bulk]);
   const settledBulk=useDeferredValue(bulk);
   const candidates = useMemo(() => linesToCandidates(settledBulk, kind), [settledBulk, kind]);
+  const reviewQueries = useMemo(()=>candidates.slice(0,10000).map(item=>item.query),[candidates]);
+  const activeReviewKeys = useMemo(()=>new Set(reviewQueries.map(query=>canonicalFollowHandle(kind,query))),[reviewQueries,kind]);
   const networkFollows = useMemo(()=>follows.filter((follow) => follow.kind === kind),[follows,kind]);
   const health = useMemo(() => kind==='youtube'?youtubeFollowHealth(follows):{verified:0,pending:0,review:0}, [follows,kind]);
   const resolved=useMemo(()=>resolvedFollowQueries(follows,kind),[follows,kind]);
@@ -80,13 +84,13 @@ export const ConnectPanel=memo(function ConnectPanel({ defaultKind = "youtube", 
       toast.error(err instanceof Error ? err.message : "Could not add that source");
     }
   };
-  const importItems = async (items: ImportCandidate[]) => {
+  const importItems = async (items: ImportCandidate[], reviewed = false) => {
     if (!items.length) return;
     const normalized = items.map((item) => ({ ...item, query: item.query.trim().replaceAll("\\_", "_") }));
     // Save the submitted list before requesting providers. A partial outage
     // must never make a pasted collection disappear.
-    const saved = importSessionEntries(kind,[...normalized.map((item) => item.query), ...savedLists]);
-    editImport({saved,draft:bulk||normalized.map(item=>item.query).join('\n')});
+    const saved = importSessionEntries(kind,[...normalized.map((item) => item.query), ...(reviewed ? session.saved : savedLists)]);
+    editImport({saved,draft:bulk||normalized.map(item=>item.query).join('\n'),...(reviewed?{review:session.review??emptyImportReview()}:{})});
     await flushImport();
     try {
       const result = await importBatch(normalized);
@@ -104,6 +108,7 @@ export const ConnectPanel=memo(function ConnectPanel({ defaultKind = "youtube", 
             : `${result.ok} channel${result.ok === 1 ? "" : "s"} added`,
         );
       }
+      return result;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not import those channels");
     }
@@ -250,7 +255,7 @@ export const ConnectPanel=memo(function ConnectPanel({ defaultKind = "youtube", 
               <Button
                 size="sm"
                 disabled={remoteBusy || !candidates.length || settledBulk!==bulk}
-                onClick={() => void importItems(candidates)}
+                onClick={() => document.querySelector('[data-import-review]')?.scrollIntoView({block:'center'})}
               >
                 {remoteBusy ? (
                   <LoaderCircle className="size-4 animate-spin" />
@@ -261,6 +266,8 @@ export const ConnectPanel=memo(function ConnectPanel({ defaultKind = "youtube", 
               </Button>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2"><Button size="sm" variant="secondary" className="min-h-11" onClick={()=>void flushImport()}>Save draft</Button><p role="status" aria-label="Import list save status" className="text-xs text-muted">{importSaveNotice||'Drafts and submitted lists are kept on this device.'}</p></div>
+            {candidates.length > 10000 && <p className="mt-3 text-xs text-muted" role="status">Review shows the first 10,000 entries. Your full draft is saved; split larger lists before importing the remainder.</p>}
+            {candidates.length > 0 && <CreatorImportReview kind={kind} queries={reviewQueries} resolved={resolved} value={session.review} onChange={review=>editImport({review:cleanImportReview(review,activeReviewKeys)})} onImport={items=>importItems(items,true)} busy={remoteBusy||settledBulk!==bulk} />}
             {kind === 'youtube' && <p className="mt-3 text-xs leading-5 text-muted" aria-label="YouTube subscription health">{health.verified.toLocaleString()} verified sources · {health.pending.toLocaleString()} awaiting exact channel match · {health.review.toLocaleString()} legacy fragments held for review. Review entries keep their videos and are excluded from automatic pulls.</p>}
             {kind === "twitch" && (
               <div className="mt-4 border-t border-border pt-4">
@@ -292,7 +299,7 @@ export const ConnectPanel=memo(function ConnectPanel({ defaultKind = "youtube", 
                 {found.length > 0 && (
                   <ImportReview
                     items={found}
-                    onImport={() => void importItems(found)}
+                    onImport={() => { setBulk(found.map(item=>item.query).join('\n')); setFound([]); }}
                     busy={remoteBusy}
                   />
                 )}
@@ -324,7 +331,7 @@ export const ConnectPanel=memo(function ConnectPanel({ defaultKind = "youtube", 
           </div>
         </div>
       )}
-      {savedLists.length > 0 && <div className="border-t border-border px-5 py-4 sm:px-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Saved import list</p><p className="mt-1 text-xs text-muted">{savedLists.length} channel entries retained locally for this service. Unverified entries resume in small batches; verified entries are skipped.</p><div className="mt-3 flex flex-wrap gap-2">{savedLists.slice(0, 12).map((handle) => <span key={handle} className="rounded-sm bg-elevated px-2 py-1 text-xs text-muted">{handle}</span>)}</div><Button className="mt-3 mr-2 min-h-11" size="sm" variant="secondary" onClick={()=>{setBulk(savedLists.join('\n'));void flushImport();}}>Restore saved list to editor</Button><Button className="mt-3" size="sm" variant="secondary" disabled={remoteBusy} onClick={() => void importItems(savedLists.map((query) => ({ query, kind })))}><ListPlus className="size-3.5" /> Load saved list now</Button></div>}
+      {savedLists.length > 0 && <div className="border-t border-border px-5 py-4 sm:px-6"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Saved import list</p><p className="mt-1 text-xs text-muted">{savedLists.length} channel entries retained locally for this service. Unverified entries resume in small batches; verified entries are skipped.</p><div className="mt-3 flex flex-wrap gap-2">{savedLists.slice(0, 12).map((handle) => <span key={handle} className="rounded-sm bg-elevated px-2 py-1 text-xs text-muted">{handle}</span>)}</div><Button className="mt-3 mr-2 min-h-11" size="sm" variant="secondary" onClick={()=>{setBulk(savedLists.join('\n'));void flushImport();}}>Restore saved list to editor</Button><Button className="mt-3" size="sm" variant="secondary" disabled={remoteBusy} onClick={() => {setBulk(savedLists.join('\n'));void flushImport();}}><ListPlus className="size-3.5" /> Review saved list</Button></div>}
       <div className="flex flex-col gap-3 border-t border-border bg-elevated/30 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p className="flex items-center gap-2 text-muted">
           <Check className="size-4 text-accent" /> Latest uploads and live streams appear
@@ -431,7 +438,7 @@ function ImportReview({
           {items.length} public follow{items.length === 1 ? "" : "s"} found
         </p>
         <Button size="sm" disabled={busy} onClick={onImport}>
-          <ListPlus className="size-4" /> Import all
+          <ListPlus className="size-4" /> Review found list
         </Button>
       </div>
       <p className="mt-2 line-clamp-2 text-xs text-muted">

@@ -1,0 +1,37 @@
+{"viewport":"desktop","stage":"navigation and setup"}
+{"viewport":"desktop","stage":"exports and history"}
+{"viewport":"desktop","stage":"simulator controls"}
+{"viewport":"mobile","stage":"navigation and setup"}
+{"viewport":"mobile","stage":"exports and history"}
+{"viewport":"mobile","stage":"simulator controls"}
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8083/",
+  "note": "Isolated browser profiles; platform handoffs intercepted, no social posts sent. Local disk failure simulated. Live chat, live detection and game adapter remain unconnected.",
+  "results": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "png": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone77-signal-production-story-desktop.png",
+      "setupScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone77-signal-production-setup-desktop.png",
+      "blueprintScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone77-signal-production-blueprint-desktop.png",
+      "announcementScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone77-signal-production-announcements-desktop.png",
+      "draftsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone77-signal-production-drafts-desktop.png",
+      "labScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone77-signal-production-lab-desktop.png",
+      "overflow": 0,
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "png": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone77-signal-production-story-mobile.png",
+      "setupScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone77-signal-production-setup-mobile.png",
+      "blueprintScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone77-signal-production-blueprint-mobile.png",
+      "announcementScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone77-signal-production-announcements-mobile.png",
+      "draftsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone77-signal-production-drafts-mobile.png",
+      "labScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\milestone77-signal-production-lab-mobile.png",
+      "overflow": 0,
+      "ok": true
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "an old Twitch observation is shown as needing a check, not as an ended broadcast; a live-only refresh restores both channels while archive pulling is paused",
+        "Movies contains only the feature-length local film and explicit public full movie; short/unknown-duration titles, gameplay, vlog and anime episode are excluded",
+        "Anime recognizes local and YouTube episodes and an anime film while rejecting reaction/review videos and an unrelated provider-generated anime tag",
+        "Guide reaches a matching title at the catalog tail, explains its tag match, opens the result, and honestly returns no match for an unknown query",
+        "Topic Explorer combines a racing topic, normalized custom tag search, saved evidence and sorting; result evidence is visible, no-match is accurate, and filters reset"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "an old Twitch observation is shown as needing a check, not as an ended broadcast; a live-only refresh restores both channels while archive pulling is paused",
+        "Movies contains only the feature-length local film and explicit public full movie; short/unknown-duration titles, gameplay, vlog and anime episode are excluded",
+        "Anime recognizes local and YouTube episodes and an anime film while rejecting reaction/review videos and an unrelated provider-generated anime tag",
+        "Guide reaches a matching title at the catalog tail, explains its tag match, opens the result, and honestly returns no match for an unknown query",
+        "Topic Explorer combines a racing topic, normalized custom tag search, saved evidence and sorting; result evidence is visible, no-match is accurate, and filters reset"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Isolated desktop/mobile Chromium; 3,009 catalog titles, real persistence and app selectors, deterministic provider/player fixtures. Actual Twitch batching is checked separately."
+}

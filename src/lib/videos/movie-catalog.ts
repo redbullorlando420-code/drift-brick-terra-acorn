@@ -1,3 +1,4 @@
+import { videoIsPrivate } from './public-visibility.ts';
 import { forEachCatalogEntry, forEachCatalogSlice, sortCatalogRows } from '../catalog-work.ts';
 import { isClassicVideo } from './types.ts';
 import type { Folder, LibraryVideo, VideoMetadataProvenance } from './types';
@@ -40,7 +41,7 @@ export async function prepareMovieCatalog(scope: MovieCatalogScope, turn: () => 
   const candidates: LibraryVideo[] = [], features: LibraryVideo[] = [], shorts: LibraryVideo[] = [], documentaries: LibraryVideo[] = []; let awaitingRuntime = 0;
   const filmGroups=new Map<string,LibraryVideo[]>();
   await forEachCatalogSlice(scope.videos, video => {
-    if (privateFolders.has(video.folderId) || scope.hidden[video.id] || scope.unavailable[video.id]) return;
+    if (videoIsPrivate(privateFolders,video) || scope.hidden[video.id] || scope.unavailable[video.id]) return;
     const observed = scope.progress?.[video.id]?.d;
     if (!(Number.isFinite(video.duration) && video.duration! > 0) && Number.isFinite(observed) && observed! > 0 && observed! <= 31_536_000) video = { ...video, duration: observed };
     const version=scope.filmLedger?.versions[video.id],reviewed=version&&scope.filmLedger?.films[version.filmId]&&!video.isSample&&!video.remote?.live&&(!video.remote?folderNames.has(video.folderId):video.remote.kind==='youtube'&&!['short','upcoming'].includes(video.remote.youtubeType??''));

@@ -4,7 +4,7 @@ import { startTransition, useCallback, useEffect, useMemo, useRef, useState } fr
 import { youtubePublicationTime } from '@/lib/videos/youtube-metadata';
 import { rankingFeedbackSnapshot } from '@/lib/media-feedback';
 import { scheduleBackgroundWork } from '@/lib/interaction-budget';
-import { forEachCatalogSlice } from '@/lib/catalog-work';
+import { scheduleRankingStart } from '@/lib/ranking-budget';
 import { yieldNavigationTask } from '@/lib/navigation-work';
 import { holdMetadataEnrichment } from '@/lib/idle-work';
 import { useLibrary } from '@/lib/videos/store';
@@ -45,9 +45,10 @@ export function useYoutubeRanking(enabled: boolean, sourceInputs: YoutubeRanking
     failure.current=undefined;
     const demand = youtubeRankingDemand(inputs, latestSeed.current, deepRef.current, packetRef.current, pageRef.current, pageDemand.current);
     if (!demand.build&&!error) { pageDemand.current = undefined; setPagePending(false); return; }
+    return scheduleRankingStart('youtube', pass => {
     let worker: Worker;
     try { worker = new Worker(new URL('../../lib/remote/youtube-ranking.worker.ts', import.meta.url), { type: 'module' }); }
-    catch { failure.current={revision:workRevision,seed:latestSeed.current};setPagePending(false);setError('Personal ranking is unavailable. You can still browse newest-first.'); return; }
+    catch { pass.finish('failed'); failure.current={revision:workRevision,seed:latestSeed.current};setPagePending(false);setError('Personal ranking is unavailable. You can still browse newest-first.'); return; }
     setError('');
     workerRef.current = worker;
     const releaseEnrichment = holdMetadataEnrichment();
@@ -61,7 +62,7 @@ export function useYoutubeRanking(enabled: boolean, sourceInputs: YoutubeRanking
     worker.onmessage = ({ data }: MessageEvent<YoutubeRankingResult>) => {
       if (!active || data?.seed !== latestSeed.current) return;
       if(!Array.isArray(data.ids)||!Array.isArray(data.offsets)||data.ids.length!==data.offsets.length||data.ids.length>96||!['recommendations','page'].includes(data.kind)){failed();return;}
-      waiting.delete(data.kind);if(!waiting.size)clearTimeout(watchdog);else watch();
+      waiting.delete(data.kind);if(!waiting.size){clearTimeout(watchdog);pass.finish();}else watch();
       releaseEnrichment();
       // The worker preserves source-array positions. Resolve each small page directly,
       // rather than scanning a million-entry array again for each result.
@@ -80,20 +81,20 @@ export function useYoutubeRanking(enabled: boolean, sourceInputs: YoutubeRanking
         setPagePending(false);
       } else startTransition(() => setPacket({ inputs, seed: data.seed, videos }));
     };
-    const failed = () => { if(!active)return;failure.current={revision:workRevision,seed:latestSeed.current};active = false;clearTimeout(watchdog);waiting.clear();if(sendRef.current===send)sendRef.current=undefined; controller.abort(); releaseEnrichment(); worker.terminate(); if (workerRef.current === worker) workerRef.current = undefined; setPagePending(false); setError('Personal ranking could not finish. Newest-first browsing is available.'); };
+    const failed = () => { if(!active)return;pass.finish('failed');failure.current={revision:workRevision,seed:latestSeed.current};active = false;clearTimeout(watchdog);waiting.clear();if(sendRef.current===send)sendRef.current=undefined; controller.abort(); releaseEnrichment(); worker.terminate(); if (workerRef.current === worker) workerRef.current = undefined; setPagePending(false); setError('Personal ranking could not finish. Newest-first browsing is available.'); };
     worker.onerror = event=>{event.preventDefault();failed();};worker.onmessageerror=failed;
     const cancel = scheduleBackgroundWork(() => void (async () => {
       const feedback = await rankingFeedbackSnapshot(); if (!active) return;
       send({ type: 'reset', topicAliases: getTopicAliases(), recommendationExposure: getRecommendationExposure(), now: Date.now(), recommendationRejections: feedback.recommendationRejections, creatorLikes: feedback.creatorLikes, creatorFavorites: feedback.creatorFavorites, creatorRatings: feedback.creatorRatings, heartedTags: feedback.heartedTags, historicTags: feedback.historicTags });
       let chunk: YoutubeRankingRow[] = [];
       const turn = async () => { await yieldNavigationTask(controller.signal); if (!active) throw new Error('Obsolete ranking'); };
-      await forEachCatalogSlice(inputs.videos, (item, index) => {
+      await pass.visit(inputs.videos, (item, index) => {
         const video: YoutubeRankingRow['video'] = { catalogOffset: index, id: item.id, folderId: item.folderId, addedAt: youtubePublicationTime(item), name: '', path: '', size: 0, extension: 'yt', mime: 'video/youtube',
           remote: item.remote ? { videoId: item.remote.videoId, kind: item.remote.kind, live: item.remote.live, youtubeType: item.remote.youtubeType, channelId: item.remote.channelId, channelName: item.remote.channelName,
             ...(item.remote.youtubeTagSummary ? { youtubeTagSummary: { version: item.remote.youtubeTagSummary.version, sources: item.remote.youtubeTagSummary.sources, scores:item.remote.youtubeTagSummary.scores, signals:item.remote.youtubeTagSummary.signals, titleHash:item.remote.youtubeTagSummary.titleHash, topics: [] } } : {}) } : undefined };
         chunk.push({ video, tags: inputs.tags[item.id] ?? EMPTY_TAGS, rating: feedback.ratings[item.id] ?? 0, favorite: Boolean(inputs.favorites[item.id]), liked: Boolean(inputs.likes[item.id]), marks: inputs.cameCounts[item.id] ?? 0, watch: feedback.watchScores[item.id] ?? 0, plays: inputs.viewCounts[item.id] ?? 0 });
         if (chunk.length === 512) { send({ type: 'append', rows: chunk }); chunk = []; }
-      }, turn, 4096);
+      }, turn);
       if (chunk.length) send({ type: 'append', rows: chunk });
       for (let offset = 0; offset < inputs.history.length; offset += 2048) { await turn(); send({ type: 'history', entries: inputs.history.slice(offset, offset + 2048) }); }
       for (let offset = 0; offset < inputs.candidates.length; offset += 2048) { await turn(); send({ type: 'candidates', ids: inputs.candidates.slice(offset, offset + 2048).map(video => video.id) }); }
@@ -104,6 +105,7 @@ export function useYoutubeRanking(enabled: boolean, sourceInputs: YoutubeRanking
       }
     })().catch(() => { if (active) failed(); }));
     return () => { active = false;clearTimeout(watchdog);waiting.clear();if(sendRef.current===send)sendRef.current=undefined;worker.onmessage=worker.onerror=worker.onmessageerror=null;controller.abort(); releaseEnrichment(); cancel(); worker.terminate(); if (workerRef.current === worker) workerRef.current = undefined; };
+    });
   }, [enabled, inputs, viewerOpen, idle, hidden, workRevision]);
   useEffect(() => {
     if (!deep) { pageDemand.current = undefined; setPagePending(false); }

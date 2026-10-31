@@ -1,0 +1,15 @@
+✔ concurrent identical clicks share one literal Windows launcher request and receipt (14.302ms)
+✔ another game is independent; the short deduplication window expires for an explicit new request (13.2155ms)
+✔ missing, revoked, directory and unsupported shortcuts fail before native dispatch (4.2638ms)
+✔ asynchronous launch failure is a reusable failure receipt and permits an appropriate retry (9.7187ms)
+✔ pending revocation cancels dispatch observation and never promotes a late spawn to acceptance (5.027ms)
+✔ restart keeps pending work interrupted without launching; malformed receipt storage fails closed (8.2637ms)
+✔ unsupported OS never invokes a Windows command and receipts remain bounded (199.6918ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 345.205

@@ -1,3 +1,4 @@
+import {SetupChecklist} from './setup-checklist';
 import { ArrowRight, Box, ChevronDown, Clapperboard, Heart, LayoutDashboard, Lock, MonitorPlay, Radio, Settings2, Sparkles, Users } from 'lucide-react';
 import { useLayoutEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,7 @@ const KEY = 'reelcase.home.groups.v1';
 const QUICK = [['continue', 'Continue watching', MonitorPlay], ['live', 'Live now', Radio], ['watch-room', 'Watch together', Users], ['landing', 'Landing page', LayoutDashboard]] as const;
 
 /** Navigation only: startup never scans the catalog or mounts media shelves. */
-export function LightHome() {
+export function LightHome({onAddFolder}:{onAddFolder?:()=>void}) {
   const setSource = useLibrary(s => s.setSource);
   const [ready, setReady] = useState(false);
   const [groups, setGroups] = useState<Record<string, boolean>>(() => Object.fromEntries(GROUPS.map(group => [group.id, 'open' in group && group.open])));
@@ -50,6 +51,7 @@ export function LightHome() {
         {QUICK.map(([id, title, Icon], index) => <Button key={id} variant={index === 0 ? 'default' : 'secondary'} className="min-h-11" onClick={() => go(id)}><Icon className="size-4" aria-hidden="true" />{title}</Button>)}
       </div>
     </div>
+    <SetupChecklist onAddFolder={onAddFolder}/>
     <div className="mb-4 mt-8 flex items-baseline justify-between gap-3"><h2 className="font-display text-2xl text-fg">Explore your spaces</h2><span className="text-xs text-muted">Expand a section</span></div>
     <nav aria-label="Home workspaces" className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
       {GROUPS.map(({ id, title, detail, icon: Icon, links }) => <details key={id} open={groups[id]} onToggle={event => {

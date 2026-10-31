@@ -1,0 +1,40 @@
+{
+  "ok": true,
+  "output": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\pack-transfer-production.json",
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Future version blocked before storage mutation",
+        "Read-only review lists differing personal records and replace-follows consequences",
+        "100,000-record inspection remains cancellable and leaves saved preferences unchanged",
+        "Complete 100,000-record preflight identifies the existing note conflict without applying it",
+        "Explicit reviewed import merges follows and replaces matching ratings",
+        "Imported creator and personal preferences survive reload",
+        "Downloaded streaming backup passes integrity and schema preflight with exact saved values"
+      ],
+      "export": {
+        "bytes": 5709,
+        "records": 17
+      }
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "Future version blocked before storage mutation",
+        "Read-only review lists differing personal records and replace-follows consequences",
+        "100,000-record inspection remains cancellable and leaves saved preferences unchanged",
+        "Complete 100,000-record preflight identifies the existing note conflict without applying it",
+        "Explicit reviewed import merges follows and replaces matching ratings",
+        "Imported creator and personal preferences survive reload",
+        "Downloaded streaming backup passes integrity and schema preflight with exact saved values"
+      ],
+      "export": {
+        "bytes": 5709,
+        "records": 17
+      }
+    }
+  ]
+}

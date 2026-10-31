@@ -128,6 +128,9 @@ export type RemoteKind = FollowKind | "eporner" | "redtube" | "chaturbate" | "my
  */
 export type MetadataTagSource = "manual" | "local-name" | "companion-inspection" | "local-vision" | "youtube-review" | `provider:${RemoteKind}` | "legacy";
 export type VideoMetadataProvenance = {
+  /** Personal field clocks survive unrelated automatic metadata updates. */
+  manualTagsAt?: number;
+  manualCategoryAt?: number;
   youtubeTextTagVersion?: number;
   youtubeReviews?: Record<string,{version:1;score:number;signals:number;at:number}>;
   /** The latest known source for each normalized tag on the title. */
@@ -153,12 +156,15 @@ export type ProviderFailure = {
 
 export type RemoteRef = {
   /** Exact Twitch media identity and the public shelf that supplied its subtype. */
+  twitchClipIdentity?: import('./twitch-identity').TwitchClipIdentity;
   twitchContent?: import('./twitch-content').TwitchContentEvidence;
   kind: RemoteKind;
   /** A post can be discovered on one provider while its media is hosted by another. */
   sourceKinds?: RemoteKind[];
-  /** Saved creator/playlist memberships for one deduplicated YouTube card. */
+  /** Saved source memberships for one deduplicated provider card. */
   sourceIds?: string[];
+  playlistMemberships?: Record<string, import('./youtube-playlist-walk').PlaylistMembership>;
+  youtubeEvent?: import('./youtube-events').YoutubeEvent;
   videoId?: string;
   channelId?: string;
   channelName?: string;
@@ -239,7 +245,7 @@ export type TwitchClipDiagnostics = {
 
 export type RecentPullState = {
   attemptedAt: number; checkedAt?: number; failures: number; retryAt?: number;
-  failure?: ProviderFailure; newestVideoId?: string;
+  failure?: ProviderFailure; newestVideoId?: string; gap?: import('./youtube-feed-gap').YoutubeFeedGap;
 };
 export type FollowedChannel = {
   /** Optional user-owned automatic content settings. Legacy follows include both at normal priority. */
@@ -247,6 +253,8 @@ export type FollowedChannel = {
   youtubeLiveEvidence?: import('../remote/youtube-live-evidence').YoutubeLiveEvidence;
   youtubeLiveVideoIds?: string[];
   youtubeLiveKnownOverflow?: boolean;
+  youtubeEvents?: import('./youtube-events').YoutubeEvent[];
+  playlistWalk?: import('./youtube-playlist-walk').PlaylistWalk;
   id: string;
   kind: FollowKind;
   liveOfflineSince?: number;

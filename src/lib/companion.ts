@@ -1,4 +1,5 @@
 /** Thin client for the optional loopback Realhub Companion (127.0.0.1 only). */
+import { negotiateCompanion, companionFeatureIssue, companionPathFeature, type CompanionFeature, type CompanionNegotiation } from './companion-protocol.ts';
 import { CoalescedWriter } from "./coalesced-writer.ts";
 import { allowAutomaticRefresh } from "./session-activity.ts";
 
@@ -9,6 +10,7 @@ export type CompanionHealth = {
   service?: string;
   version?: number;
   roots?: number;
+  rootAccess?: {generation:number;active:number};
   desktopEnabled?: boolean;
   ytDlp?: boolean;
   youtubeDl?: boolean;
@@ -18,9 +20,27 @@ export type CompanionHealth = {
   printsRoot?: string | null;
   trayBadge?: number;
   capabilities?: string[];
+  protocol?: { major: number; minor: number };
+  platform?:{schema:1;os:"win32"|"linux"|"darwin"|"other";pathStyle:"windows"|"posix";windowsDesktop:boolean;note:string};
+  negotiation?: CompanionNegotiation;
+  permissions?:{version:1;revision:number;scopes:Record<string,{allowed:boolean;generation:number}>};
 };
 
-async function companionFetch(path: string, init?: RequestInit): Promise<Response> {
+export async function requireCompanionFeature(feature: CompanionFeature): Promise<void> {
+  const issue = companionFeatureIssue(negotiateCompanion(await companionHealth()), feature);
+  if (issue) throw new Error(issue);
+}
+export async function companionFetch(path: string, init?: RequestInit): Promise<Response> {
+  if (path !== '/health') {
+    const feature = companionPathFeature(path);
+    const health = await companionHealth();
+    init?.signal?.throwIfAborted();
+    let sensitive=path==='/studio/models/install'||/^\/studio\/models\/transfers\/.+\/(resume|fresh)$/.test(path);
+    if(path.startsWith('/youtube/downloads')&&typeof init?.body==='string'){try{const body=JSON.parse(init.body);sensitive=body.useBrowserSession===true;}catch{/* Native route validates malformed input. */}}
+    const permissionIssue=sensitive?companionFeatureIssue(negotiateCompanion(health),'capability-consent'):undefined;
+    const issue = permissionIssue || (feature ? companionFeatureIssue(negotiateCompanion(health), feature) : 'This Companion operation has no negotiated capability.');
+    if (issue) return new Response(JSON.stringify({ok:false,error:issue,code:'COMPANION_CAPABILITY'}),{status:503,headers:{'content-type':'application/json'}});
+  }
   return fetch(`${COMPANION_ORIGIN}${path}`, {
     ...init,
     signal: init?.signal ?? AbortSignal.timeout(10_000),
@@ -41,7 +61,8 @@ export function companionHealth(force = false): Promise<CompanionHealth | null> 
   healthPending = (async () => {
     try {
       const response = await companionFetch('/health', { signal: AbortSignal.timeout(1500) });
-      healthCached = response.ok ? await response.json() as CompanionHealth : null;
+      const value = response.ok ? await response.json() as CompanionHealth : null;
+      healthCached = value ? {...value, negotiation:negotiateCompanion(value)} : null;
     } catch { healthCached = null; }
     healthExpires = Date.now() + (healthCached ? 15000 : 3000);
     return healthCached;
@@ -162,11 +183,11 @@ export async function companionArtworkAudit(): Promise<ArtworkAudit> {
 
 export type CompanionPrintFile = { name: string; path: string; size: number; suffix?: string };
 
-export async function companionListPrints(limit = 200): Promise<{ prints: CompanionPrintFile[]; printsRoot?: string | null }> {
+export async function companionListPrints(limit = 200): Promise<{ prints: CompanionPrintFile[]; printsRoot?: string | null; error?: string }> {
   try {
     const response = await companionFetch(`/prints/list?limit=${limit}`);
-    const data = await response.json() as { ok?: boolean; prints?: CompanionPrintFile[]; printsRoot?: string | null };
-    return { prints: data.ok && Array.isArray(data.prints) ? data.prints : [], printsRoot: data.printsRoot };
+    const data = await response.json() as { ok?: boolean; prints?: CompanionPrintFile[]; printsRoot?: string | null; error?:string };
+    return { prints: data.ok && Array.isArray(data.prints) ? data.prints : [], printsRoot: data.printsRoot, ...(data.error?{error:data.error}:{}) };
   } catch {
     return { prints: [] };
   }
@@ -238,3 +259,13 @@ export async function companionCacheThumbUrl(id: string, url: string): Promise<b
 }
 
 export function getCompanionMemorySnapshot() { return { posters: posterMirror.snapshot(), rememberedPosters: mirroredPosters.size }; }
+
+
+export type GameLaunchReceipt={id:string;path:string;name:string;at:number;updatedAt:number;status:'pending'|'accepted'|'failed'|'interrupted';detail:string;readiness:'unverified';launcherExit:number|null;reused?:boolean;persistent:boolean;retryable:boolean};
+export async function companionLaunchGame(path:string):Promise<{ok:boolean;receipt?:GameLaunchReceipt;error?:string}>{
+ const response=await companionFetch('/launch',{method:'POST',body:JSON.stringify({path})});
+ return await response.json();
+}
+export async function companionLaunchHistory():Promise<{ok:boolean;receipts?:GameLaunchReceipt[];persistent?:boolean;error?:string}>{
+ const response=await companionFetch('/launch-receipts');return await response.json();
+}

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { runPausablePull } from "@/lib/pull-control";
 import { getPullSettings } from '@/lib/pull-settings';
 import {
+  runFetchTwitchChapters,
   runFetchAdultComments,
   runFetchLiveRooms,
   runFetchTwitchFollowing,
@@ -59,18 +60,22 @@ export const youtubeCreatorProfiles = createServerFn({ method: "POST" })
 
 export type { AdultComment } from "./api";
 const pacedData = (data: unknown) => ({ ...(data && typeof data === 'object' ? data : {}), youtubeRequestGapMs: getPullSettings().youtubeRequestGapMs });
-export const followRemote = (...args: Parameters<typeof followRemoteRequest>) => runPausablePull(signal => followRemoteRequest({ ...args[0], data: pacedData(args[0]?.data), signal }));
+export const followRemote = (...args: Parameters<typeof followRemoteRequest>) => {
+  const data = args[0]?.data as { twitchClipMode?: string } | undefined;
+  return runPausablePull(signal => followRemoteRequest({ ...args[0], data: pacedData(args[0]?.data), signal }),
+    { operation: data?.twitchClipMode ? 'clips' : 'archive', signal: args[0]?.signal });
+};
 export const refreshRemotes = (...args: Parameters<typeof refreshRemotesRequest>) => {
-  const data = args[0]?.data as { youtubeLiveOnly?: boolean; twitchLiveOnly?: boolean; youtubeBackground?: boolean; channels?: { kind?: string }[] } | undefined;
+  const data = args[0]?.data as { youtubeLiveOnly?: boolean; twitchLiveOnly?: boolean; youtubeBackground?: boolean; youtubeCatalog?: boolean; youtubeFeedRepair?: boolean; twitchContinueArchive?: boolean; channels?: { kind?: string }[] } | undefined;
   const live = Boolean(data?.youtubeLiveOnly || data?.twitchLiveOnly);
   const provider = data?.youtubeLiveOnly && !data.twitchLiveOnly ? 'youtube' : data?.twitchLiveOnly && !data.youtubeLiveOnly ? 'twitch'
     : data?.channels?.every(channel => channel.kind === 'youtube') ? 'youtube' : data?.channels?.every(channel => channel.kind === 'twitch') ? 'twitch' : undefined;
   // Owners gate new automatic turns; an accepted status read must not hold a
   // provider lane indefinitely if bulk archives are paused during the response.
   return runPausablePull(signal => refreshRemotesRequest({ ...args[0], data: pacedData(args[0]?.data), signal }),
-    { live, provider, ignorePause: live, automatic: data?.youtubeBackground, signal: args[0]?.signal });
+    { live, provider, operation: live ? 'live' : data?.youtubeCatalog || data?.youtubeFeedRepair || data?.twitchContinueArchive ? 'archive' : 'recent', ignorePause: live, automatic: data?.youtubeBackground, signal: args[0]?.signal });
 };
-export const importChannels = (...args: Parameters<typeof importChannelsRequest>) => runPausablePull(signal => importChannelsRequest({ ...args[0], data: pacedData(args[0]?.data), signal }));
+export const importChannels = (...args: Parameters<typeof importChannelsRequest>) => runPausablePull(signal => importChannelsRequest({ ...args[0], data: pacedData(args[0]?.data), signal }), { operation: 'import', signal: args[0]?.signal });
 export const searchAdultVideos = (...args: Parameters<typeof searchAdultVideosRequest>) => runPausablePull(signal => searchAdultVideosRequest({ ...args[0], signal }));
 
 /** Selected-photo validation must continue while bulk pulling is paused. */
@@ -84,3 +89,5 @@ export const inspectRedditImage = createServerFn({ method: 'POST' })
 const liveRoomsRequest = createServerFn({ method: 'POST' }).validator(input).handler(({ data }) => runFetchLiveRooms(data));
 /** Room pages are demand-driven live reads, independent of archive pause. */
 export const fetchLiveRooms = (options: Parameters<typeof liveRoomsRequest>[0]) => runPausablePull(signal => liveRoomsRequest({ ...options, signal: options?.signal ? AbortSignal.any([signal, options.signal]) : signal }), { live: true, ignorePause: true });
+
+export const fetchTwitchChapters=createServerFn({method:'POST'}).validator(input).handler(({data})=>runFetchTwitchChapters(data));

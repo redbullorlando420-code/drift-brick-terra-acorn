@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "ok": true,
+  "reports": [
+    {
+      "provider": "youtube",
+      "fixture": {
+        "rows": 100,
+        "unusedCommandsPerMenu": 20,
+        "trackingUnits": 256
+      },
+      "rawBytes": 1243291,
+      "parsed": {
+        "provider": "youtube",
+        "outcome": "accepted",
+        "rawBytes": 1243291,
+        "textUnits": 1243291,
+        "tokens": 31701,
+        "containers": 9501,
+        "depth": 11,
+        "estimatedScratchBytes": 5098761,
+        "parseMs": 12.85820000000001
+      },
+      "legacyRetainedBytes": 1241491,
+      "retainedPayloadBytes": 31491,
+      "observedHeapGrowthAtCheckpoints": 3853224,
+      "heapCheckpointMeasurement": "GC before parse; samples before/after parse/projection"
+    },
+    {
+      "provider": "twitch",
+      "fixture": {
+        "rows": 100,
+        "unusedCommandsPerMenu": 20,
+        "trackingUnits": 256
+      },
+      "rawBytes": 619587,
+      "parsed": {
+        "provider": "twitch",
+        "outcome": "accepted",
+        "rawBytes": 619587,
+        "textUnits": 619587,
+        "tokens": 15715,
+        "containers": 4404,
+        "depth": 9,
+        "estimatedScratchBytes": 2517777,
+        "parseMs": 7.484200000000001
+      },
+      "legacyRetainedBytes": 619471,
+      "retainedPayloadBytes": 12271,
+      "observedHeapGrowthAtCheckpoints": 803800,
+      "heapCheckpointMeasurement": "GC before parse; samples before/after parse/projection"
+    }
+  ],
+  "limits": {
+    "representativeScratchEstimateBytes": 6291456,
+    "retainedPageBytes": 131072
+  },
+  "limitations": "Synthetic public metadata shapes, no real provider requests. Scratch estimates are conservative payload accounting, not exact engine heap limits. Heap checkpoints can miss transient peaks and GC activity; they are reported, not used as a portable heap gate. Runtime structural ceilings reject oversized graphs before JSON.parse."
+}

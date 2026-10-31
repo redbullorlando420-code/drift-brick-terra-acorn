@@ -1,0 +1,15 @@
+✔ real activity, preferences and dedicated stores clone sparse updates and recover old plus recent records (211.5407ms)
+✔ versioned operations accept bounded deltas, not future or oversized batches (1.4782ms)
+✔ manual records validate paired tags, provenance, field clocks and category shape (0.3338ms)
+✔ unknown and corrupt control generations remain rejected instead of reset (0.2008ms)
+✔ explicit snapshot retry invalidates only the slice writer reference cache (0.2004ms)
+✔ field clocks restore category separately from newer automatic tags without walking base dictionaries (4.6038ms)
+✔ actual sparse persistence batches restore in 256-row pages without reading full preferences or losing locks (492.9987ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1079.17

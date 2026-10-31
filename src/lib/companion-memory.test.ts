@@ -16,6 +16,7 @@ test("poster mirroring bounds stalled bursts, deduplicates frames, and backs off
   let requests = 0, active = 0, peak = 0, offline = false;
   globalThis.fetch = async (_url, init) => {
     assert.ok(init?.signal, "each request must have a deadline");
+    if (String(_url).endsWith("/health")) return Response.json({ok:true,service:"reelcase-companion",version:10,capabilities:["thumb-cache-url"]});
     peak = Math.max(peak, ++active); requests++;
     try {
       if (requests === 1) await blocked;

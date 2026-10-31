@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "errors": [],
+      "checks": [
+        "Upcoming event pages stay at 12 cards; focused check records postponement without live status or waiting viewers",
+        "Reload preserves postponed schedule; confirmed live and repeated quick check produce one saved alert",
+        "An interrupted real API traversal saves a resumable provisional checkpoint and keeps unseen tail memberships",
+        "Resuming after reload completes one walk, removes only the departed playlist edge, preserves favorites/history and exposes stable playlist order",
+        "Complete negative evidence honors the ten-minute hold, then retains exactly one canonical replay"
+      ],
+      "providerReads": 7,
+      "appRequests": 6
+    },
+    {
+      "mobile": true,
+      "errors": [],
+      "checks": [
+        "Upcoming event pages stay at 12 cards; focused check records postponement without live status or waiting viewers",
+        "Reload preserves postponed schedule; confirmed live and repeated quick check produce one saved alert",
+        "An interrupted real API traversal saves a resumable provisional checkpoint and keeps unseen tail memberships",
+        "Resuming after reload completes one walk, removes only the departed playlist edge, preserves favorites/history and exposes stable playlist order",
+        "Complete negative evidence honors the ten-minute hold, then retains exactly one canonical replay"
+      ],
+      "providerReads": 7,
+      "appRequests": 6
+    }
+  ]
+}

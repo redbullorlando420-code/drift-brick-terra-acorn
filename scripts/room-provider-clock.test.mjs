@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { providerPosition, providerNeedsCorrection, providerPlaybackWanted, youtubeLiveInfo, roomClockSample, roomPacketElapsed } from '../src/lib/multiplayer/room-provider-clock.ts';
+import { providerMayShareEvent, roomLiveMode, providerPosition, providerNeedsCorrection, providerPlaybackWanted, youtubeLiveInfo, roomClockSample, roomPacketElapsed } from '../src/lib/multiplayer/room-provider-clock.ts';
 test('live playback follows room intent independently of host buffering while VOD retains clock gating',()=>{
   assert.equal(providerPlaybackWanted(true,true,false,true),true);
   assert.equal(providerPlaybackWanted(false,true,true,true),false);
@@ -35,4 +35,9 @@ test('clock handshakes remove device wall-clock skew with a bounded monotonic ro
 });
 test('unsampled packet transit never turns clock skew into minutes of phantom video',()=>{
   assert.equal(roomPacketElapsed(100000,500000),2);assert.equal(roomPacketElapsed(100000,90000),0);
+});
+
+test('implicit guest live events never become room commands; live mode never invents DVR from duration',()=>{
+ assert.equal(providerMayShareEvent(true),false);assert.equal(providerMayShareEvent(false),true);
+ assert.equal(roomLiveMode(true),'independent-live');assert.equal(roomLiveMode(false),'on-demand');
 });

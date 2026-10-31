@@ -1,3 +1,4 @@
+import type { createRankingPass } from '../ranking-budget.ts';
 import { forEachCatalogSlice, sortCatalogRows, yieldCatalogTask } from "../catalog-work.ts";
 import { isTwitchClip } from "./twitch-clips.ts";
 import { isOfflineTwitchCatalogCard } from "./twitch-catalog-order.ts";
@@ -7,6 +8,7 @@ export async function rankTwitchVods(
   score: (video: LibraryVideo) => number,
   signal?: AbortSignal,
   yieldTask = yieldCatalogTask,
+  pass?: ReturnType<typeof createRankingPass>,
 ) {
   const turn = async () => {
     signal?.throwIfAborted();
@@ -14,7 +16,7 @@ export async function rankTwitchVods(
     signal?.throwIfAborted();
   };
   const rows: Array<{ video: LibraryVideo; score: number }> = [];
-  await forEachCatalogSlice(
+  await (pass?.visit ?? forEachCatalogSlice)(
     videos,
     (video) => {
       if (
@@ -35,7 +37,7 @@ export async function rankTwitchVods(
     turn,
   );
   const result: LibraryVideo[] = [];
-  await forEachCatalogSlice(
+  await (pass?.visit ?? forEachCatalogSlice)(
     sorted,
     (row) => {
       result.push(row.video);

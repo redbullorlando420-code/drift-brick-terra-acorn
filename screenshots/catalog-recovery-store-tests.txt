@@ -1,0 +1,34 @@
+✔ real store metadata actions return before catalog parsing, honor locks, save compact provider provenance, and hold during a viewer (166.1493ms)
+✔ real smart tags retain source/creator filters and manual locks without a catalog-sized click stack (1.4713ms)
+✔ manual and accepted inspection edits never enumerate the existing tag ledgers (1.3274ms)
+✔ removing a folder removes only its sparse enrichment records as well as its catalog metadata (0.7332ms)
+✔ cached YouTube repair replaces saturated provider tags, preserves manual locks and saves idempotent versioned rows (3.2283ms)
+✔ creator repair waits behind a viewer, recovers from failed storage, and rebases a concurrent manual lock (22.0458ms)
+✔ explicit watch metadata persists compact evidence and rechecks manual locks after asynchronous saving (4.8365ms)
+✔ focused partial Twitch pulls preserve saved VODs, local feedback and unrequested clip checkpoints (427.4943ms)
+✔ Twitch entry caps and first-page failures hold checkpoints and explain the stop (170.3636ms)
+✔ focused pulls cap memory, metadata and disk together, preserving the rejected page resume point (265.2158ms)
+✔ routine checks refresh stored titles at a zero cap while excluding new rows from disk and metadata (263.257ms)
+✔ manual completion returns its own counts even when another provider changes pull history (123.783ms)
+✔ manual force ignores the old timer, stops on a new rejection, and leaves automatic work waiting (39.0068ms)
+✔ healthy forced pulls resume the batch, keep entry caps, and clear obsolete restored deadlines (257.2483ms)
+✔ a recovered manual pull prevents untouched old creator failures restoring a global cooldown (139.8661ms)
+✔ full YouTube archive replaces at most its cleanup budget and holds partially admitted page cursors (669.0295ms)
+✔ manual cleanup rolls back failed disk commits without changing saved signals or clearing rating/history (156.3599ms)
+✔ a rating or like received while cleanup planning yields is protected by the final commit check (3183.5704ms)
+✔ Adult pulls rotate at full capacity across providers, retain protected entries and stop at the whole-pull budget (1014.1015ms)
+✔ Twitch imports use one replacement budget and zero caps hold all providers even with cleanup enabled (266.0824ms)
+✔ an empty Twitch cache borrows combined-cap slots from enabled YouTube cleanup without touching protected videos (466.4244ms)
+✔ automatic Adult replacement stays at its catalog target while manual pulls can use the larger source cap (842.9659ms)
+✔ lowering a cleanup batch during a sweep respects already spent replacements rather than resetting per page (341.6734ms)
+✔ unlocked manually authored tags and category provenance protect cached videos during cleanup (76.59ms)
+✔ movie runtime repair persists one local row while preserving source records and manual feedback (0.9115ms)
+✔ empty clip-only updates preserve 80k video and metadata references and avoid catalog writes (2571.421ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11764.2298

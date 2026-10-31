@@ -1,1 +1,0 @@
-import{Cr as e,xr as t}from"./store-bhP0OgKq.js";import{zr as n}from"./persist-T91MpkpQ.js";function r(r){return async()=>{r.throwIfAborted(),await n(),r.throwIfAborted(),t()>0&&await new Promise((t,n)=>{let i=()=>{a(),n(r.reason)},a=e(()=>{r.removeEventListener(`abort`,i),t()});r.addEventListener(`abort`,i,{once:!0})}),r.throwIfAborted()}}export{r as t};

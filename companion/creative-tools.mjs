@@ -2,7 +2,7 @@ import { createQwenEngine } from './qwen-engine.mjs';
 import { existsSync, openSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 
 /** Stop reading at the byte budget, including chunked responses with no length. */
 export async function readEngineJson(response, maxBytes = 20_000_000) {
@@ -44,12 +44,16 @@ export function remotePeer(value) {
   if (typeof value !== 'string' || !/^\d{9,12}$/.test(value)) throw new Error('Enter a RustDesk ID containing 9–12 digits. URLs, passwords and command arguments are not accepted.');
   return value;
 }
-export function createCreativeTools({ dir, spawnProcess = spawn, fetchLocal = fetch, now = Date.now, models }) {
+export function createCreativeTools({ dir, spawnProcess = spawn, fetchLocal = fetch, now = Date.now, models, platform=process.platform }) {
   const modelsManager = models;
   const rustdesk = process.env.RUSTDESK_PATH || join(dir, 'tools', process.platform === 'win32' ? 'rustdesk.exe' : 'rustdesk');
-  let armed = null, child = null, lastLaunch = 0, generation = false, engine = null;
+  let armed = null, child = null, lastLaunch = 0, generation = false, engine = null, launchReceipt=null,launchRequester='',launchOrigin='';
+  const launchHistory=[];
+  const publicLaunch=()=>launchReceipt?{...launchReceipt,sessionVerified:false}:null;
+  const approvalMatches=(a,b)=>typeof b==='string'&&/^[a-f0-9]{48}$/.test(b)&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
+  const requester=body=>{if(body.requester!==undefined&&(typeof body.requester!=='string'||!/^[a-f0-9-]{36}$/.test(body.requester)))throw Error('Invalid launch request scope.');return body.requester??'';};
   const source = join(dir,'tools','stable-diffusion-webui'), python = join(source,'venv','Scripts','python.exe');
-  const canStart = () => existsSync(join(dir,'tools','stable-diffusion-ready.json')) && existsSync(python) && existsSync(join(source,'venv','Lib','site-packages','torch')) && (existsSync(join(source,'models','Stable-diffusion','v1-5-pruned-emaonly-fp16.safetensors')) || existsSync(join(source,'models','Stable-diffusion','v1-5-pruned-emaonly.safetensors')));
+  const canStart = () => platform==='win32' && existsSync(join(dir,'tools','stable-diffusion-ready.json')) && existsSync(python) && existsSync(join(source,'venv','Lib','site-packages','torch')) && (existsSync(join(source,'models','Stable-diffusion','v1-5-pruned-emaonly-fp16.safetensors')) || existsSync(join(source,'models','Stable-diffusion','v1-5-pruned-emaonly.safetensors')));
   const audit = [];
   const record = event => { audit.unshift({ event, at: now() }); audit.splice(20); };
   const sd = async (path, body, timeout = 3000) => {
@@ -57,8 +61,9 @@ export function createCreativeTools({ dir, spawnProcess = spawn, fetchLocal = fe
     if (!response.ok) throw Object.assign(new Error(`AUTOMATIC1111 returned HTTP ${response.status}. Check its local API and authentication.`), { connectionIssue: response.status === 401 || response.status === 403 ? 'authentication' : 'engine' });
     return readEngineJson(response, path === 'txt2img' ? 20_000_000 : 512_000);
   };
-  const qwen = models ? createQwenEngine({ dir, models, validate:generationPayload, spawnProcess, fetchLocal }) : null;
+  const qwen = models ? createQwenEngine({ dir, models, platform,validate:generationPayload, spawnProcess, fetchLocal }) : null;
   const handle = async function handle(path, method, body = {}, origin = '') {
+    if(path.startsWith('/remote/')&&method==='POST'&&['password','unattended','args','command','path','url'].some(key=>Object.hasOwn(body,key)))throw Error('Unattended access, passwords, URLs and custom commands are unsupported. Authenticate interactively in RustDesk.');
     if (path.startsWith('/studio/models')) return models?.action(path, method, body) ?? null;
     if (qwen && path.startsWith('/studio/qwen/')) {
       if (path === '/studio/qwen/start' && method === 'POST') {
@@ -111,37 +116,43 @@ export function createCreativeTools({ dir, spawnProcess = spawn, fetchLocal = fe
       } finally { generation = false; }
     }
     if (path === '/studio/interrupt' && method === 'POST') { if (!generation) return { ok: true }; await sd('interrupt', {}, 5000); return { ok: true }; }
-    if (path === '/remote/status' && method === 'GET') return { ok: true, installed: existsSync(rustdesk), armed: Boolean(armed && armed.expires > now()), launcherRunning: Boolean(child), audit, mode: 'native-outbound' };
+    if (path === '/remote/status' && method === 'GET') {if(armed&&armed.expires<=now()){armed=null;record('One-use approval expired');}return { ok: true, safeguards:2,sessionVerified:false,unattendedSupported:false,installed: existsSync(rustdesk), armed: Boolean(armed), launcherRunning: Boolean(child), launch:publicLaunch(),history:launchHistory.map(row=>({...row,sessionVerified:false})),audit:[...audit], mode: 'native-outbound' };}
     if (path === '/remote/arm' && method === 'POST') {
       const peer = remotePeer(body.peer);
       if (!existsSync(rustdesk)) throw new Error('RustDesk is not installed. Run Setup-Creative-Tools.cmd in the Companion folder.');
       if (child) throw new Error('A launcher is already active. Lock launch controls before preparing another request.');
-      armed = { peer, origin, token: randomBytes(24).toString('hex'), expires: now() + 30_000 }; record('One-use connection approval prepared');
-      return { ok: true, token: armed.token, expires: armed.expires };
+      const scope=requester(body);
+      if(armed&&armed.expires>now()&&(armed.origin!==origin||armed.requester!==scope))throw Error('Another page has an unconfirmed approval. Cancel it or wait for its expiry.');
+      armed = { peer, origin, requester:scope, token: randomBytes(24).toString('hex'), expires: now() + 30_000 }; record('One-use connection approval prepared');
+      return { ok: true, token: armed.token, expires: armed.expires,ttlMs:30000,safeguards:2 };
     }
     if (path === '/remote/connect' && method === 'POST') {
-      const peer = remotePeer(body.peer), approval = armed; armed = null;
-      if (!approval || approval.origin !== origin || approval.peer !== peer || approval.token !== body.token || approval.expires <= now() || body.confirmation !== `CONNECT ${peer}`) throw new Error('Approval expired or did not match. Prepare a new connection and type its confirmation.');
+      const peer = remotePeer(body.peer), approval = armed;
+      if (!approval || approval.origin !== origin || approval.peer !== peer || !approvalMatches(approval.token,body.token) || approval.requester!==requester(body) || approval.expires <= now() || body.confirmation !== `CONNECT ${peer}`) throw new Error('Approval expired or did not match. Prepare a new connection and type its confirmation.');
+      armed=null;
       if (child || now() - lastLaunch < 5000) throw new Error('A launcher is already active. Close it before trying again.');
-      const launched = spawnProcess(rustdesk, ['--connect', peer, '--no-server'], { shell: false, windowsHide: true, stdio: 'ignore' });
-      child = launched; lastLaunch = now(); record('User requested a native connection');
-      launched.once('error', () => { record('Native launcher failed'); if (child === launched) child = null; });
-      launched.once('exit', () => { record('Native launcher exited; this does not prove a session ended'); if (child === launched) child = null; });
-      return { ok: true, note: 'RustDesk was launched. Complete authentication and permissions in its native window. This website cannot verify the remote session or its permissions.' };
+      const receipt={id:randomUUID(),requestedAt:now(),state:'launch-requested',sessionVerified:false};launchReceipt=receipt;launchHistory.unshift(receipt);launchHistory.splice(10);
+      let launched;try{launched = spawnProcess(rustdesk, ['--connect', peer, '--no-server'], { shell: false, windowsHide: true, stdio: 'ignore' });}catch{receipt.state='failed';record('Native launcher failed');throw Error('RustDesk launch failed. Review the local client before retrying.');}
+      child = launched;launchRequester=approval.requester;launchOrigin=origin; lastLaunch = now(); record('User requested a native connection');
+      launched.once('error', () => { receipt.state='failed';receipt.observedAt=now();record('Native launcher failed'); if (child === launched) child = null; });
+      launched.once('exit', () => { receipt.state='launcher-exited';receipt.observedAt=now();record('Native launcher exited; this does not prove a session ended'); if (child === launched) child = null; });
+      return { ok: true, launch:publicLaunch(),note: 'RustDesk was launched. Complete authentication and permissions in its native window. This website cannot verify the remote session or its permissions.' };
     }
     if (path === '/remote/revoke' && method === 'POST') {
-      if (armed && armed.origin === origin && armed.token === body.token) { armed = null; record('One-use connection approval cancelled'); }
+      if (armed && armed.origin === origin && approvalMatches(armed.token,body.token) && armed.requester===requester(body)) { armed = null; record('One-use connection approval cancelled'); }
       return { ok: true };
     }
     if (path === '/remote/lock' && method === 'POST') {
-      armed = null;
-      if (child) { child.kill(); child = null; }
+      const scope=requester(body),mayStop=!scope||(scope===launchRequester&&origin===launchOrigin);
+      if(!scope||armed?.requester===scope&&armed?.origin===origin)armed=null;
+      if (child&&mayStop) { if(launchReceipt){launchReceipt.state='stop-requested';launchReceipt.observedAt=now();}try{child.kill();}catch{if(launchReceipt)launchReceipt.state='stop-unconfirmed';} }
       record('Web launch controls locked');
-      return { ok: true, note: 'New launches are locked and the tracked launcher was stopped. End any handed-off session in RustDesk; the website cannot guarantee that a native session disconnected.' };
+      return { ok: true, note: 'This page’s approvals are revoked. A stop is requested only for its tracked launcher; another page’s launcher is left alone. End any handed-off session in RustDesk; the website cannot guarantee that a native session disconnected.' };
     }
     return null;
   };
   handle.shutdown = async () => {
+    armed=null;if(child){try{child.kill();}catch{}if(launchReceipt)launchReceipt.state='stop-requested';}
     if(engine){const owned=engine;if(process.platform==='win32')spawnProcess('taskkill.exe',['/PID',String(owned.pid),'/T','/F'],{shell:false,windowsHide:true,stdio:'ignore'}).once('error',()=>{});else owned.kill();}
     await qwen?.shutdown();
   };

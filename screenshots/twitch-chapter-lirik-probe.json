@@ -1,0 +1,13 @@
+{
+  "stage": "chapters",
+  "status": 200,
+  "id": "2913136839",
+  "length": 14631,
+  "chapters": 4,
+  "first": {
+    "id": "37c6d6b2948e86f6dd86c9fd9dfb3577",
+    "positionMilliseconds": 0,
+    "durationMilliseconds": 3027000,
+    "description": "Just Chatting"
+  }
+}

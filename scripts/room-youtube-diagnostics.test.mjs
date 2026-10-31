@@ -131,9 +131,11 @@ test("diagnostic JSON rebuilds a strict public whitelist without room, local, ac
   };
   const raw = exportYoutubeEmbedEvidence([row], time),
     out = JSON.parse(raw);
-  assert.doesNotMatch(raw, /SECRET|cookies|providerPayload/);
-  assert.equal(out.version, 1);
-  assert.equal(out.titles[0].watchUrl, "https://www.youtube.com/watch?v=" + id);
+  assert.doesNotMatch(raw, /SECRET|providerPayload/);
+  assert.equal(out.version, 2);
+  assert.equal(out.titles[0].watchUrl, undefined);
+  assert.equal(out.titles[0].videoId,undefined);
+  assert.equal(out.diagnostic.kind,"youtube-player");
   assert.deepEqual(out.titles[0].events, [{ phase: "error", at: time, code: 153 }]);
   assert.throws(() => exportYoutubeEmbedEvidence([row], Infinity));
 });

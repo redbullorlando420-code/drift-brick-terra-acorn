@@ -1,0 +1,25 @@
+{
+  "revision": 61,
+  "completed": [
+    "next-050",
+    "next-096"
+  ],
+  "defaultComplete": 257,
+  "total": 306,
+  "nextLevelComplete": 55,
+  "tests": 189,
+  "build": true,
+  "typecheck": true,
+  "browserReports": [
+    "room-access-dev.json",
+    "room-access-production.json",
+    "status-announcements-dev.json",
+    "status-announcements-production.json",
+    "room-access-mission-dev.json",
+    "room-access-mission-production.json",
+    "room-access-home-dev.json",
+    "room-access-home-production.json"
+  ],
+  "screenReaderSpeech": "unverified",
+  "coverage": "Chrome desktop and touch-phone emulation, real WebRTC, controlled provider metadata, DOM accessibility-tree/live-region checks, forced colors and reduced motion"
+}

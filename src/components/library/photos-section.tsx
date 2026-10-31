@@ -1,3 +1,5 @@
+import {BrowserPermissionControl} from './capability-permissions';
+import { companionFetch } from '@/lib/companion';
 import { decodeArtworkBitmap } from '@/lib/videos/bitmap-pool';
 import {clearReviewedPhotos,setReviewedPhotos} from '@/lib/reviewed-photo-bridges';
 import { getPerformanceProfile } from '@/lib/performance-profile';
@@ -13,6 +15,7 @@ import { ratingPreference } from "@/lib/media-feedback";
 import { benchmarkVisionModelsLocally, classifyImagesLocally, VISION_MODELS, type VisionBenchmark, type VisionLabel, type VisionModelId } from "@/lib/local-vision";
 import { LOCAL_UPSCALER, upscaleImageLocally } from "@/lib/local-upscaler";
 import { bytes, HubShell } from './hub-shared';
+import { PhotoLabelInput } from './photo-label-input';
 
 type LocalPhoto = {
   id: string;
@@ -234,7 +237,7 @@ export function PhotosSection() {
     let alive = true;
     const read = async (signal: AbortSignal) => {
       try {
-        const response = await fetch("http://127.0.0.1:43123/cache-status", { signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]) });
+        const response = await companionFetch("/cache-status", { signal: AbortSignal.any([signal, AbortSignal.timeout(5_000)]) });
         const data = await response.json() as { worker?: { state?: string; photos?: number; videos?: number; scannedAt?: number; truncated?: boolean }; recentChanges?: { path?: string; at?: number }[] };
         if (!alive || !data.worker) return;
         setCompanionCache({ state: data.worker.state ?? "ready", photos: Number(data.worker.photos) || 0, videos: Number(data.worker.videos) || 0, scannedAt: Number(data.worker.scannedAt) || 0, truncated: Boolean(data.worker.truncated) });
@@ -329,6 +332,7 @@ export function PhotosSection() {
     }
   }, []);
   const flushPhotoMetadata=()=>{if(metadataWriteTimer.current)clearTimeout(metadataWriteTimer.current);
+      if (!photos.length) { metadataWriteTimer.current=null; return; }
       try {
         const nextMeta = { ...photoMetadata(), ...Object.fromEntries(photos.map(({ id, path, people, tags, album, favorite, hidden, rating, width, height, vision, visionModel }) => [id, { path, people, tags, album, favorite, hidden, rating, width, height, vision, visionModel }])) };
         const photoSources = useLibrary.getState().folders
@@ -344,11 +348,21 @@ export function PhotosSection() {
       } catch { /* quota */ }
     metadataWriteTimer.current=null;
   };
+  const latestPhotoFlush=useRef(flushPhotoMetadata);
+  latestPhotoFlush.current=flushPhotoMetadata;
+  useEffect(()=>{
+    const flush=()=>{if(metadataWriteTimer.current)latestPhotoFlush.current();};
+    const hidden=()=>{if(document.visibilityState==='hidden')flush();};
+    window.addEventListener('pagehide',flush);
+    document.addEventListener('visibilitychange',hidden);
+    return()=>{window.removeEventListener('pagehide',flush);document.removeEventListener('visibilitychange',hidden);flush();};
+  },[]);
   useEffect(() => {
     // Metadata writes used to serialize every photo after every streamed batch.
     // Coalescing into one idle-sized save keeps scrolling and image decode work
     // ahead of storage work for big folders.
     if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current);
+    if (!photos.length) return;
     metadataWriteTimer.current = setTimeout(flushPhotoMetadata,650);
     return () => { if (metadataWriteTimer.current) clearTimeout(metadataWriteTimer.current); };
   }, [photos]);
@@ -759,12 +773,13 @@ export function PhotosSection() {
           <p className="text-xs text-muted">Sources · {photoFolders.join(" · ")}</p>
         )}
         {sourceFolders.length > 0 && <p className="text-xs text-muted">Video sources available for photo folders · {sourceFolders.map((folder) => folder.name).slice(0, 8).join(" · ")}</p>}
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex min-w-0 flex-col flex-wrap gap-2 sm:flex-row" aria-label="Photo search and sorting">
           <Input
             value={photoSearch}
             onChange={(event) => setPhotoSearch(event.target.value)}
             placeholder="Search names, people, albums, or file locations"
             aria-label="Search photos"
+            className="min-w-0 sm:w-64 sm:flex-1"
           />
           <Button
             size="sm"
@@ -791,7 +806,7 @@ export function PhotosSection() {
         </div>
         <div className="flex flex-wrap gap-2"><span className="self-center text-xs text-muted">Local discovery</span>{(["all", "screenshots", "camera", "downloads"] as const).map((filter) => <Button key={filter} size="sm" variant={discoveryFilter === filter ? "default" : "secondary"} onClick={() => setDiscoveryFilter(filter)}>{filter === "all" ? "All" : filter === "camera" ? "Camera names" : filter[0].toUpperCase() + filter.slice(1)}</Button>)}</div>
           <section className="rounded-md border border-border bg-bg/45 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Local vision</p><p className="mt-1 text-sm text-fg">{visionProcessed.toLocaleString()} accepted · {visionPending.toLocaleString()} waiting · SigLIP semantic+ is the balanced fast default</p></div><Button size="sm" variant="secondary" disabled={visionBusy || !visionPending} onClick={prepareNextPhotoVision}>{visionBusy ? visionProgress || "Starting model…" : `Prepare next ${Math.min(48, visionPending)}`}</Button></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Local vision</p><BrowserPermissionControl scope="local-vision"/><p className="mt-1 text-sm text-fg">{visionProcessed.toLocaleString()} accepted · {visionPending.toLocaleString()} waiting · SigLIP semantic+ is the balanced fast default</p></div><Button size="sm" variant="secondary" disabled={visionBusy || !visionPending} onClick={prepareNextPhotoVision}>{visionBusy ? visionProgress || "Starting model…" : `Prepare next ${Math.min(48, visionPending)}`}</Button></div>
             <div className="mt-3 flex flex-wrap items-center gap-2"><span className="text-xs text-muted">Tagging model</span>{(["semanticPro", "semanticPlus", "semantic"] as VisionModelId[]).map((model) => <Button key={model} size="sm" variant={visionModel === model ? "default" : "ghost"} disabled={visionBusy} onClick={() => setVisionModel(model)}>{VISION_MODELS[model].name}</Button>)}</div>
             <p className="mt-2 text-xs leading-5 text-muted">{VISION_MODELS[visionModel].purpose}. Labels stay on this device until you explicitly apply checked suggestions. Each review is bounded to 48 photos so you can inspect it without a bulk automatic save; CLIP and SigLIP large+ remain available for benchmarked comparison.</p>
             {photoVisionRows.length > 0 && <section className="mt-3 rounded-sm border border-border bg-elevated p-3"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-medium text-fg">Review vision labels before saving · {photoVisionRows.length}</p><p className="mt-1 text-xs text-muted">Only checked labels are added. Unchecked labels are discarded when you apply or replace this review.</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="ghost" onClick={discardPhotoVision}>Discard review</Button><Button size="sm" disabled={!photoVisionRows.some((row) => row.labels.some((label) => selectedPhotoVision[`${row.photoId}:vision-${label.label}`]))} onClick={applyPhotoVision}>Apply selected labels</Button></div></div><div className="mt-3 grid gap-2">{photoVisionRows.map((row) => <div key={row.photoId} className="rounded-sm border border-border bg-bg/55 p-3"><p className="truncate text-xs font-medium text-fg">{row.name}</p>{row.labels.length ? <div className="mt-2 flex flex-wrap gap-2">{row.labels.map((label) => <label key={`${row.photoId}:${label.label}`} className="flex items-center gap-2 rounded-xs bg-elevated px-2 py-1 text-xs text-fg"><input className="size-3.5 accent-accent" type="checkbox" checked={Boolean(selectedPhotoVision[`${row.photoId}:vision-${label.label}`])} onChange={(event) => setSelectedPhotoVision((current) => ({ ...current, [`${row.photoId}:vision-${label.label}`]: event.target.checked }))}/><span>#{`vision-${label.label}`} · {Math.round(label.score * 100)}%</span></label>)}</div> : <p className="mt-2 text-xs text-muted">No confident local label suggested. Nothing will be saved for this photo.</p>}</div>)}</div></section>}
@@ -841,15 +856,12 @@ export function PhotosSection() {
                 </div>
                 {showLocations && <p title={photo.path} className="mt-1 truncate text-xs text-muted">{photo.path}</p>}
                 <PhotoStars name={photo.name} rating={photo.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === photo.id ? { ...item, rating } : item))} />
-                <Input
+                <PhotoLabelInput
                   className="mt-2 h-9"
                   placeholder="People: Alex, Sam"
-                  value={photo.people.join(", ")}
-                  onChange={(event) => {
-                    const names = event.target.value
-                      .split(",")
-                      .map((value) => value.trim())
-                      .filter(Boolean);
+                  label={`People in ${photo.name}`}
+                  value={photo.people}
+                  onChange={(names) => {
                     setPhotos((items) =>
                       items.map((item) =>
                         item.id === photo.id ? { ...item, people: names } : item,
@@ -857,13 +869,14 @@ export function PhotosSection() {
                     );
                   }}
                 />
-                <Input
+                <PhotoLabelInput
                   className="mt-2 h-9"
                   placeholder="Tags: travel, pets, event"
-                  value={photo.tags.join(", ")}
-                  onChange={(event) => {
-                    const tags = event.target.value.split(",").map((value) => value.trim().toLowerCase()).filter(Boolean).slice(0, 20);
-                    setPhotos((items) => items.map((item) => item.id === photo.id ? { ...item, tags: [...new Set(tags)] } : item));
+                  label={`Tags for ${photo.name}`}
+                  tags
+                  value={photo.tags}
+                  onChange={(tags) => {
+                    setPhotos((items) => items.map((item) => item.id === photo.id ? { ...item, tags } : item));
                   }}
                 />
                 <Input
@@ -883,7 +896,7 @@ export function PhotosSection() {
               </div>
             </div>
           ))}
-        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div></div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-[80] flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{Math.max(1, focusedIndex + 1)} of {visible.length || photos.length} · {focusedPhoto.album}</p>{showLocations && <p title={focusedPhoto.path} className="truncate text-xs text-muted">{focusedPhoto.path}</p>}</div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant={focusedPhoto.favorite ? "default" : "secondary"} onClick={() => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, favorite: !item.favorite } : item))}>{focusedPhoto.favorite ? "♥ Favorite" : "♡ Favorite"}</Button><Button size="sm" variant="secondary" aria-label={`Download ${focusedPhoto.name}`} onClick={() => downloadPhoto(focusedPhoto)}><Download className="size-4"/> Download</Button><Button size="sm" variant="secondary" disabled={visionBusy} onClick={() => { setFocusedPhotoId(null); void preparePhotoVision([focusedPhoto]); }}>{visionBusy ? visionProgress || "Preparing labels…" : "Prepare vision labels"}</Button><Input className="h-8 min-w-56 flex-1" aria-label="Edit photo tags" value={focusedPhoto.tags.join(", ")} placeholder="Add tags, separated by commas" onChange={(event) => { const nextTags = [...new Set(event.target.value.split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean))]; setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, tags: nextTags } : item)); }} />{focusedPhoto.tags.length ? focusedPhoto.tags.map((tag) => <button key={tag} type="button" className="rounded-xs bg-elevated px-2 py-1 text-xs text-muted" onClick={() => setSelectedTag(tag)}>#{tag}</button>) : <span className="text-xs text-muted">No tags yet</span>}</div><PhotoStars name={focusedPhoto.name} rating={focusedPhoto.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, rating } : item))} /><div className="relative min-h-0 flex-1">{photoViewerLoading && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/70 text-sm text-fg"><RefreshCw className="size-7 animate-spin text-accent" />Loading full-resolution photo…</div>}<img src={focusedPhoto.url} alt={focusedPhoto.name} className="max-h-full w-full object-contain" decoding="async" onLoad={() => setPhotoViewerLoading(false)} onError={() => setPhotoViewerLoading(false)}/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(-1); }} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(1); }} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
+        </div><div className="mt-4 flex items-center justify-between gap-3 text-xs text-muted"><span>Showing {Math.min(renderedPhotos.length, visible.length)} of {visible.length} matching photos</span>{renderedPhotos.length < visible.length && <Button size="sm" variant="secondary" onClick={() => setPhotoLimit((limit) => limit + 80)}>Show 80 more</Button>}</div></div>{focusedPhoto && <div role="dialog" aria-modal="true" aria-label={`Viewing ${focusedPhoto.name}`} className="fixed inset-0 z-[80] flex items-center justify-center bg-bg/95 p-4" onClick={() => setFocusedPhotoId(null)}><div className="relative flex h-full w-full max-w-7xl flex-col gap-3" onClick={(event) => event.stopPropagation()}><div className="flex items-center justify-between gap-3 text-fg"><div className="min-w-0"><p className="truncate font-medium">{focusedPhoto.name}</p><p className="text-xs text-muted">{Math.max(1, focusedIndex + 1)} of {visible.length || photos.length} · {focusedPhoto.album}</p>{showLocations && <p title={focusedPhoto.path} className="truncate text-xs text-muted">{focusedPhoto.path}</p>}</div><Button size="sm" variant="secondary" onClick={() => setFocusedPhotoId(null)}>Close</Button></div><div className="flex flex-wrap items-center gap-2"><Button size="sm" variant={focusedPhoto.favorite ? "default" : "secondary"} onClick={() => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, favorite: !item.favorite } : item))}>{focusedPhoto.favorite ? "♥ Favorite" : "♡ Favorite"}</Button><Button size="sm" variant="secondary" aria-label={`Download ${focusedPhoto.name}`} onClick={() => downloadPhoto(focusedPhoto)}><Download className="size-4"/> Download</Button><Button size="sm" variant="secondary" disabled={visionBusy} onClick={() => { setFocusedPhotoId(null); void preparePhotoVision([focusedPhoto]); }}>{visionBusy ? visionProgress || "Preparing labels…" : "Prepare vision labels"}</Button><PhotoLabelInput key={focusedPhoto.id} className="h-8 min-w-0 basis-56 flex-1" label="Edit photo tags" tags value={focusedPhoto.tags} placeholder="Add tags, separated by commas" onChange={(tags) => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, tags } : item))} />{focusedPhoto.tags.length ? focusedPhoto.tags.map((tag) => <button key={tag} type="button" className="rounded-xs bg-elevated px-2 py-1 text-xs text-muted" onClick={() => setSelectedTag(tag)}>#{tag}</button>) : <span className="text-xs text-muted">No tags yet</span>}</div><PhotoStars name={focusedPhoto.name} rating={focusedPhoto.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === focusedPhoto.id ? { ...item, rating } : item))} /><div className="relative min-h-0 flex-1">{photoViewerLoading && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-bg/70 text-sm text-fg"><RefreshCw className="size-7 animate-spin text-accent" />Loading full-resolution photo…</div>}<img src={focusedPhoto.url} alt={focusedPhoto.name} className="max-h-full w-full object-contain" decoding="async" onLoad={() => setPhotoViewerLoading(false)} onError={() => setPhotoViewerLoading(false)}/><Button size="sm" variant="secondary" className="absolute top-1/2 left-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(-1); }} aria-label="Previous photo"><ChevronLeft className="size-5"/></Button><Button size="sm" variant="secondary" className="absolute top-1/2 right-2 -translate-y-1/2" onClick={() => { setPhotoViewerLoading(true); moveFocus(1); }} aria-label="Next photo"><ChevronRight className="size-5"/></Button></div></div></div>}</>
       )}
     </HubShell>
   );

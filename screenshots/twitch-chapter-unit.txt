@@ -1,0 +1,13 @@
+✔ only VOD identities expose chapter navigation; clips and live are excluded (1.0256ms)
+✔ real marker bounds, ordering, labels and overlaps are validated without invented fallback chapters (0.9339ms)
+✔ selected public detail reads coalesce and retain at most eight cache entries, with bounded in-flight work and expiry (0.7234ms)
+✔ provider errors remain explicit, never return arbitrary provider text and can be retried deliberately (1.2539ms)
+✔ timestamp navigation changes only numeric VOD embed start time and uses a canonical external fallback (0.598ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 128.5674

@@ -1,0 +1,30 @@
+✔ returning from a viewer reuses completed shelves and deep pages without retaining a worker (1.4138ms)
+✔ an explicit next page rebuilds the released worker and resumes exactly after the painted prefix (0.202ms)
+✔ new taste, filter, catalog or mix inputs cannot reuse old results or apply an old pending offset (0.1853ms)
+✔ revealing deep discovery prepares its first page while collapsing it discards a pending deep request (0.2357ms)
+✔ worker preserves source strength when ranking tag evidence (2.9009ms)
+✔ worker waits for all batches, preserves likes and favorites, and mixes reuse compiled scores (0.7925ms)
+✔ filtered worker shelves learn from feedback outside the candidate list (0.7148ms)
+✔ worker results retain catalog offsets so the UI resolves cards without a catalog scan (0.3206ms)
+✔ deep pages reuse scoring, interleave a skewed catalog and retain stable, duplicate-free prefixes (8.8369ms)
+✔ pages remain inside the chosen format/topic candidates while learning from the full catalog (0.5631ms)
+✔ source changes cancel queued near-view artwork without consuming a slot (2.2836ms)
+✔ visible artwork gets the next slot ahead of near-view artwork (0.412ms)
+✔ nearby cards leave capacity for visible cards without exceeding the budget (0.9809ms)
+✔ hidden tabs hold visible requests and restore capacity on visibility change (0.6133ms)
+✔ opening a viewer pauses queued artwork without waking or rerendering every card (0.3687ms)
+✔ closing a viewer refills every available visible-artwork slot (0.4928ms)
+✔ unfinished card leases revoke on preview open and refill together without marking loads failed (0.3696ms)
+✔ unmount, abort and completion cannot resume cancelled card leases or retain callbacks (0.8153ms)
+✔ even visible images yield behind foreground input without cancelling healthy URLs (310.9622ms)
+✔ hidden and page-hidden cards release active admission and resume only when both gates allow it (4.4893ms)
+✔ warm route cache selects only the next adjacent Hub destination (1.1888ms)
+✔ warm route cache yields to hidden, constrained, or active contexts (1.0039ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 477.3813

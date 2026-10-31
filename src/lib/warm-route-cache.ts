@@ -1,3 +1,4 @@
+import { dataSaverActive } from './data-saver.ts';
 /**
  * A small, deterministic look-ahead for individual Hub desk boundaries.
  * Only the adjacent destination is warmed; unrelated desks remain unloaded.
@@ -49,7 +50,7 @@ export function nextLikelyHub(sourceId: string): string | null {
  * with a weak connection, a low-memory device, or the current input frame.
  */
 export function shouldWarmHubRoute(hints: WarmRouteHints): boolean {
-  if (!hints.visible || hints.saveData || hints.inputPending) return false;
+  if (!hints.visible || hints.saveData || dataSaverActive() || hints.inputPending) return false;
   if (typeof hints.deviceMemory === "number" && hints.deviceMemory <= 2) return false;
   return !/^(?:slow-2g|2g|3g)$/i.test(hints.effectiveType?.trim() ?? "");
 }

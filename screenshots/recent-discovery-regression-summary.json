@@ -1,0 +1,16 @@
+{
+  "ok": true,
+  "scriptSuite": {
+    "passed": 1021,
+    "failed": 0,
+    "log": "screenshots/recent-discovery-tests.txt",
+    "phase": "node --test --test-concurrency=2 scripts/*.test.mjs"
+  },
+  "nativeSuite": {
+    "passed": 622,
+    "failed": 0,
+    "log": "screenshots/recent-discovery-native-tests.txt",
+    "note": "Complete native suite rerun after fixing the explicit .ts helper import"
+  },
+  "totalPassed": 1643
+}

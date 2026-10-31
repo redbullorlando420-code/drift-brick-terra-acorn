@@ -1,0 +1,15 @@
+✔ full feed gap detection is uncertainty; partial/empty feeds and present watermark cannot claim a gap (0.7562ms)
+✔ repair has an independent durable cursor and unresolved does not mean deleted (0.3246ms)
+✔ endpoint waits isolate RSS, archive, HTML and live; provider-wide waits hold healthy creators too (0.2927ms)
+✔ confirmed publication excludes pull clocks, upcoming, live, future, and relative evidence; date-only remains explicit (1.4274ms)
+✔ 100k recent selection yields, keeps bounded results, excludes private/hidden rows and explains personal recommendations (145.1355ms)
+✔ real RSS conversion detects 15+ intervening uploads; repair stops at anchor, deduplicates and preserves archive/feed clocks (85.6891ms)
+✔ real repair obeys a two-page limit and failed continuation retains all independent positions (276.3995ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 694.5194

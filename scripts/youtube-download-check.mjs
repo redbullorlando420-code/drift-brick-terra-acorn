@@ -17,7 +17,7 @@ try {
     await context.addInitScript(() => { localStorage.setItem('reelcase.pulls-paused.v1', 'true'); localStorage.setItem('reelcase.sidebar.groups.v1', JSON.stringify({ library: true, workspace: true, tools: true })); });
     // Provider content and the native process are fixtures; no real download is triggered by browser tests.
     for (const host of ['www.youtube.com', 'www.youtube-nocookie.com', 'i.ytimg.com']) await context.route(`https://${host}/**`, route => route.fulfill({ status: 200, contentType: 'text/html', body: '<p>Provider fixture</p>' }));
-    let mode = 'ready', jobs = [], reads = 0, starts = 0, cancels = 0, lastInput;
+    let mode = 'ready', jobs = [], reads = 0, starts = 0, cancels = 0, lastInput, resumes=0;
     // A tiny browser-generated test clip verifies real decoding/seeking without
     // using anyone's media or signed-in provider session.
     let clip;
@@ -27,14 +27,15 @@ try {
       if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
       let body = { ok: true };
       if (path === '/youtube/downloads') {
-        if (request.method() === 'GET') { reads++; body = mode === 'old' ? { ok: false, error: 'Download action not found.' } : { ok: true, configured: mode !== 'setup', engine: mode === 'auth' ? 'yt-dlp' : 'youtube-dl', browserAuth: mode === 'auth', localPlayback: mode === 'auth', version: mode === 'auth' ? 'test-current' : '2025.11.26', path: 'C:\\Realhub Downloads', jobs }; }
+        if (request.method() === 'GET') { reads++; body = mode === 'old' ? { ok: false, error: 'Download action not found.' } : { ok: true, configured: mode !== 'setup', engine: ['auth','recovery'].includes(mode) ? 'yt-dlp' : 'youtube-dl', browserAuth: ['auth','recovery'].includes(mode), localPlayback: ['auth','recovery'].includes(mode), version: ['auth','recovery'].includes(mode) ? 'test-current' : '2025.11.26', path: 'C:\\Realhub Downloads', jobs,taskRecovery:mode==='recovery',...(mode==='recovery'?{recovery:{persistent:true,maxEntries:40,retained:jobs.length}}:{}) }; }
         else {
           starts++; const input = request.postDataJSON(); lastInput = input; assert.equal(input.videoId, 'BaW_jenozKc'); assert.equal(Object.hasOwn(input, 'url'), false);
           const job = { id: 'qa-job', key: input.videoId, title: input.title, status: 'running', progress: 12, detail: 'Downloading test fixture', path: 'C:\\Realhub Downloads\\BaW_jenozKc', updatedAt: Date.now() };
           jobs = [job]; body = { ok: true, job };
         }
       } else if (/\/media$/.test(path)) { assert.equal(request.headers().origin, new URL(url).origin); return route.fulfill({ status: 200, headers, contentType: 'video/webm', body: Buffer.from(clip) }); }
-      else if (/\/cancel$/.test(path)) { cancels++; jobs = jobs.map(job => ({ ...job, status: 'cancelled', detail: 'Cancelled.' })); body = { ok: true, job: jobs[0] }; }
+      else if (/\/resume$/.test(path)) { resumes++;lastInput=request.postDataJSON();jobs=jobs.map(job=>({...job,status:'running',attempt:2,browser:'none',detail:'Resumed existing receipt.'}));body={ok:true,job:jobs[0]}; }
+       else if (/\/cancel$/.test(path)) { cancels++; jobs = jobs.map(job => ({ ...job, status: 'cancelled', detail: 'Cancelled.' })); body = { ok: true, job: jobs[0] }; }
       else if (path === '/health') body = { ok: true, service: 'reelcase-companion', version: 11, capabilities: ['youtube-downloads'] };
       return route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify(body) });
     });
@@ -86,7 +87,7 @@ try {
       await page.getByRole('button', { name: 'Retry download', exact: true }).click(); await page.getByRole('button', { name: 'Cancel download', exact: true }).waitFor();
       jobs[0] = { ...jobs[0], status: 'error', detail: 'ERROR: Video unavailable' };
       await page.getByRole('button', { name: 'Check status', exact: true }).click(); await dialog().getByText('Download failed', { exact: true }).waitFor();
-      assert.ok(await dialog().getByText('ERROR: Video unavailable', { exact: true }).isVisible());
+      assert.ok(await dialog().getByRole('region',{name:'Download failure guidance'}).getByText('Video unavailable or unsupported by the downloader.', { exact: true }).isVisible());
       await page.getByRole('button', { name: 'Retry download', exact: true }).click(); await page.getByRole('button', { name: 'Cancel download', exact: true }).waitFor();
       jobs[0] = { ...jobs[0], status: 'done', progress: 100, detail: 'Saved to your computer.', file: 'Test video.mp4' };
       await page.getByRole('button', { name: 'Check status', exact: true }).click(); await dialog().getByText('Download complete', { exact: true }).waitFor();
@@ -107,9 +108,9 @@ try {
       mode = 'setup'; await download().first().click(); await dialog().getByText('Setup needed', { exact: true }).waitFor(); assert.equal(await dialog().getByRole('button', { name: 'Download with youtube-dl', exact: true }).count(), 0);
       result.setupScreenshot = output.replace(/\.json$/, `-setup-${viewport.name}.png`); await page.screenshot({ path: result.setupScreenshot }); await close();
       mode = 'old'; await download().first().click(); await dialog().getByRole('alert').waitFor(); assert.ok(await dialog().getByText('Setup needed', { exact: true }).isVisible()); await close();
-      mode = 'ready'; await page.getByRole('button', { name: 'Download YouTube video: Download QA live', exact: true }).first().click(); await dialog().getByText('youtube-dl 2025.11.26', { exact: true }).waitFor();
+      mode = 'ready'; await nav('Live'); await page.getByRole('button', { name: 'Download YouTube video: Download QA live', exact: true }).first().click(); await dialog().getByText('youtube-dl 2025.11.26', { exact: true }).waitFor();
       assert.ok(await dialog().getByText(/archived video after it ends/).isVisible()); assert.equal(await dialog().getByRole('button', { name: 'Download with youtube-dl', exact: true }).count(), 0); await close();
-      mode = 'auth'; jobs = [];
+      await nav('YouTube'); mode = 'auth'; jobs = [];
       await download().first().click(); await dialog().getByText('yt-dlp test-current', { exact: true }).waitFor();
       const consent = dialog().getByRole('checkbox', { name: 'Use my signed-in browser for this download', exact: true });
       assert.equal(await consent.isChecked(), false); const beforeConsent = starts;
@@ -119,9 +120,13 @@ try {
       await dialog().getByRole('button', { name: 'Download with yt-dlp', exact: true }).click();
       await dialog().getByRole('button', { name: 'Cancel download', exact: true }).waitFor();
       assert.equal(lastInput.useBrowserSession, true); assert.equal(lastInput.browser, 'firefox');
+      assert.equal(await consent.isChecked(),false,'consent resets after accepted attempt');
       jobs[0] = { ...jobs[0], status: 'error', detail: 'ERROR: Could not decrypt browser cookie database' };
       await dialog().getByRole('button', { name: 'Check status', exact: true }).click(); await dialog().getByText('Download failed', { exact: true }).waitFor();
-      await dialog().getByRole('note').filter({ hasText: 'This video needs account access' }).waitFor();
+      await dialog().getByRole('region', {name:'Download failure guidance'}).getByRole('note').waitFor();
+      assert.equal(await dialog().locator('[data-download-failure]').getAttribute('data-download-failure'),'session-unreadable');
+      for(const [detail,kind] of [['Cookies expired token=SECRET_SESSION','session-expired'],['Sign in to confirm your age Cookie: SECRET_COOKIE','access-restricted']]){jobs[0]={...jobs[0],status:'error',detail};await dialog().getByRole('button',{name:'Check status',exact:true}).click();await dialog().locator(`[data-download-failure="${kind}"]`).waitFor();assert(!(await dialog().innerText()).includes('SECRET_'));}
+      result.failureScreenshot=output.replace(/\.json$/,`-failure-guidance-${viewport.name}.png`);await page.screenshot({path:result.failureScreenshot});
       await dialog().getByRole('button', { name: 'Retry download', exact: true }).click();
       jobs[0] = { ...jobs[0], status: 'done', progress: 100, file: 'Test video.webm', detail: 'Saved to your computer.' };
       await dialog().getByRole('button', { name: 'Check status', exact: true }).click(); await dialog().getByRole('button', { name: 'Watch saved video', exact: true }).click();
@@ -134,7 +139,9 @@ try {
       result.localScreenshot = output.replace(/\.json$/, `-local-${viewport.name}.png`); await page.screenshot({ path: result.localScreenshot });
       await close(); await download().first().click(); await dialog().getByText('yt-dlp test-current', { exact: true }).waitFor();
       assert.equal(await dialog().getByRole('checkbox', { name: 'Use my signed-in browser for this download' }).isChecked(), false, 'browser consent resets when the panel closes');
-      await close(); Object.assign(result, { browserAuthOptIn: true, browserRetry: true, localVideoDecodedAndSeeked: true, consentReset: true });
+      await close();
+       mode='recovery';jobs[0]={...jobs[0],status:'interrupted',detail:'Companion stopped before completion.',browser:'firefox'};const beforeResume=starts;await download().first().click();await dialog().getByText('Interrupted · resume needed',{exact:true}).waitFor();assert.equal(starts,beforeResume);assert.equal(await dialog().getByRole('checkbox',{name:'Use my signed-in browser for this download'}).isChecked(),false);await dialog().getByRole('button',{name:'Resume download',exact:true}).click();await dialog().getByText('Resumed existing receipt.',{exact:true}).waitFor();assert.equal(resumes,1);assert.equal(lastInput.useBrowserSession,undefined);assert.equal(jobs[0].id,'qa-job');await close();
+       Object.assign(result, {interruptedResume:true,resumes, browserAuthOptIn: true, browserRetry: true, localVideoDecodedAndSeeked: true, consentReset: true });
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false); assert.deepEqual(errors, []);
       Object.assign(result, { starts, cancels, reads, cardsDoNotPoll: true, closeStopsPolling: true, reloadRestoresStatus: true, previewAndPlayer: true, setupAndErrors: true, liveExcluded: true, ok: true });
     } catch (error) { result.ok = false; result.error = error.stack; result.media = await page.evaluate(() => { const video = document.querySelector('video'); return video ? { readyState: video.readyState, networkState: video.networkState, error: video.error?.message, currentSrc: video.currentSrc } : null; }).catch(() => null); await page.screenshot({ path: output.replace(/\.json$/, `-failure-${viewport.name}.png`) }).catch(() => {}); }

@@ -1,0 +1,40 @@
+{
+  "revision": 56,
+  "completed": [
+    "next-018",
+    "next-030"
+  ],
+  "defaultComplete": 247,
+  "defaultTotal": 306,
+  "nextLevelComplete": 45,
+  "checks": [
+    {
+      "log": "live-allocation-targeted-tests.txt",
+      "passed": 104
+    },
+    {
+      "log": "live-allocation-native-tests.txt",
+      "passed": 66
+    },
+    {
+      "log": "live-allocation-final-tests.txt",
+      "passed": 37
+    },
+    {
+      "log": "live-allocation-final-store-tests.txt",
+      "passed": 5
+    }
+  ],
+  "note": "Test runs overlap and must not be summed as unique tests.",
+  "browser": [
+    "live-allocation-dev.json",
+    "live-allocation-production.json",
+    "live-allocation-mission-dev.json",
+    "live-allocation-mission-production.json"
+  ],
+  "limitations": [
+    "Controlled provider responses, not a real-network throughput benchmark.",
+    "Desktop and mobile Chrome automation, not physical iOS/Android.",
+    "No provider authentication or long-running soak claimed."
+  ]
+}

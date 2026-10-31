@@ -8,3 +8,18 @@ companion/tools/
 companion/.local-youtube-dl.json
 downloads/
 .grok/desktop-*.log
+
+companion/.local-root-policy.json
+companion/.local-root-policy.json.*.tmp
+
+# Private bounded desktop launch receipts
+companion/.local-launch-receipts.json*
+
+# Private print transaction journal
+companion/.local-print-transactions.json*
+
+# Private optional capability choices
+companion/.local-capability-consent.json*
+
+# Private model transfer checkpoints
+companion/.local-model-transfers.json*

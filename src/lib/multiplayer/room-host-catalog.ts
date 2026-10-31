@@ -1,12 +1,13 @@
-import { describeRoomMedia, resolveRoomMedia, type RoomMediaDescriptor } from './room-media.ts';
+import { resolveRoomMedia, type RoomMediaDescriptor } from './room-media.ts';
+import { describeCatalogMedia } from './room-catalog-policy.ts';
 import type { LibraryVideo } from '../videos/types.ts';
-export type HostCatalogPage={videos:LibraryVideo[];hasMore:boolean;nextOffset?:number};
+export type HostCatalogPage={videos:LibraryVideo[];hasMore:boolean;nextOffset?:number;catalogRevision?:number};
 export function hostCatalogPayload(videos:LibraryVideo[],offset:number,hasMore:boolean){
  const media:RoomMediaDescriptor[]=[];let bytes=0;
- for(const video of videos.slice(0,24)){const descriptor=describeRoomMedia(video);if(!descriptor)break;const size=new TextEncoder().encode(JSON.stringify(descriptor)).length;if(bytes+size>24000)break;bytes+=size;media.push(descriptor);}
+ for(const video of videos.slice(0,24)){const descriptor=describeCatalogMedia(video);if(!descriptor)break;const size=new TextEncoder().encode(JSON.stringify(descriptor)).length;if(bytes+size>24000)break;bytes+=size;media.push(descriptor);}
  return {media,nextOffset:offset+media.length,hasMore:hasMore||media.length<videos.length};
 }
-export type RoomHostCatalog={connected:boolean;search:(query:string,offset:number,signal:AbortSignal)=>Promise<HostCatalogPage>};
+export type RoomHostCatalog={connected:boolean;revision?:number;search:(query:string,offset:number,signal:AbortSignal)=>Promise<HostCatalogPage>};
 export function readHostCatalogQuery(value:unknown){
   if(!value||typeof value!=='object')return;
   const row=value as {requestId?:unknown;query?:unknown;offset?:unknown};

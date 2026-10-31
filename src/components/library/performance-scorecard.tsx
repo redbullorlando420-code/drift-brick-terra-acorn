@@ -1,3 +1,6 @@
+import {downloadDiagnostic} from '@/lib/diagnostic-export';
+import {DiagnosticExportPreview} from './diagnostic-export-preview';
+import { rankingBudgetSnapshot } from '@/lib/ranking-budget';
 import { searchWorkerIndex } from '@/lib/videos/search-worker-index';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -28,7 +31,7 @@ function capture() {
   const now = Date.now(), catalog = useLibrary.getState(), counters = cacheMetrics.snapshot();
   const snapshot = { version: 1, capturedAt: now, catalogEntries: catalog.videos.length, sourceCount: catalog.folders.length,
     lowMemory: getPerformanceProfile().lowMemory, pullsPaused: pullsPaused(), frames: getRenderBudgetSnapshot(), interactions: getInteractionBudgetSnapshot(),
-    search:searchWorkerIndex.diagnostics(),startup: getFirstShelfTrace(), artwork: getThumbDiagnostics(), viewer: viewerDetails.diagnostics(), counters,
+    ranking: rankingBudgetSnapshot(), search:searchWorkerIndex.diagnostics(),startup: getFirstShelfTrace(), artwork: getThumbDiagnostics(), viewer: viewerDetails.diagnostics(), counters,
     providers: aggregateProviderCache(catalog.follows, now), providerBudgets: PROVIDER_BUDGETS, writes: getPersistenceMemorySnapshot(), recurring: getPeriodicWorkSnapshot(),
     sources: getSourceMemorySnapshot(), feedback: getFeedbackDiagnostics(), companion: getCompanionMemorySnapshot() };
   return { ...snapshot, scorecard: buildPerformanceScorecard({ ...snapshot, now, homeReadyMs: snapshot.startup.homeReadyMs, diskErrors: counters['thumbnail-disk'].errors }) };
@@ -36,19 +39,20 @@ function capture() {
 export function PerformanceScorecard() {
   const [snapshot, setSnapshot] = useState(capture);
   const { scorecard, artwork, viewer, frames, counters, recurring, writes } = snapshot;
-  const exportSnapshot = () => {
-    const url = URL.createObjectURL(new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' }));
-    const link = document.createElement('a'); link.href = url; link.download = 'reelcase-performance-scorecard.json'; link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
+  const exportSnapshot = () => downloadDiagnostic('performance',snapshot,'reelcase-performance-scorecard.json');
   return <section className="mt-5 min-w-0 border-t border-white/10 pt-5" aria-label="Performance scorecard" data-performance-scorecard data-health={scorecard.health}>
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><h3 className="text-lg font-semibold text-fg">Performance scorecard</h3><p className="mt-1 text-sm text-accent" role="status">{labels[scorecard.health]}</p></div>
       <div className="flex flex-wrap gap-2"><Button variant="secondary" className="min-h-11" onClick={() => setSnapshot(capture())}>Refresh scorecard</Button><Button variant="outline" className="min-h-11" onClick={exportSnapshot}>Export measurements</Button></div>
     </div>
+    <DiagnosticExportPreview kind="performance" data={snapshot}/>
     <p className="mt-3 text-xs leading-5 text-muted">Captured {new Date(snapshot.capturedAt).toLocaleTimeString()} · {snapshot.catalogEntries.toLocaleString()} entries · {snapshot.lowMemory ? 'Low-memory' : 'Adaptive'} mode · pulling {snapshot.pullsPaused ? 'paused' : 'enabled'}. Refresh on demand; no catalog scan or automatic Settings refresh. Samples stay on this device.</p>
     <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{scorecard.checks.map(check => <div key={check.id} className="min-w-0 rounded-md bg-bg/45 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-medium text-fg">{check.label}</h4><span className={`text-xs ${check.health === 'attention' || check.health === 'watch' ? 'text-accent' : 'text-muted'}`}>{labels[check.health]}</span></div><p className="mt-2 text-xs leading-5 text-muted">{check.detail}</p></div>)}</div>
     <p className="mt-4 rounded-md border border-accent/20 p-3 text-sm leading-6 text-fg"><strong>Next step: </strong>{scorecard.next}</p>
+    <h3 className="mt-6 font-semibold text-fg">Recommendation work</h3>
+    <p className="mt-2 text-xs leading-5 text-muted" data-ranking-budget>{snapshot.ranking.active} active · {snapshot.ranking.deferred} settling · {snapshot.ranking.coalesced} obsolete starts avoided. YouTube and Twitch preprocessing waits {snapshot.ranking.budget.settleMs}ms for a stable revision, then yields after up to {snapshot.ranking.budget.sliceRows} rows or {snapshot.ranking.budget.sliceMs}ms. A single expensive row or browser pause can exceed that target. Worker ranking is off the input thread.</p>
+    <div className="mt-3 space-y-2">{snapshot.ranking.samples.slice(-8).reverse().map((row, index) => <p key={index} className="text-xs leading-5 text-muted">{row.kind} · {row.outcome} · {row.rows.toLocaleString()} prepared rows · {row.slices} slices · slowest {row.maxSliceMs.toFixed(1)}ms · preparation CPU {row.cpuMs.toFixed(1)}ms · elapsed {row.elapsedMs.toFixed(0)}ms</p>)}</div>
+    <p className="mt-2 text-xs leading-5 text-subtle">Last 32 scalar samples per page session. CPU timings cover instrumented preparation slices, not heap usage, all scoring/sorting or provider traffic. Elapsed time includes waiting and worker replies.</p>
     <h3 className="mt-6 font-semibold text-fg">Cache health</h3>
     <dl className="mt-3 grid gap-3 md:grid-cols-2">
       <CacheRow title="Catalog selectors" detail={rate(counters['catalog-selectors'].hits, counters['catalog-selectors'].misses)} note={`Immutable-input reuse since page load · last lookup ${age(counters['catalog-selectors'].lastAccessAt === undefined ? undefined : snapshot.capturedAt - counters['catalog-selectors'].lastAccessAt)} ago. Results share catalog references; heap size is not measured.`} />
@@ -68,7 +72,7 @@ export function PerformanceScorecard() {
         <CacheRow title="Twitch transfers" detail={`${PROVIDER_BUDGETS.twitchTransfers} active · ${PROVIDER_BUDGETS.queuedRequests} waiting maximum`} note={`Whole transfers share the lane across jobs. Warm cache: ${bytes(PROVIDER_BUDGETS.twitchCacheBytes)} estimated total; deep results above ${PROVIDER_BUDGETS.warmCacheRows} rows go to the durable library without a second server graph.`} />
         <CacheRow title="Adult transfers" detail={`${PROVIDER_BUDGETS.adultTransfers} active · ${PROVIDER_BUDGETS.queuedRequests} waiting maximum`} note={`Readable response cache: ${bytes(PROVIDER_BUDGETS.adultCacheBytes)} estimated total. Response bytes are checked before decoding and caching.`} />
       </dl>
-      <p className="mt-3 text-xs leading-5 text-subtle">Recent refresh jobs use up to {PROVIDER_BUDGETS.refreshWorkers} workers; live checks use {PROVIDER_BUDGETS.liveWorkers}; YouTube archive batches use {PROVIDER_BUDGETS.archiveWorkers}. Imports use {PROVIDER_BUDGETS.importWorkers} workers and at most {PROVIDER_BUDGETS.importAttempts} attempts per source, with no immediate repeat of an oversized response. These are metadata safeguards; playback and media downloads keep their own paths. Cache sizes estimate retained payload, excluding JavaScript object overhead.</p>
+      <p className="mt-3 text-xs leading-5 text-subtle">Recent refresh jobs use up to {PROVIDER_BUDGETS.refreshWorkers} workers; live checks use {PROVIDER_BUDGETS.liveWorkers}; YouTube archive batches use {PROVIDER_BUDGETS.archiveWorkers}. Imports use {PROVIDER_BUDGETS.importWorkers} workers and at most {PROVIDER_BUDGETS.importAttempts} attempts per source, with no immediate repeat of an oversized response. JSON pages are checked before parsing: up to {PROVIDER_BUDGETS.json.tokens.toLocaleString()} tokens, {PROVIDER_BUDGETS.json.containers.toLocaleString()} containers, depth {PROVIDER_BUDGETS.json.depth}, and {bytes(PROVIDER_BUDGETS.json.stringUnits * 2)} per string in UTF-16. The {bytes(PROVIDER_BUDGETS.json.scratchBytes)} scratch estimate is a payload safeguard, not measured engine heap. Unused archive command trees are discarded. These are metadata safeguards; playback and media downloads keep their own paths. Cache sizes estimate retained payload, excluding JavaScript object overhead.</p>
     </details>
     <p className="mt-4 text-xs leading-5 text-muted" aria-label="Recurring work">Recurring work · {recurring.tasks} tasks · {recurring.timerCount} shared timer · {recurring.running} running · {recurring.paused} paused. Storage · {writes.artwork.pending} artwork writes ({bytes(writes.artwork.pendingWeight)}) · {writes.activity.pending} activity snapshots · {snapshot.sources.objectUrls} temporary media URLs. Frame sampling {frames.monitoring ? 'enabled' : 'disabled'}; retains at most 240 durations while visible shelves are mounted.</p>
     <StartupStatus />

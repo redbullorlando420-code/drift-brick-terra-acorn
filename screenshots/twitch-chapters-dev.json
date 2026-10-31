@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "errors": [],
+      "checks": [
+        "No automatic chapter query; collapse ignores late completion; selected VOD read coalesces and caches",
+        "Twelve mounted rows per chapter page; timestamp navigation retains embed parent and canonical external fallback",
+        "Preview reopen and full player reuse selected detail without refetching; full-player controls remain scrollable",
+        "Malformed data has an explicit manual retry; empty markers invent no chapters, playback remains available, clips expose no chapter controls"
+      ],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "errors": [],
+      "checks": [
+        "No automatic chapter query; collapse ignores late completion; selected VOD read coalesces and caches",
+        "Twelve mounted rows per chapter page; timestamp navigation retains embed parent and canonical external fallback",
+        "Preview reopen and full player reuse selected detail without refetching; full-player controls remain scrollable",
+        "Malformed data has an explicit manual retry; empty markers invent no chapters, playback remains available, clips expose no chapter controls"
+      ],
+      "ok": true
+    }
+  ],
+  "limitation": "Isolated desktop/touch-phone Chrome with real chapter parser/cache and controlled Twitch payloads/iframe. Real marker-source and canary observations are recorded separately; provider playback and physical phones remain unverified."
+}

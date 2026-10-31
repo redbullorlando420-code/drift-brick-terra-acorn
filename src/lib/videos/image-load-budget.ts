@@ -1,3 +1,4 @@
+import { dataSaverActive, subscribeDataSaver } from '../data-saver.ts';
 /**
  * Bound concurrent remote thumbnail fetches so Adults shelves do not stall
  * scroll with hundreds of parallel CDN requests / retries.
@@ -74,6 +75,9 @@ function pump() {
   if (interactionTimer !== undefined) { clearTimeout(interactionTimer); interactionTimer = undefined; }
   if (suspended()) { suspendActiveCards(); return; }
   const max = maxConcurrent();
+  if (dataSaverActive()) {
+    for (const waiter of [...activeSlots]) if (waiter.priority === 'low' && waiter.notify) { activeSlots.delete(waiter); waitingLow.push(waiter); waiter.notify(false); }
+  }
   // Revocable DOM images release their unfinished decode/network work as soon
   // as the budget shrinks. Legacy one-shot owners must finish their own lease.
   if(activeSlots.size>max){
@@ -88,7 +92,7 @@ function pump() {
     let waiter = waitingHigh.shift();
     if (!waiter) {
       // Nearby cards must leave real capacity for newly visible cards.
-      if (!waitingLow.length || activeSlots.size >= Math.max(1, max - HIGH_RESERVED)) return;
+      if (dataSaverActive() || !waitingLow.length || activeSlots.size >= Math.max(1, max - HIGH_RESERVED)) return;
       waiter = waitingLow.shift()!;
     }
     if (waiter.ended || waiter.signal?.aborted) { end(waiter); continue; }
@@ -171,6 +175,7 @@ export function ensureImageBudgetVisibilityHook() {
   if (visibilityHooked || typeof document === "undefined") return;
   visibilityHooked = true;
   const stopProfile = subscribePerformanceProfile(pump);
+  const stopDataSaver = subscribeDataSaver(pump);
   const onVisibility = () => {
     if (document.visibilityState === "hidden") { suspendActiveCards(); clearLowPriorityImageQueue(); }
     else pump();
@@ -190,7 +195,7 @@ export function ensureImageBudgetVisibilityHook() {
       window.removeEventListener('pagehide', hide); window.removeEventListener('pageshow', show);
       for (const event of inputEvents) window.removeEventListener(event, input);
     }
-    stopProfile(); visibilityHooked = false;
+    stopProfile(); stopDataSaver(); visibilityHooked = false;
   };
 }
 import.meta.hot?.dispose(() => {

@@ -1,3 +1,4 @@
+import {browserConsent} from './capability-consent.ts';
 export type VisionProgress = (completed: number, total: number) => void;
 export type VisionLabel = { label: string; score: number };
 export type VisionModelId = "semantic" | "semanticPlus" | "semanticPro";
@@ -47,11 +48,12 @@ const activeClassifiers = new Map<VisionModelId, number>();
 
 function cleanLabel(label: string) { return label.toLowerCase().split(",")[0].replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 function device() { return typeof navigator !== "undefined" && "gpu" in navigator ? "webgpu" : "wasm"; }
-async function classifierFor(model: VisionModelId, onStatus?: (status: VisionModelStatus) => void) {
+async function classifierFor(model: VisionModelId, onStatus?: (status: VisionModelStatus) => void, ensure:()=>void=()=>{}) {
   let classifier = classifiers.get(model);
   if (!classifier) {
     classifier = (async () => {
       const { pipeline } = await import("@huggingface/transformers");
+      ensure();
       const definition = VISION_MODELS[model];
       const task = "zero-shot-image-classification";
       const options = { progress_callback: onStatus, ...("revision" in definition ? { revision: definition.revision } : {}) };
@@ -61,6 +63,7 @@ async function classifierFor(model: VisionModelId, onStatus?: (status: VisionMod
         // WebGPU can reject larger semantic models despite being present. A
         // local WASM retry is slower but keeps the benchmark truthful and usable.
         if (device() !== "webgpu") throw error;
+        ensure();
         onStatus?.({ status: "WebGPU unavailable; retrying locally with WASM" });
         return pipeline(task, definition.model, { device: "wasm", ...options }) as unknown as ImageClassifier;
       }
@@ -77,7 +80,9 @@ async function classifierFor(model: VisionModelId, onStatus?: (status: VisionMod
  */
 export async function classifyImagesLocally(urls: string[], onProgress?: VisionProgress, model: VisionModelId = "semanticPlus", onModelStatus?: (status: VisionModelStatus) => void): Promise<VisionLabel[][]> {
   if (!urls.length) return [];
-  const classifier = await classifierFor(model, onModelStatus);
+  const permission=browserConsent.acquire('local-vision');
+  let classifier:ImageClassifier;
+  try{classifier=await classifierFor(model,onModelStatus,permission.assert);}catch(error){permission.release();throw error;}
   activeClassifiers.set(model, (activeClassifiers.get(model) ?? 0) + 1);
   // WebGPU can keep two inferences in flight; WASM stays serial because a
   // second large tensor normally makes it slower and less responsive.
@@ -87,9 +92,11 @@ export async function classifyImagesLocally(urls: string[], onProgress?: VisionP
   const workerCount = device() === "webgpu" ? 2 : 1;
   const workers = Array.from({ length: Math.min(workerCount, urls.length) }, async () => {
     while (true) {
+      permission.assert();
       const index = cursor++;
       if (index >= urls.length) return;
       const labels = await classifier(urls[index], SEMANTIC_TOPICS);
+      permission.assert();
       const seen = new Set<string>();
       results[index] = labels
         .map((item) => ({ label: cleanLabel(item.label), score: item.score }))
@@ -101,11 +108,13 @@ export async function classifyImagesLocally(urls: string[], onProgress?: VisionP
   });
   try {
     await Promise.all(workers);
+    permission.assert();
     return results;
   } finally {
     // A failed worker may leave another inference in flight. Wait for both
     // before freeing GPU/WASM tensors; downloaded model files remain cached.
     await Promise.allSettled(workers);
+    permission.release();
     const remaining = (activeClassifiers.get(model) ?? 1) - 1;
     if (remaining) activeClassifiers.set(model, remaining);
     else {

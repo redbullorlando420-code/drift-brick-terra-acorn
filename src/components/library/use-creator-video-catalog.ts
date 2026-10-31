@@ -34,8 +34,8 @@ export function useCreatorVideoCatalog(videos: LibraryVideo[], selected: Followe
   const source = useMemo(() => selected ? { id: selected.id, channelId: selected.channelId } : null, [selected?.id, selected?.channelId]);
   const memberScope = useMemo(() => ({ videos, source, hidden }), [videos, source, hidden]);
   const members = useCreatorJob(memberScope, !!source, (scope, turn) => prepareCreatorVideos(scope.videos, scope.source!, scope.hidden, turn));
-  const orderScope = useMemo(() => ({ rows: members.value, sort }), [members.value, sort]);
-  const order = useCreatorJob(orderScope, !!members.value, (scope, turn) => orderCreatorVideos(scope.rows!, scope.sort, turn));
+  const orderScope = useMemo(() => ({ rows: members.value, sort, sourceId:source?.id }), [members.value, sort,source?.id]);
+  const order = useCreatorJob(orderScope, !!members.value, (scope, turn) => orderCreatorVideos(scope.rows!, scope.sort, turn,scope.sourceId));
   const activityScope = useMemo(() => ({ rows: members.value, favorites, history }), [members.value, favorites, history]);
   const activity = useCreatorJob(activityScope, !!members.value, (scope, turn) => prepareCreatorVideoActivity(scope.rows!, scope.history, scope.favorites, turn));
   const selectionScope = useMemo(() => ({ rows: order.value, activity: activity.value, favorites, filter, query }), [order.value, activity.value, favorites, filter, query]);

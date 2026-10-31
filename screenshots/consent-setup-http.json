@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "checks": [
+    "v18 explicit capability and origin gating",
+    "default-denied model install performs no metadata or native work",
+    "held model lookup cannot publish/start after revoke and regrant",
+    "stale mutation and held request-body generations rejected",
+    "revoking browser-session access stops affected native fixture job",
+    "durable choices survive restart without replay"
+  ],
+  "limitations": "Real copied-service HTTP and Windows filesystem; metadata and child processes are controlled fixtures. No real model, browser session, provider download or installed Companion was used."
+}

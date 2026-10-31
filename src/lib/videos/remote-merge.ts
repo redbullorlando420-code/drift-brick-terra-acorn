@@ -1,6 +1,8 @@
+import { catalogIdentityKeys, lookupCatalogIdentity } from './catalog-identity.ts';
+import { retainTwitchIdentity } from './twitch-identity.ts';
 import { retainTwitchContent } from './twitch-content.ts';
 import { repairLegacyYoutubeDate } from "../remote/youtube-page.ts";
-import { retainYoutubeSources, youtubeVideoKey } from "../remote/youtube-sources.ts";
+import { retainYoutubeSources } from "../remote/youtube-sources.ts";
 import type { LibraryVideo } from "./types";
 import { copyCatalogArray, forEachCatalogEntry, forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
 import { retainYoutubeMetadata } from './youtube-metadata.ts';
@@ -17,6 +19,8 @@ function sameRemote(left: LibraryVideo["remote"], right: LibraryVideo["remote"])
   if (!left || !right) return left === right;
   return left.kind === right.kind
     && left.videoId === right.videoId
+    && left.twitchClipIdentity?.slug === right.twitchClipIdentity?.slug
+    && left.twitchClipIdentity?.id === right.twitchClipIdentity?.id
     && left.channelId === right.channelId
     && left.channelName === right.channelName
     && left.live === right.live
@@ -24,6 +28,8 @@ function sameRemote(left: LibraryVideo["remote"], right: LibraryVideo["remote"])
     && left.twitchContent?.source === right.twitchContent?.source
     && left.twitchContent?.videoId === right.twitchContent?.videoId
     && left.twitchContent?.at === right.twitchContent?.at
+    && left.youtubeEvent === right.youtubeEvent
+    && left.playlistMemberships === right.playlistMemberships
     && left.youtubeType === right.youtubeType
     && left.youtubeTagsCheckedAt === right.youtubeTagsCheckedAt
     && left.youtubeTagSummary === right.youtubeTagSummary
@@ -79,7 +85,7 @@ function sameVideo(left: LibraryVideo, right: LibraryVideo) {
  * possible), and no object is allocated when there is nothing to preserve.
  */
 function retainDurableRemoteFields(previous: LibraryVideo | undefined, incoming: LibraryVideo) {
-  incoming = retainYoutubeSources(previous, incoming);
+  incoming = retainTwitchIdentity(previous, retainYoutubeSources(previous, incoming));
   incoming = retainYoutubeMetadata(previous, incoming);
   incoming = retainTwitchContent(previous, incoming);
   if (!previous?.remote || !incoming.remote) return incoming;
@@ -123,7 +129,8 @@ function retainDurableRemoteFields(previous: LibraryVideo | undefined, incoming:
  * Unknown legacy clocks lose to a known observation; unrelated titles are untouched. */
 function olderRemoteObservation(previous: LibraryVideo | undefined, incoming: LibraryVideo): previous is LibraryVideo {
   if (!previous?.remote || !incoming.remote) return false;
-  const timed = previous.remote.live && incoming.remote.live
+  const timed = previous.remote.youtubeEvent && incoming.remote.youtubeEvent
+    || previous.remote.live && incoming.remote.live
     || previous.remote.kind === 'twitch' && incoming.remote.kind === 'twitch'
        && previous.extension === 'clip' && incoming.extension === 'clip';
   return Boolean(timed && (incoming.remote.observedAt ?? 0) < (previous.remote.observedAt ?? 0));
@@ -142,8 +149,7 @@ export function remoteVideoIndex(videos: LibraryVideo[]) {
   const index = new Map<string, LibraryVideo>();
   for (const video of videos) {
     index.set(video.id, video);
-    const key = youtubeVideoKey(video);
-    if (key && !index.has(key)) index.set(key, video);
+    for (const alias of catalogIdentityKeys(video)) if (!index.has(alias)) index.set(alias, video);
   }
   remoteVideoIndexes.set(videos, index);
   return index;
@@ -159,8 +165,7 @@ export function remoteVideoIndexAsync(videos: LibraryVideo[]): Promise<Map<strin
   const index = new Map<string, LibraryVideo>();
   const work = forEachCatalogSlice(videos, video => {
     index.set(video.id, video);
-    const key = youtubeVideoKey(video);
-    if (key && !index.has(key)) index.set(key, video);
+    for (const alias of catalogIdentityKeys(video)) if (!index.has(alias)) index.set(alias, video);
   }, yieldCatalogTask).then(() => { remoteVideoIndexes.set(videos, index); return index; }).finally(() => pendingIndexes.delete(videos));
   pendingIndexes.set(videos, work);
   return work;
@@ -178,13 +183,11 @@ export async function mergeRemoteCatalogAsync(existing: LibraryVideo[], incoming
   if (existing.length) {
     await forEachCatalogSlice(incoming, video => {
       wanted.add(video.id);
-      const key = youtubeVideoKey(video);
-      if (key) wanted.add(key);
+      for (const alias of catalogIdentityKeys(video)) wanted.add(alias);
     }, turn);
     await forEachCatalogSlice(existing, (video, index) => {
-      const key = youtubeVideoKey(video);
       if (wanted.has(video.id)) positions.set(video.id, index);
-      if (key && wanted.has(key) && !positions.has(key)) positions.set(key, index);
+      for (const alias of catalogIdentityKeys(video)) if (wanted.has(alias) && !positions.has(alias)) positions.set(alias, index);
     }, turn);
     wanted.clear();
   }
@@ -206,8 +209,7 @@ export async function mergeRemoteCatalogAsync(existing: LibraryVideo[], incoming
     await turn();
   };
   await forEachCatalogSlice(incoming, video => {
-    const key = youtubeVideoKey(video);
-    const index = positions.get(video.id) ?? (key ? positions.get(key) : undefined);
+    const index = lookupCatalogIdentity(positions, video);
     const previous = index === undefined ? undefined : replacements.get(index)
       ?? (index < existing.length ? (merged ?? existing)[index] : appended[index - existing.length]);
     // A disk restore may finish after a foreground pull or edit. Keep that
@@ -220,14 +222,15 @@ export async function mergeRemoteCatalogAsync(existing: LibraryVideo[], incoming
     if (options.preferExisting && previous && (next.id !== previous.id || next.folderId !== previous.folderId)) {
       next = { ...next, id: previous.id, folderId: previous.folderId };
     }
-    if (olderRemoteObservation(previous, next)) next = previous;
+    if (olderRemoteObservation(previous, next)) next = retainTwitchIdentity(next, previous);
     else if (previous && sameVideo(previous, next)) next = previous;
     if (index === undefined) {
       const position = existing.length + appended.length;
       positions.set(next.id, position);
-      if (key) positions.set(key, position);
+      for (const alias of catalogIdentityKeys(next)) positions.set(alias, position);
       appended.push(next);
     } else if (next !== previous) {
+      for(const alias of catalogIdentityKeys(next)) positions.set(alias,index);
       if (index < existing.length) {
         if (merged) merged[index] = next;
         else replacements.set(index, next);
@@ -247,18 +250,18 @@ export async function mergeRemoteCatalogAsync(existing: LibraryVideo[], incoming
 export function mergeRemoteCatalog(existing: LibraryVideo[], incoming: LibraryVideo[], positions: Map<string, number>, mergedIncoming: LibraryVideo[]): LibraryVideo[] {
   let merged = existing;
   for (const video of incoming) {
-    const key = youtubeVideoKey(video);
-    const index = positions.get(video.id) ?? (key ? positions.get(key) : undefined);
+    const index = lookupCatalogIdentity(positions, video);
     const previous = index === undefined ? undefined : merged[index];
     let next = retainDurableRemoteFields(previous, video);
-    if (olderRemoteObservation(previous, next)) next = previous;
+    if (olderRemoteObservation(previous, next)) next = retainTwitchIdentity(next, previous);
     else if (previous && sameVideo(previous, next)) next = previous;
     if (index === undefined) {
       if (merged === existing) merged = existing.slice();
       positions.set(next.id, merged.length);
-      if (key) positions.set(key, merged.length);
+      for (const alias of catalogIdentityKeys(next)) positions.set(alias, merged.length);
       merged.push(next);
     } else if (next !== previous) {
+      for(const alias of catalogIdentityKeys(next)) positions.set(alias,index);
       if (merged === existing) merged = existing.slice();
       merged[index] = next;
     }
@@ -282,20 +285,19 @@ export async function prepareIndexedRemoteCatalog(existing: LibraryVideo[], inco
     replacements.clear();
   };
   await forEachCatalogSlice(incoming, video => {
-    const key = youtubeVideoKey(video);
-    const position = positionChanges.get(video.id) ?? positions.get(video.id)
-      ?? (key ? positionChanges.get(key) ?? positions.get(key) : undefined);
+    const position = lookupCatalogIdentity(positionChanges, video) ?? lookupCatalogIdentity(positions, video);
     const previous = position === undefined ? undefined : position < existing.length
       ? replacements.get(position) ?? (videos ?? existing)[position] : appended[position - existing.length];
     let next = retainDurableRemoteFields(previous, video);
-    if (olderRemoteObservation(previous, next)) next = previous;
+    if (olderRemoteObservation(previous, next)) next = retainTwitchIdentity(next, previous);
     else if (previous && sameVideo(previous, next)) next = previous;
     if (position === undefined) {
       const addedPosition = existing.length + appended.length;
       positionChanges.set(next.id, addedPosition);
-      if (key) positionChanges.set(key, addedPosition);
+      for (const alias of catalogIdentityKeys(next)) positionChanges.set(alias, addedPosition);
       appended.push(next);
     } else if (next !== previous) {
+      for(const alias of catalogIdentityKeys(next)) positionChanges.set(alias,position);
       if (position < existing.length) {
         if (videos) videos[position] = next; else replacements.set(position, next);
       } else appended[position - existing.length] = next;
@@ -342,9 +344,9 @@ function remoteRefreshPlan(existing: LibraryVideo[], incoming: LibraryVideo[], r
   const refreshed = new Set(refreshedIds), existingById = options?.index ?? remoteVideoIndex(existing);
   const fresh = new Map<string, LibraryVideo>();
   for (const video of incoming) {
-    const previous = existingById.get(video.id) ?? existingById.get(youtubeVideoKey(video) ?? video.id);
+    const previous = lookupCatalogIdentity(existingById, video);
     let next = retainDurableRemoteFields(previous, video);
-    if (olderRemoteObservation(previous, next)) next = previous;
+    if (olderRemoteObservation(previous, next)) next = retainTwitchIdentity(next, previous);
     else if (previous && sameVideo(previous, next)) next = previous;
     fresh.set(next.id, next);
   }

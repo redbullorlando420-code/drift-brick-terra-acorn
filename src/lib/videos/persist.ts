@@ -1,4 +1,9 @@
+import { createSignalRevisions } from '../stream-signal-revisions.ts';
+import { createWriterLease } from '../writer-lease.ts';
+import { createStudioOutputs } from '../studio-outputs.ts';
 import {newestProviderViewing,type ProviderViewing} from './provider-viewing.ts';
+import {createCatalogMutations} from './catalog-mutations.ts';
+import {createStorageRecovery} from './storage-recovery.ts';
 import {newestAnimeReviews,type AnimeReviewLedger} from './anime-review.ts';
 import {newestFilms,type FilmLedger} from './film-review.ts';
 import {newestGuidePreset,type GuidePreset} from './guide-preset.ts';
@@ -38,7 +43,25 @@ import { decodeActivityRecords, encodeActivityRecords, mergeResumeRecords, recen
 import { createRecoveryLinkWriter, type SavedVideoLink } from './recovery-links';
 export type { SavedVideoLink } from './recovery-links';
 
+export function signalRevisions(owner:string){return createSignalRevisions(openDb,owner);}
+export function studioOutputs(owner:string){return createStudioOutputs(openDb,owner);}
 const DB_NAME = "reelcase";
+export const catalogWriter=createWriterLease(openDb,"catalog");
+function catalogTransaction(db:IDBDatabase,stores:string|string[],mode:IDBTransactionMode="readwrite"){
+  const token=catalogWriter.current();if(!token)throw Error('Catalog writer lease is required.');
+  const tx=db.transaction([...new Set([...(typeof stores==='string'?[stores]:stores),'remote-cache'])],mode);
+  catalogWriter.guard(tx,token,()=>{});return tx;
+}
+export function withCatalogRead<T>(work:()=>Promise<T>){if(catalogWriter.current())return Promise.reject(new Error('Wait for this tab to finish its current catalog work.'));return catalogWriter.run(work,false);}
+import.meta.hot?.dispose(()=>catalogWriter.close());
+const catalogMutations=createCatalogMutations(openDb,catalogWriter);
+export function recoverCatalogMutations(){return catalogMutations.recover();}
+export function saveCatalogMetadataEdit(row:Parameters<typeof catalogMutations.edit>[0]){return catalogMutations.edit(row);}
+export function restoreCatalogMetadata(base:Parameters<typeof catalogMutations.restore>[0]){return catalogMutations.restore(base);}
+const storageRecovery=createStorageRecovery(openDb);
+export const previewStorageCleanup=storageRecovery.preview;
+export const cancelStorageCleanup=storageRecovery.cancel;
+export const confirmStorageCleanup=storageRecovery.clean;
 const STORE = "dirs";
 const VIDEO_STORE = "videos";
 const SOURCE_HEALTH_STORE = "source-health";
@@ -57,7 +80,7 @@ let prefsWrites: Promise<void> = Promise.resolve();
 let followsWrites: Promise<void> = Promise.resolve();
 const normalizedCountWrites = new WeakMap<object, Record<string, number>>();
 type StoredPrefs = StoredActivity<Prefs> & { sparseMetadataRecords?: { tags?: EncodedSparseRecord<string[]>;
-  metadataProvenance?: EncodedSparseRecord<VideoMetadataProvenance> } };
+  metadataProvenance?: EncodedSparseRecord<VideoMetadataProvenance>; categories?: EncodedSparseRecord<string> } };
 
 export async function restoreDurablePrefs(): Promise<void> {
   const db = await openDb();
@@ -70,7 +93,7 @@ export async function restoreDurablePrefs(): Promise<void> {
     if (saved) {
       const { sparseMetadataRecords, ...prefs } = decodeActivityRecords(saved);
       durablePrefs = { ...prefs, tags: decodeSparseRecord(sparseMetadataRecords?.tags ?? saved.tags),
-        metadataProvenance: decodeSparseRecord(sparseMetadataRecords?.metadataProvenance ?? saved.metadataProvenance) };
+        metadataProvenance: decodeSparseRecord(sparseMetadataRecords?.metadataProvenance ?? saved.metadataProvenance), categories:decodeSparseRecord(sparseMetadataRecords?.categories??saved.categories) };
     }
   } finally { db.close(); }
 }
@@ -642,6 +665,7 @@ function normalizePhotoMeta(raw: unknown): Record<string, DurablePhotoMeta> {
     if (Array.isArray(rec.tags)) meta.tags = rec.tags.filter((t): t is string => typeof t === "string");
     if (typeof rec.album === "string") meta.album = rec.album;
     if (typeof rec.favorite === "boolean") meta.favorite = rec.favorite;
+    if (typeof rec.hidden === "boolean") meta.hidden = rec.hidden;
     if (typeof rec.rating === "number" && Number.isFinite(rec.rating)) meta.rating = Math.max(0, Math.min(5, Math.floor(rec.rating)));
     if (typeof rec.width === "number" && Number.isFinite(rec.width)) meta.width = Math.floor(rec.width);
     if (typeof rec.height === "number" && Number.isFinite(rec.height)) meta.height = Math.floor(rec.height);
@@ -770,7 +794,8 @@ const ENRICHMENT_PREFIX = 'metadata-enrichment:';
 /** Save one small creator repair atomically with its optional unlocked tags.
  * A foreground edit aborts the pending transaction, so obsolete preparation
  * cannot overwrite disk after an unfollow, manual edit or catalog refresh. */
-export async function saveCreatorCoverageRows(rows: readonly CreatorCoverageRow[], turn: () => Promise<void>,
+export function saveCreatorCoverageRows(...args:Parameters<typeof saveCreatorCoverageRowsOwned>){if(!args[0].length)return Promise.resolve();return catalogWriter.run(()=>saveCreatorCoverageRowsOwned(...args));}
+async function saveCreatorCoverageRowsOwned(rows: readonly CreatorCoverageRow[], turn: () => Promise<void>,
   valid: () => boolean, subscribe?: (changed: () => void) => () => void) {
   if (!rows.length) return;
   const db = await openDb();
@@ -778,7 +803,7 @@ export async function saveCreatorCoverageRows(rows: readonly CreatorCoverageRow[
     await turn();
     if (!valid()) throw new DOMException('Creator repair inputs changed', 'AbortError');
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(['remote-cache', ACTIVITY_STORE], 'readwrite');
+      const tx = catalogTransaction(db,['remote-cache', ACTIVITY_STORE], 'readwrite');
       let stale = false;
       const invalidate = () => { if (!valid()) { stale = true; try { tx.abort(); } catch { /* already completed */ } } };
       const stop = subscribe?.(invalidate) ?? (() => {});
@@ -970,10 +995,11 @@ export async function saveWorkspaceDocuments(rows: ReadonlyArray<{ key: string; 
   }); } finally { db.close(); }
 }
 
-export async function saveDirHandle(entry: StoredDir): Promise<void> {
+export function saveDirHandle(...args:Parameters<typeof saveDirHandleOwned>){return catalogWriter.run(()=>saveDirHandleOwned(...args));}
+async function saveDirHandleOwned(entry: StoredDir): Promise<void> {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
+    const tx = catalogTransaction(db,STORE, "readwrite");
     tx.objectStore(STORE).put(entry);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -993,10 +1019,12 @@ export async function loadDirHandles(): Promise<StoredDir[]> {
   return rows;
 }
 
-export async function deleteDirHandle(id: string): Promise<void> {
+export function deleteDirHandle(...args:Parameters<typeof deleteDirHandleOwned>){return catalogWriter.run(()=>deleteDirHandleOwned(...args));}
+async function deleteDirHandleOwned(id: string): Promise<void> {
+  await recoverCatalogMutations();
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE, VIDEO_STORE, SOURCE_HEALTH_STORE], "readwrite");
+    const tx = catalogTransaction(db,[STORE, VIDEO_STORE, SOURCE_HEALTH_STORE], "readwrite");
     tx.objectStore(STORE).delete(id);
     tx.objectStore(SOURCE_HEALTH_STORE).delete(id);
     const idx = tx.objectStore(VIDEO_STORE).index("folderId");
@@ -1018,7 +1046,7 @@ const IDB_WRITE_CHUNK = 400;
 
 async function clearFolderVideosTx(db: IDBDatabase, folderId: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(VIDEO_STORE, "readwrite");
+    const tx = catalogTransaction(db,VIDEO_STORE, "readwrite");
     const idx = tx.objectStore(VIDEO_STORE).index("folderId");
     const req = idx.openCursor(IDBKeyRange.only(folderId));
     req.onsuccess = () => {
@@ -1033,46 +1061,25 @@ async function clearFolderVideosTx(db: IDBDatabase, folderId: string): Promise<v
   });
 }
 
-async function putVideosChunked(db: IDBDatabase, videos: LibraryVideo[]): Promise<void> {
-  for (let i = 0; i < videos.length; i += IDB_WRITE_CHUNK) {
-    const slice = videos.slice(i, i + IDB_WRITE_CHUNK);
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction([VIDEO_STORE, 'remote-cache'], "readwrite");
-      const store = tx.objectStore(VIDEO_STORE);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error ?? new Error("Catalog save was interrupted. Please retry."));
-      try {
-        const cleanup = tx.objectStore('remote-cache').get(YOUTUBE_CLEANUP_KEY);
-        cleanup.onsuccess = () => {
-        const retired = retiredYoutubeKeys(normalizeYoutubeCleanup(cleanup.result));
-        for (const video of slice) {
-          if (video.isSample) continue;
-          if (video.remote && retired.has(cleanupKey(video))) continue;
-          const previous = store.get(video.id);
-          previous.onsuccess = () => {
-            try { store.put(withCatalogDetails(video, previous.result as LibraryVideo | undefined)); }
-            catch (error) { tx.abort(); reject(error); }
-          };
-        }
-        };
-      } catch (error) {
-        tx.abort();
-        reject(error);
-      }
-    });
+async function putVideosChunked(_db: IDBDatabase, videos: LibraryVideo[], metadata?:Pick<Prefs,"tags"|"metadataProvenance">): Promise<void> {
+  for (let offset=0;offset<videos.length;offset+=64) {
+    const rows=videos.slice(offset,offset+64),enrichment=metadata?rows.flatMap(video=>{const provenance=metadata.metadataProvenance?.[video.id];return provenance?[{id:video.id,tags:metadata.tags[video.id]??[],provenance}]:[];}):undefined;
+    await catalogMutations.write({version:1,kind:"local",rows,enrichment});
+    await yieldCatalogTask();
   }
 }
 
 /** Replace a folder atomically: a failed write must retain its previous catalog. */
-export async function saveFolderVideos(folderId: string, videos: LibraryVideo[]): Promise<void> {
+export function saveFolderVideos(...args:Parameters<typeof saveFolderVideosOwned>){return catalogWriter.run(()=>saveFolderVideosOwned(...args));}
+async function saveFolderVideosOwned(folderId: string, videos: LibraryVideo[]): Promise<void> {
+  await recoverCatalogMutations();
   if (videos.some((video) => video.folderId !== folderId)) {
     throw new Error("Cannot save catalog entries belonging to another folder.");
   }
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction([VIDEO_STORE, 'remote-cache'], "readwrite");
+      const tx = catalogTransaction(db,[VIDEO_STORE, 'remote-cache'], "readwrite");
       const store = tx.objectStore(VIDEO_STORE);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
@@ -1103,14 +1110,17 @@ export async function saveFolderVideos(folderId: string, videos: LibraryVideo[])
 }
 
 /** Append/upsert catalog rows without rewriting the whole folder (batched ingest). */
-export async function appendCatalogVideos(videos: LibraryVideo[]): Promise<void> {
+export function appendCatalogVideos(...args:Parameters<typeof appendCatalogVideosOwned>){if(!args[0].length)return Promise.resolve();return catalogWriter.run(()=>appendCatalogVideosOwned(...args));}
+async function appendCatalogVideosOwned(videos: LibraryVideo[], metadata?:Pick<Prefs,"tags"|"metadataProvenance">): Promise<void> {
   if (!videos.length) return;
   const db = await openDb();
-  try { await putVideosChunked(db, videos); }
+  try { await putVideosChunked(db, videos, metadata); }
   finally { db.close(); }
 }
 
-export async function clearFolderVideos(folderId: string): Promise<void> {
+export function clearFolderVideos(...args:Parameters<typeof clearFolderVideosOwned>){return catalogWriter.run(()=>clearFolderVideosOwned(...args));}
+async function clearFolderVideosOwned(folderId: string): Promise<void> {
+  await recoverCatalogMutations();
   const db = await openDb();
   await clearFolderVideosTx(db, folderId);
   db.close();
@@ -1252,7 +1262,7 @@ export function getPersistenceMemorySnapshot() {
 }
 
 const YOUTUBE_CLEANUP_KEY = 'youtube-cleanup';
-export type RemoteSnapshot = { videos: LibraryVideo[]; folders: Folder[]; checkedAt: number; youtubeCleanup?: YoutubeCleanupJournal };
+export type RemoteSnapshot = { videos: LibraryVideo[]; folders: Folder[]; checkedAt: number; youtubeCleanup?: YoutubeCleanupJournal; metadata?: Pick<Prefs,"tags"|"metadataProvenance"> };
 export async function loadRemoteSnapshot(): Promise<RemoteSnapshot | undefined> {
   const db = await openDb();
   try {
@@ -1300,65 +1310,34 @@ export async function loadRemoteSnapshot(): Promise<RemoteSnapshot | undefined> 
     return meta ? { videos: await collectCatalogRows(videos.values()), folders: meta.folders, checkedAt: meta.checkedAt, youtubeCleanup: legacy.youtubeCleanup } : undefined;
   } finally { db.close(); }
 }
-export async function saveRemoteSnapshot(snapshot: RemoteSnapshot, complete = false): Promise<void> {
-  const db = await openDb();
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction("remote-cache", "readwrite");
-      tx.objectStore("remote-cache").put({ folders: snapshot.folders, checkedAt: snapshot.checkedAt }, "meta");
-      tx.oncomplete = () => resolve(); tx.onerror = tx.onabort = () => reject(tx.error);
-    });
-    // Structured cloning a single 30–100k-video object caused large transient
-    // allocations. Rows are upserted in small transactions instead.
-    for (let i = 0; i < snapshot.videos.length; i += IDB_WRITE_CHUNK) {
-      await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction("remote-cache", "readwrite");
-        const store = tx.objectStore("remote-cache");
-        const rows = snapshot.videos.slice(i, i + IDB_WRITE_CHUNK);
-        const cleanupReq = store.get(YOUTUBE_CLEANUP_KEY);
-        cleanupReq.onsuccess = () => {
-        const retired = retiredYoutubeKeys(normalizeYoutubeCleanup(cleanupReq.result));
-        for (const video of rows) {
-          // A delayed write from an earlier pull cannot resurrect cleanup rows.
-          if (video.remote && retired.has(cleanupKey(video))) continue;
-          const key = `video:${video.id}`, previous = store.get(key);
-          previous.onsuccess = () => {
-            try { store.put(withCatalogDetails(video, previous.result as LibraryVideo | undefined), key); }
-            catch (error) { tx.abort(); reject(error); }
-          };
-        }
-        };
-        tx.oncomplete = () => resolve(); tx.onerror = tx.onabort = () => reject(tx.error);
-      });
-    }
-    if (complete) await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction("remote-cache", "readwrite");
-      tx.objectStore("remote-cache").delete("snapshot");
-      tx.oncomplete = () => resolve(); tx.onerror = tx.onabort = () => reject(tx.error);
-    });
-  } finally { db.close(); }
+export function saveRemoteSnapshot(...args:Parameters<typeof saveRemoteSnapshotOwned>){return catalogWriter.run(()=>saveRemoteSnapshotOwned(...args));}
+async function saveRemoteSnapshotOwned(snapshot: RemoteSnapshot, complete = false, rowsOnly = false): Promise<void> {
+  for(let offset=0;offset<snapshot.videos.length;offset+=64){
+    const rows=snapshot.videos.slice(offset,offset+64);
+    const enrichment=snapshot.metadata?rows.flatMap(video=>{const provenance=snapshot.metadata!.metadataProvenance?.[video.id];return provenance?[{id:video.id,tags:snapshot.metadata!.tags[video.id]??[],provenance}]:[];}):undefined;
+    await catalogMutations.write({version:1,kind:"remote",rows,enrichment});
+    await yieldCatalogTask();
+  }
+  if(rowsOnly)return;
+  // Remote catalog metadata advances only after its accepted row chunks commit.
+  await catalogMutations.write({version:1,kind:"remote",rows:[],meta:{folders:snapshot.folders,checkedAt:snapshot.checkedAt},complete});
 }
 
 /** One bounded transaction retires cards and automatic metadata together.
  * Watch history, favorites, likes, ratings and follow cursors are untouched. */
 export async function saveYoutubeCleanup(removed: readonly LibraryVideo[], journal: YoutubeCleanupJournal): Promise<void> {
-  const db = await openDb();
-  try { await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(['remote-cache', VIDEO_STORE, ACTIVITY_STORE], 'readwrite');
-    const remote = tx.objectStore('remote-cache'), activity = tx.objectStore(ACTIVITY_STORE);
-    for (const video of removed) { remote.delete(`video:${video.id}`); tx.objectStore(VIDEO_STORE).delete(video.id); activity.delete(ENRICHMENT_PREFIX + video.id); }
-    remote.put(journal, YOUTUBE_CLEANUP_KEY);
-    tx.oncomplete = () => resolve(); tx.onerror = tx.onabort = () => reject(tx.error ?? new Error('Cache cleanup was not saved'));
-  }); } finally { db.close(); }
+  await catalogMutations.write({version:1,kind:"cleanup",removed:removed.map(video=>video.id),cleanup:journal});
 }
 
-export async function removeRemoteSnapshotVideos(ids: string[]): Promise<void> {
+export function removeRemoteSnapshotVideos(...args:Parameters<typeof removeRemoteSnapshotVideosOwned>){if(!args[0].length)return Promise.resolve();return catalogWriter.run(()=>removeRemoteSnapshotVideosOwned(...args));}
+async function removeRemoteSnapshotVideosOwned(ids: string[]): Promise<void> {
+  await recoverCatalogMutations();
   if (!ids.length) return;
   const db = await openDb();
   try {
     for (let i = 0; i < ids.length; i += IDB_WRITE_CHUNK) {
       await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction("remote-cache", "readwrite");
+        const tx = catalogTransaction(db,"remote-cache", "readwrite");
         const store = tx.objectStore("remote-cache");
         for (const id of ids.slice(i, i + IDB_WRITE_CHUNK)) store.delete(`video:${id}`);
         tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
@@ -1562,14 +1541,15 @@ export function savePrefs(prefs: Prefs) {
   durablePrefs = prefs;
   // Keep large metadata out of synchronous, quota-limited localStorage.
   // Ordered transactions prevent an older edit overwriting a newer one.
-  const encodedTags = encodeSparseRecord(prefs.tags), encodedProvenance = prefs.metadataProvenance && encodeSparseRecord(prefs.metadataProvenance);
+  const encodedTags = encodeSparseRecord(prefs.tags), encodedProvenance = prefs.metadataProvenance && encodeSparseRecord(prefs.metadataProvenance), encodedCategories=encodeSparseRecord(prefs.categories);
   const tags = encodedTags !== prefs.tags ? encodedTags as EncodedSparseRecord<string[]> : undefined;
   const metadataProvenance = encodedProvenance !== prefs.metadataProvenance ? encodedProvenance as EncodedSparseRecord<VideoMetadataProvenance> : undefined;
+  const categories=encodedCategories!==prefs.categories?encodedCategories as EncodedSparseRecord<string>:undefined;
   // Keep legacy fields as plain dictionaries. Old readers retain the baseline;
   // new readers use this sidecar. Structured clone shares each baseline once.
   const pending = putActivityBlob("preferences", encodeActivityRecords({ ...prefs, tags: tags?.snapshot.base ?? prefs.tags,
-    metadataProvenance: metadataProvenance?.snapshot.base ?? prefs.metadataProvenance,
-    sparseMetadataRecords: tags || metadataProvenance ? { tags, metadataProvenance } : undefined }));
+    metadataProvenance: metadataProvenance?.snapshot.base ?? prefs.metadataProvenance, categories:categories?.snapshot.base??prefs.categories,
+    sparseMetadataRecords: tags || metadataProvenance || categories ? { tags, metadataProvenance, categories } : undefined }));
   if (prefsWrites !== pending) {
     prefsWrites = pending;
     void pending.catch(() => {

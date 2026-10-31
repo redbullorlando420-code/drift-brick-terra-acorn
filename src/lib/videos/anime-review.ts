@@ -1,3 +1,4 @@
+import { videoIsPrivate } from './public-visibility.ts';
 import {animeTitleInfo} from './anime-title.ts';
 import type {LibraryVideo,ResumeMark} from './types.ts';
 
@@ -76,7 +77,7 @@ export function preferAnimeVersion(ledger:AnimeReviewLedger,videoId:string,avail
 export function undoAnimeReview(ledger:AnimeReviewLedger,now=Date.now()){return ledger.undo?commit(ledger,ledger.undo,'Undid last anime review change',now):ledger;}
 export function animeReviewVisibility(scope:{folders:readonly {id:string;adult?:boolean}[];hidden:Record<string,unknown>;unavailable:Record<string,unknown>}){
  const publicIds=new Set(scope.folders.filter(f=>!f.adult).map(f=>f.id)),privateIds=new Set(scope.folders.filter(f=>f.adult).map(f=>f.id));
- return (v:LibraryVideo)=>!scope.hidden[v.id]&&!scope.unavailable[v.id]&&!privateIds.has(v.folderId)&&!v.isSample&&!v.remote?.live&&(!v.remote?publicIds.has(v.folderId):v.remote.kind==='youtube'&&v.remote.youtubeType!=='short'&&v.remote.youtubeType!=='upcoming');
+ return (v:LibraryVideo)=>!scope.hidden[v.id]&&!scope.unavailable[v.id]&&!videoIsPrivate(privateIds,v)&&!v.isSample&&!v.remote?.live&&(!v.remote?publicIds.has(v.folderId):v.remote.kind==='youtube'&&v.remote.youtubeType!=='short'&&v.remote.youtubeType!=='upcoming');
 }
 export function reviewedAnimeInfo(video:LibraryVideo,ledger?:AnimeReviewLedger){
  const e=ledger?.episodes[video.id],s=e&&ledger?.series[e.seriesId];return s&&e?{series:s.title+' · '+s.release,key:s.id,season:e.season,episode:e.episode,format:e.kind==='episode'?'episode' as const:e.kind==='unresolved'?'title' as const:'special' as const}:animeTitleInfo(video.name);

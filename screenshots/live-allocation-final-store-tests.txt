@@ -1,0 +1,13 @@
+✔ mixed live checks report provider-specific progress and first-result YouTube batches retain all targets (11.343ms)
+✔ automatic live batches re-evaluate creators becoming due during responses and yield without false partial failures (426.4487ms)
+✔ failed live transport batches retain observations and back off without pinning the discovery prefix (6.484ms)
+✔ pausing during an automatic live response saves that observation, releases ownership, and allows the Live page to continue (39.1632ms)
+✔ YouTube throughput records only distinct successful observations and never persists a second catalog or telemetry on follows (5.3633ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1020.5518

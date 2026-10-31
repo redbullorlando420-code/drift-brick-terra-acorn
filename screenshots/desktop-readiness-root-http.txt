@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "checks": [
+    "origin-gated folder controls list configured folders without scanning",
+    "held real HTTP artwork write blocked after root revocation",
+    "stale access generation rejected; explicit pinned reapproval works",
+    "junction target outside roots cannot receive a print write",
+    "replaced root loses approval and health reports the current root count",
+    "held request body from an obsolete approval generation is denied after reapproval; a fresh approved save succeeds"
+  ],
+  "scope": "Copied disposable Companion and workspace-only approved roots. Downloader/metadata native processes are simulated in unit tests; no real user service, provider session or files were used."
+}

@@ -1,0 +1,19 @@
+{
+  "ok": false,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [],
+      "ok": false,
+      "error": "Typing a comma must not remove the separator\n+ actual - expected\n\n+ 'AlexSam'\n- 'Alex, Sam'\n       ^\n",
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [],
+      "ok": false,
+      "error": "Typing a comma must not remove the separator\n+ actual - expected\n\n+ 'AlexSam'\n- 'Alex, Sam'\n       ^\n",
+      "errors": []
+    }
+  ]
+}

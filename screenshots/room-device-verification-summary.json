@@ -1,0 +1,23 @@
+{
+  "revision": 60,
+  "completed": [
+    "next-045",
+    "next-049"
+  ],
+  "defaultCompleted": 255,
+  "defaultTotal": 306,
+  "nextLevelCompleted": 53,
+  "regressions": 186,
+  "build": true,
+  "typecheck": true,
+  "browserReports": [
+    "room-device-dev.json",
+    "room-device-production.json",
+    "room-device-mission-dev.json",
+    "room-device-mission-production.json",
+    "room-device-controls-production.json",
+    "room-device-home-dev.json",
+    "room-device-home-production.json"
+  ],
+  "external": "Provider bridges are fixtures; physical phone autoplay, real captions/ads/DVR and cross-network TURN remain unverified."
+}

@@ -17,4 +17,16 @@ shortcut.WindowStyle = 1
 shortcut.Description = "Realhub - visible local server and Companion console"
 shortcut.IconLocation = shell.ExpandEnvironmentStrings("%SystemRoot%") & "\System32\shell32.dll,14"
 shortcut.Save
-WScript.Echo "Realhub desktop shortcut now uses Node.js directly."
+target = shell.SpecialFolders("Desktop") & "\Stop Realhub.lnk"
+Set shortcut = shell.CreateShortcut(target)
+If files.FileExists(target) Then
+ If InStr(1, shortcut.Arguments, root & "\scripts\stop-desktop.mjs", vbTextCompare) = 0 Then WScript.Echo "Stop shortcut belongs to another installation.": WScript.Quit 1
+End If
+shortcut.TargetPath = node
+shortcut.Arguments = Chr(34) & root & "\scripts\stop-desktop.mjs" & Chr(34)
+shortcut.WorkingDirectory = root
+shortcut.WindowStyle = 1
+shortcut.Description = "Stop this Realhub server and Companion; preserve saved libraries"
+shortcut.IconLocation = shell.ExpandEnvironmentStrings("%SystemRoot%") & "\System32\shell32.dll,27"
+shortcut.Save
+WScript.Echo "Realhub and Stop Realhub desktop shortcuts are ready. Both use Node.js directly."

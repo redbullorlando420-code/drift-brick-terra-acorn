@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Opening the inventory reads saved metadata only; native rows remain unchecked and no setup starts.",
+        "Explicit bounded GET-only checks distinguish ready prerequisites from generation/session/chat verification; static evidence is linked and milestone state stays untouched.",
+        "A failed engine check, absent capabilities and incompatible protocol remain explicit; unsupported actions are never dispatched.",
+        "Snapshots reset after reload, actions reach existing sections, Mission plan offers the same inventory, and touch targets/overflow/console checks pass."
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Opening the inventory reads saved metadata only; native rows remain unchecked and no setup starts.",
+        "Explicit bounded GET-only checks distinguish ready prerequisites from generation/session/chat verification; static evidence is linked and milestone state stays untouched.",
+        "A failed engine check, absent capabilities and incompatible protocol remain explicit; unsupported actions are never dispatched.",
+        "Snapshots reset after reload, actions reach existing sections, Mission plan offers the same inventory, and touch targets/overflow/console checks pass."
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ],
+  "limitations": "Controlled local status responses and isolated browser profiles. No account, engine, download, chat or native remote session was connected."
+}

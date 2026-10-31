@@ -1,21 +1,8 @@
 import { type ReactNode } from "react";
 import { Card, CardContent } from '@/components/ui/card';
 import { ExternalLink } from "lucide-react";
-
-export type LocalItem = {
-  name: string;
-  path: string;
-  size: number;
-  addedAt: number;
-  launchUrl?: string;
-  iconData?: string;
-  /** IndexedDB blob id for interactive 3D preview of user-added prints. */
-  id?: string;
-  /** Bundled public URL for sample print geometry. */
-  sampleSrc?: string;
-};
-
-export type HubStore = { prints: LocalItem[]; games: LocalItem[] };
+import { readHubStore, type HubStore, type LocalItem } from '@/lib/hub-storage';
+export type { HubStore, LocalItem } from '@/lib/hub-storage';
 
 export const HUB_KEY = "reelcase.hub.v1";
 
@@ -65,7 +52,7 @@ export function readHub(): HubStore {
   try {
     const raw = localStorage.getItem(HUB_KEY);
     if (!raw) return { prints: samples, games: [] };
-    return JSON.parse(raw) as HubStore;
+    return readHubStore(JSON.parse(raw), { prints: samples, games: [] });
   } catch {
     return { prints: samples, games: [] };
   }

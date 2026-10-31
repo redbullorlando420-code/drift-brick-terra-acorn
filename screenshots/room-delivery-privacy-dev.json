@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "checks": [
+    "host previews a selected public collection before enabling discovery; private collection names and merged private titles are absent",
+    "empty guest library defaults to host search; browse and next/previous pages reach unqueued titles beyond the current video without copying the catalog",
+    "guests queue previously unshared host titles; the host confirms their identities and order, including next priority and removal",
+    "local titles stay hidden by default, appear only after host opt-in, queue through host validation and are withdrawn when sharing is disabled",
+    "host can revoke and restore browsing; guest queue/selection locks remain enforced while titles stay discoverable",
+    "removing a single collection revokes discovery immediately without stopping current playback; a private provider identity cannot bypass access with a forged guest ID",
+    "revocation discards held pages; regrant rejects old catalog queue requests; private descriptions, labels and merged sources cannot be searched",
+    "selected host media plays on the empty guest, reconnect restores discovery, no host paths/follows are copied and clock heartbeats do not resend catalog pages"
+  ],
+  "errors": [],
+  "fixture": "Real WebRTC desktop host and mobile guest with 120 public titles, local file, private source, merged private membership, held result and forged stale queue request. Provider playback is a fixture."
+}

@@ -1,3 +1,4 @@
+import { normalizeYoutubeFeedGap } from './youtube-feed-gap.ts';
 import type { FollowedChannel, ProviderFailure, RecentPullState } from "./types";
 const positive = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value) && value > 0;
@@ -24,6 +25,7 @@ export function normalizeRecentPull(raw: unknown): RecentPullState | undefined {
         }
       : undefined;
   return {
+    ...(normalizeYoutubeFeedGap(row.gap) ? { gap: normalizeYoutubeFeedGap(row.gap) } : {}),
     attemptedAt: row.attemptedAt,
     failures: row.failures,
     ...(positive(row.checkedAt) ? { checkedAt: row.checkedAt } : {}),
@@ -73,6 +75,7 @@ export function recentPullSuccess(
   return {
     attemptedAt: now,
     checkedAt,
+    ...(previous?.gap && previous.gap.status !== 'resolved' ? {gap:previous.gap} : observation.recentPull?.gap ? {gap:observation.recentPull.gap} : previous?.gap ? {gap:previous.gap} : {}),
     failures: 0,
     ...(observation.newestVideoId || previous?.newestVideoId
       ? { newestVideoId: observation.newestVideoId || previous?.newestVideoId }
@@ -86,7 +89,7 @@ export function recentPullReady(
   },
   now = Date.now(),
 ) {
-  if ((channel.recentPull?.retryAt ?? 0) > now) return false;
+  if ((channel.recentPull?.retryAt ?? 0) > now && !['catalog','page','details','live'].includes((channel.recentPull as RecentPullState)?.failure?.cooldownScope??'')) return false;
   const legacy = channel.lastProviderFailure;
   return !(
     legacy?.kind === "rate-limited" &&

@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "os": "win32",
+      "ok": true,
+      "checks": [
+        "origin gating",
+        "platform capability filtering and guarded routes",
+        "review creates no model",
+        "streamed checksum-verified exclusive GLB commit",
+        "legacy and edited paths preserve originals",
+        "restart verifies completed copy and never replays pending save",
+        "no native process spawned"
+      ]
+    },
+    {
+      "os": "linux",
+      "ok": true,
+      "checks": [
+        "origin gating",
+        "platform capability filtering and guarded routes",
+        "review creates no model",
+        "streamed checksum-verified exclusive GLB commit",
+        "legacy and edited paths preserve originals",
+        "restart verifies completed copy and never replays pending save",
+        "no native process spawned"
+      ]
+    },
+    {
+      "os": "darwin",
+      "ok": true,
+      "checks": [
+        "origin gating",
+        "platform capability filtering and guarded routes",
+        "review creates no model",
+        "streamed checksum-verified exclusive GLB commit",
+        "legacy and edited paths preserve originals",
+        "restart verifies completed copy and never replays pending save",
+        "no native process spawned"
+      ]
+    }
+  ],
+  "limitations": "Actual HTTP and filesystem checks ran on Windows using isolated copied services. Linux/macOS platform contracts and dispatch were simulated; their native filesystems, desktop apps and service managers were not tested. No real game, model engine, download or user service was started."
+}

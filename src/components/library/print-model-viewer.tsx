@@ -10,6 +10,8 @@ import {
   Sun,
   X,
 } from "lucide-react";
+import { PrintSavePanel } from './print-save-panel';
+import { exportPrintCopy,isSavedPrintScene,printModelSignature,loadSavedPrintCopy,type PrintSaveReceipt } from '@/lib/print-save';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { loadPrintBlob, isViewablePrintName, type PrintViewerTarget } from "@/lib/prints-blobs";
@@ -47,16 +49,20 @@ function degToRad(d: number) {
 export function PrintModelViewer({ target, onClose }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+  const originalColorRef = useRef(DEFAULT_PRINT_EDIT.color);
   const editKey = printEditKey(target);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [detail, setDetail] = useState(formatHint(target.name));
   const [stats, setStats] = useState<string>("");
   const [edit, setEdit] = useState<PrintEditState>(() => loadPrintEdit(editKey));
+  const [savedCopy,setSavedCopy]=useState(()=>loadSavedPrintCopy(editKey));
+  const signature=printModelSignature(edit),unsaved=signature!==(savedCopy?.signature??printModelSignature(DEFAULT_PRINT_EDIT));
   const [panelOpen, setPanelOpen] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
   const editRef = useRef(edit);
   editRef.current = edit;
   const apiRef = useRef<{
+    exportCopy:()=>Promise<Blob>;
     fit: (preset?: CameraPreset) => void;
     applyEdit: () => void;
     setGridVisible: (v: boolean) => void;
@@ -64,19 +70,25 @@ export function PrintModelViewer({ target, onClose }: Props) {
   } | null>(null);
 
   useEffect(() => {
-    savePrintEdit(editKey, edit);
+    const timer=setTimeout(()=>savePrintEdit(editKey,edit),180);
     apiRef.current?.applyEdit();
     apiRef.current?.setGridVisible(edit.showGrid);
     apiRef.current?.setLighting(edit.lighting);
+    return()=>clearTimeout(timer);
   }, [edit, editKey]);
 
+  useEffect(()=>()=>{savePrintEdit(editKey,editRef.current);},[editKey]);
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
 
     let disposed = false;
+    let tick:FrameRequestCallback=()=>{frame=0;};
     let objectUrl: string | null = null;
     let frame = 0;
+    const invalidate=()=>{if(!disposed&&!document.hidden&&!frame)frame=requestAnimationFrame(time=>{frame=0;tick(time);});};
+    const visibility=()=>{if(document.hidden){cancelAnimationFrame(frame);frame=0;}else invalidate();};
+    document.addEventListener('visibilitychange',visibility);
     let renderer: import("three").WebGLRenderer | null = null;
     let controls: import("three/examples/jsm/controls/OrbitControls.js").OrbitControls | null = null;
     let scene: import("three").Scene | null = null;
@@ -89,6 +101,7 @@ export function PrintModelViewer({ target, onClose }: Props) {
     let fill: import("three").DirectionalLight | null = null;
     let rim: import("three").DirectionalLight | null = null;
     let resizeObs: ResizeObserver | null = null;
+    const originalColors=new Map<import("three").Material,import("three").Color>();
     let meshBases: Array<{ mesh: import("three").Object3D; base: import("three").Vector3 }> = [];
     let fitCenter = { x: 0, y: 0, z: 0 };
     let fitDistance = 80;
@@ -151,13 +164,14 @@ export function PrintModelViewer({ target, onClose }: Props) {
         for (const mat of mats) {
           const std = mat as import("three").MeshStandardMaterial;
           if ("wireframe" in std) std.wireframe = e.wireframe;
-          if ("color" in std && std.color && !(mesh.userData?.keepColor)) {
+          if ("color" in std && std.color && (!(mesh.userData?.keepColor)||e.overrideMaterial)) {
             try {
               std.color.set(e.color);
             } catch {
               /* invalid color */
             }
           }
+          if(mesh.userData?.keepColor&&!e.overrideMaterial&&originalColors.has(mat)&&std.color)std.color.copy(originalColors.get(mat)!);
           std.needsUpdate = true;
         }
       });
@@ -170,6 +184,7 @@ export function PrintModelViewer({ target, onClose }: Props) {
           row.mesh.position.copy(row.base).addScaledVector(dir, e.explode);
         }
       }
+      invalidate();
     };
 
     const fitCamera = (preset: CameraPreset = "iso") => {
@@ -182,7 +197,7 @@ export function PrintModelViewer({ target, onClose }: Props) {
       else if (preset === "side") camera.position.set(c.x + d, c.y, c.z);
       else camera.position.set(c.x + d * 0.9, c.y + d * 0.55, c.z + d * 0.9);
       controls.target.set(c.x, c.y, c.z);
-      controls.update();
+      controls.update();invalidate();
     };
 
     const measureAndFit = (THREE: typeof import("three"), object: import("three").Object3D) => {
@@ -274,19 +289,19 @@ export function PrintModelViewer({ target, onClose }: Props) {
         const h = host.clientHeight || 1;
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
-        renderer.setSize(w, h, false);
+        renderer.setSize(w, h, false);invalidate();
       };
       resize();
       resizeObs = new ResizeObserver(resize);
       resizeObs.observe(host);
 
-      const tick = () => {
+      const renderLoop = () => {
         if (disposed || !renderer || !scene || !camera || !controls) return;
-        controls.update();
+        frame=0;const moving=controls.update();
         renderer.render(scene, camera);
-        frame = requestAnimationFrame(tick);
+        if(moving)invalidate();
       };
-      frame = requestAnimationFrame(tick);
+      tick=renderLoop;controls.addEventListener('change',invalidate);invalidate();
 
       let url = target.sampleSrc ?? null;
       let ext = (target.sampleSrc || target.name).split(".").pop()?.toLowerCase() ?? "";
@@ -360,7 +375,7 @@ export function PrintModelViewer({ target, onClose }: Props) {
       }
 
       const box = new THREE.Box3().setFromObject(object);
-      object.position.y -= box.min.y;
+      if(!isSavedPrintScene(object))object.position.y -= box.min.y;
 
       pivot = new THREE.Group();
       pivot.add(object);
@@ -372,18 +387,21 @@ export function PrintModelViewer({ target, onClose }: Props) {
         const mesh = child as import("three").Mesh;
         if (!mesh.isMesh) return;
         meshBases.push({ mesh, base: mesh.position.clone() });
+        for(const material of (Array.isArray(mesh.material)?mesh.material:[mesh.material])){const standard=material as import("three").MeshStandardMaterial;if(standard.color)originalColors.set(material,standard.color.clone());}
       });
 
+      const firstColor=[...originalColors.values()][0]?.getHexString();if(firstColor){originalColorRef.current='#'+firstColor;setEdit(previous=>previous.overrideMaterial||previous.color==='#'+firstColor?previous:{...previous,color:'#'+firstColor});}
       measureAndFit(THREE, pivot);
       applyEditToScene();
 
       apiRef.current = {
-        fit: (preset = "iso") => fitCamera(preset),
+        exportCopy:()=>{applyEditToScene();if(!pivot)throw Error('The model is unavailable.');return exportPrintCopy(pivot,meshBases);},
+        fit: (preset = "iso") => {if(THREE_REF&&pivot)measureAndFit(THREE_REF,pivot);fitCamera(preset);},
         applyEdit: applyEditToScene,
         setGridVisible: (v) => {
-          if (grid) grid.visible = v;
+          if (grid) grid.visible = v;invalidate();
         },
-        setLighting: applyLighting,
+        setLighting: mode=>{applyLighting(mode);invalidate();},
       };
 
       setStatus("ready");
@@ -399,6 +417,7 @@ export function PrintModelViewer({ target, onClose }: Props) {
     return () => {
       disposed = true;
       cancelAnimationFrame(frame);
+      document.removeEventListener('visibilitychange',visibility);
       resizeObs?.disconnect();
       controls?.dispose();
       apiRef.current = null;
@@ -490,7 +509,7 @@ export function PrintModelViewer({ target, onClose }: Props) {
       className="fixed inset-0 z-50 flex flex-col bg-bg/95"
       role="dialog"
       aria-modal="true"
-      aria-label={`View ${target.name}`}
+      aria-label={`View ${target.name}`} data-print-ready={status}
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0">
@@ -504,18 +523,18 @@ export function PrintModelViewer({ target, onClose }: Props) {
             {stats ? ` · ${stats}` : ""}
           </p>
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Button size="sm" variant="secondary" type="button" disabled={status !== "ready"} onClick={() => apiRef.current?.fit("iso")} aria-label="Fit model">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
+          <Button size="sm" className="min-h-11" variant="secondary" type="button" disabled={status !== "ready"} onClick={() => apiRef.current?.fit("iso")} aria-label="Fit model">
             <Expand className="size-3.5" />
             Fit
           </Button>
           <Button
-            size="sm"
+            size="sm" className="min-h-11"
             variant="secondary"
             type="button"
             disabled={status !== "ready"}
             onClick={() => {
-              setEdit({ ...DEFAULT_PRINT_EDIT });
+              setEdit({ ...DEFAULT_PRINT_EDIT, color:originalColorRef.current });
               apiRef.current?.fit("iso");
             }}
             aria-label="Reset transform and camera"
@@ -523,23 +542,23 @@ export function PrintModelViewer({ target, onClose }: Props) {
             <RotateCcw className="size-3.5" />
             Reset
           </Button>
-          <Button size="sm" variant="secondary" type="button" onClick={() => setPanelOpen((v) => !v)} aria-label="Toggle editor panel">
+          <Button size="sm" className="min-h-11" variant="secondary" type="button" onClick={() => setPanelOpen((v) => !v)} aria-label="Toggle editor panel">
             <Box className="size-3.5" />
             {panelOpen ? "Hide editor" : "Editor"}
           </Button>
-          <Button size="sm" variant="secondary" type="button" onClick={() => void toggleFullscreen()} aria-label="Toggle fullscreen">
+          <Button size="sm" className="min-h-11" variant="secondary" type="button" onClick={() => void toggleFullscreen()} aria-label="Toggle fullscreen">
             {fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
             {fullscreen ? "Exit" : "Full"}
           </Button>
-          <Button size="sm" variant="secondary" type="button" onClick={onClose} aria-label="Close viewer">
+          <Button size="sm" className="min-h-11" variant="secondary" type="button" onClick={onClose} aria-label="Close viewer">
             <X className="size-3.5" />
             Close
           </Button>
         </div>
       </div>
 
-      <div className="relative flex min-h-0 flex-1">
-        <div className="relative min-h-0 min-w-0 flex-1">
+      <div className="relative flex min-h-0 flex-1 flex-col sm:flex-row">
+        <div className="relative min-h-52 min-w-0 flex-1 sm:min-h-0">
           <div ref={hostRef} className="absolute inset-0 touch-none" />
           {status === "loading" && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-sm text-muted">
@@ -558,7 +577,7 @@ export function PrintModelViewer({ target, onClose }: Props) {
                 <button
                   key={preset}
                   type="button"
-                  className="pointer-events-auto rounded-sm bg-bg/80 px-2 py-1 text-[11px] font-medium text-fg shadow-border hover:bg-elevated"
+                  className="pointer-events-auto min-h-11 min-w-11 rounded-sm bg-bg/80 px-2 py-1 text-[11px] font-medium text-fg shadow-border hover:bg-elevated"
                   onClick={() => apiRef.current?.fit(preset)}
                 >
                   {preset}
@@ -569,12 +588,12 @@ export function PrintModelViewer({ target, onClose }: Props) {
         </div>
 
         {panelOpen && (
-          <aside className="flex w-full max-w-xs shrink-0 flex-col gap-3 overflow-y-auto border-l border-border bg-surface p-4 sm:w-72">
+          <aside aria-label="Print editor" className="flex max-h-96 w-full shrink-0 flex-col gap-3 overflow-y-auto border-t border-border bg-surface p-4 sm:max-h-none sm:w-80 sm:border-t-0 sm:border-l">
             <div>
               <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">View</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <Button
-                  size="sm"
+                  size="sm" className="min-h-11"
                   variant={edit.wireframe ? "default" : "secondary"}
                   disabled={status !== "ready"}
                   onClick={() => patch({ wireframe: !edit.wireframe })}
@@ -582,7 +601,7 @@ export function PrintModelViewer({ target, onClose }: Props) {
                   Wireframe
                 </Button>
                 <Button
-                  size="sm"
+                  size="sm" className="min-h-11"
                   variant={edit.showGrid ? "default" : "secondary"}
                   disabled={status !== "ready"}
                   onClick={() => patch({ showGrid: !edit.showGrid })}
@@ -598,7 +617,7 @@ export function PrintModelViewer({ target, onClose }: Props) {
                 {(["studio", "bright", "soft", "contrast"] as const).map((mode) => (
                   <Button
                     key={mode}
-                    size="sm"
+                    size="sm" className="min-h-11"
                     variant={edit.lighting === mode ? "default" : "secondary"}
                     disabled={status !== "ready"}
                     onClick={() => patch({ lighting: mode })}
@@ -611,10 +630,10 @@ export function PrintModelViewer({ target, onClose }: Props) {
                 Material color
                 <Input
                   type="color"
-                  value={edit.color}
+                  value={edit.overrideMaterial?edit.color:originalColorRef.current}
                   disabled={status !== "ready"}
-                  onChange={(event) => patch({ color: event.target.value })}
-                  className="mt-1 h-9 w-full cursor-pointer p-1"
+                  onChange={(event) => patch({ color: event.target.value,overrideMaterial:true })}
+                  className="mt-1 h-11 w-full cursor-pointer p-1"
                   aria-label="Material color"
                 />
               </label>
@@ -622,7 +641,7 @@ export function PrintModelViewer({ target, onClose }: Props) {
 
             <div className="border-t border-border pt-3">
               <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Transform</p>
-              <p className="mt-1 text-[11px] text-subtle">Saved locally for this model. Not a CAD suite — quick orientation for print checks.</p>
+              <p role="status" className="mt-1 text-xs text-muted">{unsaved?'Unsaved model changes · draft kept locally':savedCopy?'A copy of these edits was saved · original retained':'Original model · viewing preferences are local'}</p>
               <div className="mt-3 space-y-3">
                 {slider("Scale", edit.scale, 0.1, 5, 0.05, (n) => patch({ scale: n }), "×")}
                 {slider("Rotate X", edit.rotX, -180, 180, 1, (n) => patch({ rotX: n }), "°")}
@@ -634,14 +653,15 @@ export function PrintModelViewer({ target, onClose }: Props) {
                 {slider("Explode parts", edit.explode, 0, 40, 0.5, (n) => patch({ explode: n }))}
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button size="sm" variant="secondary" disabled={status !== "ready"} onClick={() => patch({ rotX: 0, rotY: 0, rotZ: 0, posX: 0, posY: 0, posZ: 0, scale: 1, explode: 0 })}>
+                <Button size="sm" className="min-h-11" variant="secondary" disabled={status !== "ready"} onClick={() => patch({ rotX: 0, rotY: 0, rotZ: 0, posX: 0, posY: 0, posZ: 0, scale: 1, explode: 0 })}>
                   Clear transform
                 </Button>
-                <Button size="sm" variant="secondary" disabled={status !== "ready"} onClick={() => patch({ rotX: -90 })} title="Common bed flat correction">
+                <Button size="sm" className="min-h-11" variant="secondary" disabled={status !== "ready"} onClick={() => patch({ rotX: -90 })} title="Common bed flat correction">
                   Flat on bed (−90° X)
                 </Button>
               </div>
             </div>
+            {status==='ready'&&<PrintSavePanel modelKey={editKey} name={target.name} signature={signature} exportModel={()=>{if(!apiRef.current)throw Error('The model is unavailable.');return apiRef.current.exportCopy();}} onSaved={(savedSignature:string,receipt:PrintSaveReceipt)=>setSavedCopy({signature:savedSignature,receipt})}/>}
           </aside>
         )}
       </div>

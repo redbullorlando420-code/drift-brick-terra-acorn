@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "url": "http://127.0.0.1:8083/",
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Actual IndexedDB: atomic PNG/index quota rollback, owner isolation, duplicate saves, 32 image limit, synthetic 128 MiB index budget, missing-byte receipt retention, future-version refusal, explicit scoped remove; 100 sequential generation fixture retains one preview; Twitch aliases persist one card and one room key",
+        "Rendered controls: generate, save PNG+settings, save separate recipe, preview/cancel/confirm cleanup, download saved PNG, quota failure and retry, clear-on-navigation and object URL release, reload without resubmission, reuse settings and missing-byte receipt"
+      ],
+      "storage": {
+        "countLimit": 32,
+        "byteLimit": 134217728,
+        "syntheticBudgetReceipts": true,
+        "longGenerations": 100,
+        "previewBytes": 68,
+        "ownerIsolation": true,
+        "quotaRollback": true,
+        "missingReceiptRetained": true,
+        "twitchSources": 3
+      },
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "Actual IndexedDB: atomic PNG/index quota rollback, owner isolation, duplicate saves, 32 image limit, synthetic 128 MiB index budget, missing-byte receipt retention, future-version refusal, explicit scoped remove; 100 sequential generation fixture retains one preview; Twitch aliases persist one card and one room key",
+        "Rendered controls: generate, save PNG+settings, save separate recipe, preview/cancel/confirm cleanup, download saved PNG, quota failure and retry, clear-on-navigation and object URL release, reload without resubmission, reuse settings and missing-byte receipt"
+      ],
+      "storage": {
+        "countLimit": 32,
+        "byteLimit": 134217728,
+        "syntheticBudgetReceipts": true,
+        "longGenerations": 100,
+        "previewBytes": 68,
+        "ownerIsolation": true,
+        "quotaRollback": true,
+        "missingReceiptRetained": true,
+        "twitchSources": 3
+      },
+      "ok": true
+    }
+  ]
+}

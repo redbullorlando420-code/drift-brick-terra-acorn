@@ -1,0 +1,12 @@
+{"mobile":false,"name":"Games","ok":false,"error":"Something went wrong\n\nCannot read properties of null (reading 'games')"}
+{"mobile":false,"name":"3D prints","ok":false,"error":"Something went wrong\n\nCannot read properties of null (reading 'prints')"}
+{"mobile":false,"name":"Settings","ok":false,"error":"Something went wrong\n\nCannot read properties of null (reading 'prints')"}
+{"mobile":false,"name":"Games","ok":false,"error":"Something went wrong\n\nsaved.map is not a function"}
+{"mobile":false,"name":"3D prints","ok":false,"error":"Something went wrong\n\nCannot read properties of null (reading 'id')"}
+{"mobile":false,"name":"Settings","ok":true}
+{"mobile":true,"name":"Games","ok":false,"error":"Something went wrong\n\nCannot read properties of null (reading 'games')"}
+{"mobile":true,"name":"3D prints","ok":false,"error":"Something went wrong\n\nCannot read properties of null (reading 'prints')"}
+{"mobile":true,"name":"Settings","ok":false,"error":"Something went wrong\n\nCannot read properties of null (reading 'prints')"}
+{"mobile":true,"name":"Games","ok":false,"error":"Something went wrong\n\nsaved.map is not a function"}
+{"mobile":true,"name":"3D prints","ok":false,"error":"Something went wrong\n\nCannot read properties of null (reading 'id')"}
+{"mobile":true,"name":"Settings","ok":true}

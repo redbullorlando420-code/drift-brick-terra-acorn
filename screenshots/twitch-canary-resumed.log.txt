@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "kind": "realhub-twitch-canary",
+  "checkedAt": 1793219191876,
+  "creators": [
+    "twitch",
+    "lirik"
+  ],
+  "maxRequests": 3,
+  "requests": [
+    {
+      "scope": "live",
+      "creator": "twitch",
+      "status": 200,
+      "elapsedMs": 246
+    },
+    {
+      "scope": "live",
+      "creator": "lirik",
+      "status": 200,
+      "elapsedMs": 309
+    }
+  ],
+  "retryAt": 0,
+  "tasks": [
+    {
+      "creator": "twitch",
+      "scope": "live",
+      "state": "empty",
+      "checkedAt": 1793219191364,
+      "rows": 0,
+      "pages": 0,
+      "duplicates": 0,
+      "stops": [],
+      "issue": "none"
+    },
+    {
+      "creator": "twitch",
+      "scope": "vods",
+      "state": "passed",
+      "checkedAt": 1793218992028,
+      "rows": 100,
+      "pages": 1,
+      "duplicates": 0,
+      "stops": [
+        "entry-budget"
+      ],
+      "issue": "none"
+    },
+    {
+      "creator": "twitch",
+      "scope": "clips",
+      "state": "passed",
+      "checkedAt": 1793218993122,
+      "rows": 2,
+      "pages": 1,
+      "duplicates": 0,
+      "stops": [],
+      "issue": "none"
+    },
+    {
+      "creator": "lirik",
+      "scope": "live",
+      "state": "failed",
+      "checkedAt": 1793219191876,
+      "rows": 0,
+      "pages": 0,
+      "duplicates": 0,
+      "stops": [],
+      "issue": "media-contract"
+    },
+    {
+      "creator": "lirik",
+      "scope": "vods",
+      "state": "passed",
+      "checkedAt": 1793218993933,
+      "rows": 100,
+      "pages": 1,
+      "duplicates": 0,
+      "stops": [
+        "entry-budget"
+      ],
+      "issue": "none"
+    },
+    {
+      "creator": "lirik",
+      "scope": "clips",
+      "state": "passed",
+      "checkedAt": 1793218994613,
+      "rows": 2,
+      "pages": 1,
+      "duplicates": 0,
+      "stops": [],
+      "issue": "none"
+    }
+  ],
+  "ok": false,
+  "limit": "Public metadata contract check only. No cookies, playback, subscriptions or private account data. Empty means a readable empty result, not a playable-video verification."
+}

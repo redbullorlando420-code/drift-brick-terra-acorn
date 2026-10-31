@@ -1,0 +1,12 @@
+✔ artwork audit counts disk bytes and real reads by source without descending into folders (20.7708ms)
+✔ poster mirroring bounds stalled bursts, deduplicates frames, and backs off when offline (51.6037ms)
+✔ missing and stale measurements cannot produce a healthy scorecard (0.6827ms)
+✔ remediation prioritizes bounded cache pressure and respects current low-memory mode (0.1938ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 212.9985

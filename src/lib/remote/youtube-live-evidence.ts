@@ -1,6 +1,7 @@
 import {
   pageJson,
   youtubeLiveData,
+  youtubeUpcomingData,
   youtubeLivePage,
   type YoutubeLiveObservation,
 } from "./youtube-live.ts";
@@ -21,6 +22,7 @@ export type YoutubeLiveEvidence = {
 export type YoutubeLiveRead = {
   observations: YoutubeLiveObservation[];
   evidence: YoutubeLiveEvidence;
+  upcoming?: import('../videos/youtube-events').UpcomingObservation[];
 };
 export class YoutubeLiveEvidenceError extends Error {
   evidence: YoutubeLiveEvidence;
@@ -72,10 +74,12 @@ export function youtubeCatalogLiveEvidence(
     (row: any) => row.tabRenderer?.selected,
   )?.tabRenderer;
   const observations = youtubeLiveData(page, channelId);
+  const upcoming = youtubeUpcomingData(page,channelId);
   const streams = isYoutubeStreamsTab(selected);
   const complete = streams && !hasContinuation(selected.content) && observations.length < 64;
   return {
     observations,
+    ...(upcoming.length?{upcoming}:{}),
     evidence: {
       at,
       state: observations.length ? "live" : complete ? "absent" : "unknown",
@@ -222,6 +226,7 @@ export async function completeKnownYoutubeEvidence(
     observations.push(...probe.observations);
   }
   return {
+    ...result,
     observations,
     evidence: {
       at: now(),

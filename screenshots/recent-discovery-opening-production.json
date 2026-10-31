@@ -1,0 +1,40 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "timings": [
+        {
+          "kind": "YouTube",
+          "previewMs": 394,
+          "playerMs": 66
+        },
+        {
+          "kind": "Twitch",
+          "previewMs": 85,
+          "playerMs": 72
+        }
+      ],
+      "errors": [],
+      "mfc": "Inside Realhub default; explicit external choice persists; switching back restores room"
+    },
+    {
+      "viewport": "mobile",
+      "timings": [
+        {
+          "kind": "YouTube",
+          "previewMs": 392,
+          "playerMs": 370
+        },
+        {
+          "kind": "Twitch",
+          "previewMs": 116,
+          "playerMs": 54
+        }
+      ],
+      "errors": [],
+      "mfc": "Inside Realhub default; explicit external choice persists; switching back restores room"
+    }
+  ],
+  "limitation": "20,001 synthetic catalog entries; provider documents intercepted. Measures app startup, not provider network/video buffering or real authentication."
+}

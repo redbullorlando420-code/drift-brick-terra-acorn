@@ -1,0 +1,45 @@
+✔ allocation adapts to debt, urgent live and recent discovery failures without raising the slot ceiling (10.5496ms)
+✔ 2k mixed creators reach every eligible tail in 400 simulated one-second dispatches despite a permanently failing prefix (155.9194ms)
+✔ single-slot selection uses attempt age and retry waits remain absolute (0.2759ms)
+✔ FIFO eligible order survives repeated page changes and pause-bypass traffic; already-started work drains (6.2082ms)
+✔ actual Live app lane starts within 250ms while archive transport is held, and only undispatched automatic work is deferred (3.0471ms)
+✔ actual upstream live reads bypass a held archive, preserve cooldowns and expose redacted queued versus started evidence (31.3684ms)
+✔ dispatch trace stays bounded through 100 cycles and adding diagnostics performs no network or storage writes (2.1777ms)
+✔ exactly 100 distinct milestones with only evidenced completions cover ten workstreams with executable contracts (17.4024ms)
+✔ all prerequisite references exist, are acyclic and precede dependent work (0.3241ms)
+✔ roadmap migration appends briefs once without resetting prior manual choices or custom ideas (2.6202ms)
+✔ known brief updates retain saved status while adopting the current implementation contract (0.1698ms)
+✔ copied briefs include concrete scope, dependency status, acceptance and safe execution boundaries (0.6229ms)
+✔ checked-in roadmap is reproducible and exports all 100 full briefs without completing work (3.5832ms)
+✔ a mixed 2k-creator ledger reports distinct freshness, due, unavailable and retry counts without counting failures as fresh success (20.0665ms)
+✔ legacy failed timestamps remain unverified and an older retry cannot hold a later successful observation (0.4756ms)
+✔ throughput is based on distinct completed creators, ignores invalid IDs, and keeps only a bounded sample window (1.5721ms)
+✔ warming, stalled, stopped and provider-wait states never expose a stale ETA (0.2958ms)
+✔ failures cannot inflate throughput or produce an ETA from an overwhelmingly unsuccessful stream of attempts (0.2337ms)
+✔ the real browser live lane starts beside an occupied archive lane and both obey one cancellation action (22.9418ms)
+✔ a stalled YouTube live response cannot block Twitch or room pages; cancellation releases all provider lanes (61.8683ms)
+✔ a sleeping 1500ms archive cannot block eight live starts paced at 80ms (34.3872ms)
+✔ new global cooldown still stops both lanes while an archive pacing wait is outstanding (19.9948ms)
+✔ real refresh action ignores the saved 1500ms archive delay for live metadata (1528.7548ms)
+✔ timeouts, server failures, network errors and body budgets never fan out into Home and HTML retries (3.8166ms)
+✔ changed Streams params recover from the same validated page; missing tabs stay one request on later checks (0.7316ms)
+✔ an incomplete selected tab cannot confirm that an existing stream is offline (0.8961ms)
+✔ cancelled waiting YouTube reads reject immediately and free bounded capacity behind a stalled body (58.7746ms)
+✔ durable per-creator live retry increases, caps, preserves provider deadlines and resets after recovery (0.4021ms)
+✔ coverage separates successful observations, latest failures, retry waits and due-only IDs (15.8459ms)
+✔ live provider cooldown restores from durable follows without confusing individual or archive retry holds (0.3468ms)
+✔ Streams endpoints eliminate repeated Home requests, validate each channel, and never cache live answers (3.277ms)
+✔ unrecognized or expired endpoints recover through Home; missing identity cannot confirm offline (0.5704ms)
+✔ endpoint fallback cannot bypass a rate hold and duplicate checks share only in-flight work (0.8568ms)
+✔ eight live bodies overlap beside a stalled archive while archive bodies remain serial (28.3293ms)
+✔ an older parallel success cannot release a new live cooldown or start queued checks (18.4051ms)
+✔ 2,000-channel discovery rotates completely without repeating fresh offline checks or starving known live (20.9965ms)
+✔ 1,588 creators with 52 overdue broadcasts reserve three quarters of each batch for discovery (3.2639ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2137.9856

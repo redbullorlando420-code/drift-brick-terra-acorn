@@ -1,5 +1,7 @@
+import {createModelTransfers} from './model-transfers.mjs';
 import { createModelPreflight } from './studio-model-preflight.mjs';
 import { mkdir, readdir, open, rename, unlink, stat, writeFile, readFile } from 'node:fs/promises';
+import {linkSync,unlinkSync} from 'node:fs';
 import { createReadStream } from 'node:fs';
 import { join, basename } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -34,11 +36,12 @@ export async function validateWeights(file, role) {
     return true;
   } finally { await handle.close(); }
 }
-export function createStudioModels({ dir, fetchRemote = fetch }) {
-  let job = null, controller = null;
+export function createStudioModels({ dir, fetchRemote = fetch, permissions }) {
+  let job = null, controller = null, reviewBusy=false;
   const compatibility = createModelPreflight({dir});
   const comfy = join(dir,'tools','comfyui','models'), a1111 = join(dir,'tools','stable-diffusion-webui','models','Stable-diffusion');
   const folder = role => role === 'checkpoints' ? a1111 : join(comfy,role);
+  const transfers=createModelTransfers({dir,folder,fetchRemote,inspect,validate:validateWeights});
   async function inspect(source) {
     const parsed = huggingFaceSource(source);
     const response = await fetchRemote('https://huggingface.co/api/models/'+parsed.repo+(parsed.revision ? '/revision/'+encodeURIComponent(parsed.revision) : '')+'?blobs=true', {signal:AbortSignal.timeout(15000),redirect:'error'});
@@ -58,64 +61,46 @@ export function createStudioModels({ dir, fetchRemote = fetch }) {
       const names=await readdir(folder(role)).catch(()=>[]);
       for (const name of names.filter(n=>n.endsWith('.safetensors')).slice(0,100)) models.push({name,role,engine:role==='checkpoints'?'a1111':'comfy'});
     }
-    return {ok:true,models,job:job ? {...job} : null};
+    return {ok:true,models,job:job ? {...job} : null,modelTransferRecovery:transfers.list()};
   }
-  function begin(label, work) {
+  function begin(label, work, permission) {
+    if(reviewBusy)throw Error('A saved model review is still running. Wait for it to finish.');
     if (job?.state==='running') throw Error('A model transfer is already running. Wait or cancel it first.');
     controller=new AbortController(); job={id:randomUUID(),label,state:'running',received:0,total:0,note:'Preparing model transfer…'};
-    const current=job, signal=controller.signal;
-    void work(current,signal).then(()=>{current.state='done';current.note='Model installed. Refresh the engine to discover it.';}).catch(error=>{current.state=signal.aborted?'cancelled':'error';current.note=signal.aborted?'Transfer cancelled. Existing models were preserved.':error.message;});
+    const current=job, signal=permission?AbortSignal.any([controller.signal,permission.signal]):controller.signal;
+    permission?.assert();
+    void work(current,signal).then(()=>{signal.throwIfAborted();current.state='done';current.note='Model installed. Refresh the engine to discover it.';}).catch(error=>{current.state=signal.aborted?(signal.reason==='pause'?'paused':'cancelled'):'error';current.note=signal.aborted?'Transfer stopped. Existing models were preserved; review saved transfers for recovery.':error.message;}).finally(()=>permission?.release());
     return {ok:true,job:{...current}};
-  }
-  async function download(entry, metadata, current, signal) {
-    await mkdir(folder(entry.role),{recursive:true}); const target=join(folder(entry.role),entry.name);
-    // Existing model names are never silently overwritten.
-    if (await stat(target).then(()=>true).catch(()=>false)) {current.received+=entry.bytes;return;}
-    const url='https://huggingface.co/'+metadata.repo+'/resolve/'+metadata.revision+'/'+entry.file;
-    async function range(start,end) {
-      const response=await fetchRemote(url,{headers:{Range:'bytes='+start+'-'+end},signal:AbortSignal.any([signal,AbortSignal.timeout(60000)])});
-      if(response.status!==206 || response.headers.get('content-range')!=='bytes '+start+'-'+end+'/'+entry.bytes){await response.body?.cancel();throw Error('The model server did not return the requested bounded range.');}
-      const bytes=await boundedBytes(response,end-start+1);if(bytes.length!==end-start+1)throw Error('Incomplete model download.');return bytes;
-    }
-    if(entry.role==='checkpoints') {
-      // Inspect only the small tensor header before spending gigabytes on an
-      // incompatible language model, LoRA or stand-alone diffusion component.
-      current.note='Checking checkpoint compatibility…';
-      const prefix=await range(0,7),length=Number(prefix.readBigUInt64LE());
-      if(!Number.isSafeInteger(length)||length<2||length>8_000_000||length+8>=entry.bytes)throw Error('Not a valid safetensors checkpoint.');
-      const header=JSON.parse((await range(8,7+length)).toString('utf8'));
-      if(!Object.keys(header).some(k=>k.startsWith('model.diffusion_model.input_blocks.')))throw Error('This is not an SD 1.x/SDXL full checkpoint. Choose a compatible checkpoint or the Qwen 2.1 bundle; the large download was not started.');
-    }
-    const part=target+'.partial-'+current.id, handle=await open(part,'wx');
-    try {
-      for (let offset=0; offset<entry.bytes;) {
-        signal.throwIfAborted(); const end=Math.min(entry.bytes-1,offset+4*1024*1024-1);
-        const bytes=await range(offset,end);
-        let written=0;while(written<bytes.length){const result=await handle.write(bytes,written,bytes.length-written,offset+written);if(!result.bytesWritten)throw Error('Model disk write stopped.');written+=result.bytesWritten;}
-        offset=end+1;current.received+=bytes.length;
-      }
-      await handle.close(); current.note='Checking SHA-256 and model format…';
-      const hash=createHash('sha256');for await(const bytes of createReadStream(part)){signal.throwIfAborted();hash.update(bytes);}
-      if(hash.digest('hex')!==entry.sha256)throw Error('Model checksum mismatch. Unverified weights were not enabled.');
-      await validateWeights(part,entry.role);signal.throwIfAborted();await rename(part,target);
-      await writeFile(target+'.source.json',JSON.stringify({repo:metadata.repo,revision:metadata.revision,file:entry.file,sha256:entry.sha256}));
-    } finally {await handle.close().catch(()=>{});await unlink(part).catch(()=>{});}
   }
   async function action(route,method,body={}) {
     if(route==='/studio/models'&&method==='GET')return list();
     if(route==='/studio/models/preflight'&&method==='POST')return compatibility.preflight(body);
     if(route==='/studio/models/inspect'&&method==='POST')return {ok:true,...await inspect(body.url)};
-    if(route==='/studio/models/cancel'&&method==='POST'){controller?.abort();return {ok:true};}
+    if(route==='/studio/models/cancel'&&method==='POST'){controller?.abort('cancel');return {ok:true};}
+    if(route==='/studio/models/pause'&&method==='POST'){if(!job?.transferId||job.state!=='running')throw Error('Only an active remote model download can pause.');controller?.abort('pause');return {ok:true};}
+    const action=route.match(/^\/studio\/models\/transfers\/([a-f0-9-]{36})\/(review|resume|fresh-review|fresh|cancel)$/);
+    if(action&&method==='POST'){const [,id,kind]=action;if(job?.state==='running'||reviewBusy)throw Error('Pause or finish the active model transfer first.');
+      if(kind==='review'){reviewBusy=true;try{return {ok:true,review:await transfers.review(id)};}finally{reviewBusy=false;}}
+      if(kind==='fresh-review'){reviewBusy=true;try{const preview=await transfers.fresh(id);return {ok:true,source:preview.source,fingerprint:preview.fingerprint,note:'A separate fresh transfer retains the previous partial; existing models are never replaced.'};}finally{reviewBusy=false;}}
+      if(kind==='cancel')return {ok:true,receipt:await transfers.cancel(id)};
+      const permission=permissions?.acquire('model-transfers');let handedOff=false;
+      try{let row;if(kind==='fresh'){if(body.confirmation!=='START FRESH')throw Error('Review and explicitly confirm a separate fresh transfer.');const preview=await transfers.fresh(id);permission?.assert();if(body.fingerprint!==preview.fingerprint)throw Error('Publisher metadata changed after review. Review the fresh transfer again.');row=await transfers.prepare(preview.entry,preview.metadata,{fresh:true});}else row=await transfers.resumeEntry(id);
+        permission?.assert();const result=begin(row.name,async(current,signal)=>{current.transferId=row.id;current.total=row.bytes;await transfers.transfer(row,current,signal,{resume:kind==='resume'});},permission);handedOff=true;return result;
+      }finally{if(!handedOff)permission?.release();}
+    }
     if(route==='/studio/models/install'&&method==='POST') {
-      const metadata=await inspect(body.bundle?'https://huggingface.co/Comfy-Org/Qwen-Image-2.1':body.url);
+      const permission=permissions?.acquire('model-transfers');let handedOff=false;
+      try{const metadata=await inspect(body.bundle?'https://huggingface.co/Comfy-Org/Qwen-Image-2.1':body.url);
       const entries=body.bundle?QWEN_FILES.map(name=>metadata.files.find(f=>f.file.replace(/^split_files\//,'')===name)):metadata.files.filter(f=>f.file===body.file);
       if(!entries.length||entries.some(e=>!e?.supported))throw Error('Choose a supported full checkpoint or the Qwen 2.1 bundle.');
-      return begin(body.bundle?'Qwen-Image 2.1 Turbo bundle':entries[0].name,async(current,signal)=>{current.total=entries.reduce((n,e)=>n+e.bytes,0);for(const entry of entries){current.note='Downloading '+entry.name;await download(entry,metadata,current,signal);}});
+      permission?.assert();const prepared=[];for(const entry of entries)prepared.push(await transfers.prepare(entry,metadata));
+      const result=begin(body.bundle?'Qwen-Image 2.1 Turbo bundle':entries[0].name,async(current,signal)=>{current.total=entries.reduce((n,e)=>n+e.bytes,0);try{for(const row of prepared){current.transferId=row.id;current.note='Downloading '+row.name;await transfers.transfer(row,current,signal);}}finally{if(signal.aborted&&signal.reason==='cancel')for(const row of prepared)if(row.state!=='done'&&row.state!=='cancelled')await transfers.cancel(row.id);}},permission);handedOff=true;return result;
+      }finally{if(!handedOff)permission?.release();}
     }
     return null;
   }
   async function upload(req,res) {
-    let result;
+    let result,permission;
     try {
       const url=new URL(req.url,'http://127.0.0.1'),name=url.searchParams.get('name')??'',role=url.searchParams.get('role')??'checkpoints';
       if(!/^[\w .-]{1,180}\.safetensors$/.test(name)||name.includes('..'))throw Error('Choose a .safetensors file with a simple filename.');
@@ -123,16 +108,17 @@ export function createStudioModels({ dir, fetchRemote = fetch }) {
       if(role!=='checkpoints'&&!QWEN_FILES.includes(role+'/'+name))throw Error('For Qwen components choose the exact filenames listed in the model guide.');
       const total=Number(req.headers['content-length']);if(!Number.isSafeInteger(total)||total<10||total>30_000_000_000)throw Error('File must be between 10 bytes and 30 GB.');
       const target=join(folder(role),name);if(await stat(target).then(()=>true).catch(()=>false))throw Error('That model is already installed. Existing weights were preserved.');
+      permission=permissions?.acquire('model-transfers');
       result=begin(name,async(current,signal)=>{
         current.total=total;current.note='Receiving model from this browser…';await mkdir(folder(role),{recursive:true});const part=target+'.partial-'+current.id,handle=await open(part,'wx');
         const abort=()=>req.destroy();signal.addEventListener('abort',abort,{once:true});
-        try{for await(const bytes of req){signal.throwIfAborted();current.received+=bytes.length;if(current.received>total)throw Error('Upload exceeded its declared size.');let offset=0;while(offset<bytes.length){const row=await handle.write(bytes,offset,bytes.length-offset);if(!row.bytesWritten)throw Error('Disk write stopped.');offset+=row.bytesWritten;}}await handle.close();if(current.received!==total)throw Error('Upload was interrupted.');await validateWeights(part,role);if(role!=='checkpoints'){const expected=QWEN_DIGESTS[QWEN_FILES.indexOf(role+'/'+name)],hash=createHash('sha256');for await(const bytes of createReadStream(part)){signal.throwIfAborted();hash.update(bytes);}if(hash.digest('hex')!==expected)throw Error('This file does not match the official Qwen component checksum. Existing models were preserved.');}signal.throwIfAborted();await rename(part,target);}finally{signal.removeEventListener('abort',abort);await handle.close().catch(()=>{});await unlink(part).catch(()=>{});}
-      });
+        try{for await(const bytes of req){signal.throwIfAborted();current.received+=bytes.length;if(current.received>total)throw Error('Upload exceeded its declared size.');let offset=0;while(offset<bytes.length){const row=await handle.write(bytes,offset,bytes.length-offset);if(!row.bytesWritten)throw Error('Disk write stopped.');offset+=row.bytesWritten;}}await handle.close();if(current.received!==total)throw Error('Upload was interrupted.');await validateWeights(part,role);if(role!=='checkpoints'){const expected=QWEN_DIGESTS[QWEN_FILES.indexOf(role+'/'+name)],hash=createHash('sha256');for await(const bytes of createReadStream(part)){signal.throwIfAborted();hash.update(bytes);}if(hash.digest('hex')!==expected)throw Error('This file does not match the official Qwen component checksum. Existing models were preserved.');}signal.throwIfAborted();linkSync(part,target);unlinkSync(part);}finally{signal.removeEventListener('abort',abort);await handle.close().catch(()=>{});await unlink(part).catch(()=>{});}
+      },permission);
       // Wait for the stream before replying, without buffering the file in RAM.
       const uploaded=job; while(uploaded.state==='running')await new Promise(r=>setTimeout(r,100));
       result={ok:uploaded.state==='done',job:{...uploaded},...(uploaded.state!=='done'?{error:uploaded.note}:{})};
-    }catch(error){req.resume();result={ok:false,error:error.message};}
+    }catch(error){permission?.release();req.resume();result={ok:false,error:error.message};}
     if(!res.destroyed){res.writeHead(result.ok?200:400,{'Content-Type':'application/json'});res.end(JSON.stringify(result));}
   }
-  return {action,list,upload,preflight:compatibility.preflight,shutdown:()=>controller?.abort()};
+  return {action,list,upload,preflight:compatibility.preflight,shutdown:()=>controller?.abort('shutdown')};
 }

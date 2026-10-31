@@ -1,0 +1,199 @@
+Realhub
+
+Vault · networks · live
+
+Library
+Home
+Landing page
+3009
+Movies
+Anime
+Topics
+YouTube
+3000
+Twitch
+2
+Live
+2
+Favorites
+0
+Continue
+0
+History
+0
+Adults
+0
+Fetish Explorer
+Workspace
+Stable Diffusion
+Remote desktop
+Photos
+Spotify
+3D prints
+Games
+Shop
+Streaming
+Stream Signal
+Watch room
+X accounts
+Tools
+Connection guide
+Find my phone
+AI guide
+Mission plan
+Settings
+Stats
+Local sources
+2
+Following
+2
+Add folder
+
+Assistant
+
+Control room
+
+Search
+Date added
+7:50 PM
+Resume pulls
+Folder
+
+Twitch pull complete
+
+2 / 2 targets · 2 returned · 0 new · 0 failed · 7:49 PM
+
+Automatic pulls and archive requests are paused. One-shot live checks you start manually can still run; select Resume pulls to continue queued work.
+
+LIBRARY GUIDE
+
+Useful answers from local signals.
+
+Search eligible public titles, saved content tags and creator fields. Personal picks use visible favorites and likes; history skips recorded titles and does not prove a completed watch. All explanations use local rules, without model wording.
+
+Prepared Guide weights: favorites 3 · likes 2 · shared topics 1. Experiment and roll back in Stats.
+
+Audit connections between sources
+Tune this Guide session
+Fresh recommendations · recent exposure
+Ask guide
+
+Library matches for “Show racing strategy” · 1 shown. These match saved fields; no model wording is used.
+
+Latest question · recommendation fairness report
+Field match
+iRacing Arcade overtaking tutorial
+Public creator
+Title matches “racing”.
+Why this pick?
+
+Choose an available topic
+
+These topics come from eligible public titles and saved labels. Choosing one searches this session; it does not change your likes or tags.
+
+#film · 5
+#anime · 2
+#gaming · 1
+#learning · 1
+#racing · 1
+#science · 1
+#travel · 1
+Who is live on Twitch?
+Something funny
+A tech video
+What fits my favorites?
+Show a surprise based on my tags
+
+Your current signals
+
+3009 eligible public titles · 0 recorded history titles · 0 favorites · 0 likes · 15 content tags
+
+New recommendations
+Current mix · recommendation fairness report
+
+Discovery mix: no saved content preference matched these picks. Choose an available topic below or save a title you like.
+
+3007 unrecorded recordings match this Guide session.
+
+Discovery
+Ordinary archive 2646
+Public creator
+Available in your public library; no saved content preference matched.
+Why this pick?
+Discovery
+Ordinary archive 737
+Public creator
+Available in your public library; no saved content preference matched.
+Why this pick?
+Discovery
+Ordinary archive 192
+Public creator
+Available in your public library; no saved content preference matched.
+Why this pick?
+Discovery
+Ordinary archive 2067
+Public creator
+Available in your public library; no saved content preference matched.
+Why this pick?
+Discovery
+Ordinary archive 1361
+Public creator
+Available in your public library; no saved content preference matched.
+Why this pick?
+Discovery
+Ordinary archive 2378
+Public creator
+Available in your public library; no saved content preference matched.
+Why this pick?
+Discovery
+Ordinary archive 2380
+Public creator
+Available in your public library; no saved content preference matched.
+Why this pick?
+Discovery
+Ordinary archive 1711
+Public creator
+Available in your public library; no saved content preference matched.
+Why this pick?
+Discovery
+Ordinary archive 1207
+Public creator
+Available in your public library; no saved content preference matched.
+Why this pick?
+Discovery
+Ordinary archive 49
+Public creator
+Available in your public library; no saved content preference matched.
+Why this pick?
+Discovery
+Ordinary archive 536
+Public creator
+Available in your public library; no saved content preference matched.
+Why this pick?
+Discovery
+Ordinary archive 2266
+Public creator
+Available in your public library; no saved content preference matched.
+Why this pick?
+
+Twitch live check
+
+2 followed channels with fresh live observations in this snapshot.
+
+2 live
+freshqa
+staleqa
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByText(/tag: strategy/) to be visible
+
+    at E:\codex\drift-brick-terra-acorn\scripts\refined-desks-browser-check.mjs:44:400 {
+  log: [ '  - waiting for getByText(/tag: strategy/) to be visible' ],
+  name: 'TimeoutError'
+}
+
+Node.js v24.22.1

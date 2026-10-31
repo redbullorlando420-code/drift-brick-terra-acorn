@@ -121,6 +121,9 @@ try {
       await page.locator('[data-home-ready="true"]').waitFor({ timeout: timeoutMs });
       hydrationVerified = true;
     }
+    // Home stays available while catalog hydration settles. Compare the actual
+    // checklist state, rather than racing its saved-source readiness update.
+    if(await page.locator('[data-setup-ready]').count())await page.locator('[data-setup-ready="true"]').waitFor({timeout:timeoutMs});
 
     const title = await page.title();
     const hasCanvas = (await page.locator("canvas").count()) > 0;

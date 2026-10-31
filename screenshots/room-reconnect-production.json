@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "checks": [
+    "host previews a selected public collection before enabling discovery; private collection names and merged private titles are absent",
+    "three real WebRTC clients keep chat and pause responsive while both catalog searches are held by measured buffer backpressure; a bounded search retry keeps its request ID",
+    "a missing request is checked with the host, then retried once with the original operation ID only while queue/selection revisions still match",
+    "disconnect after host apply but before receipt reconciles as applied after peer recovery; a consumed title is not reinserted and the original mutation is not resent",
+    "a missing receipt with a newer queue revision becomes superseded; even a delayed old original cannot resurrect the excluded title after its receipt query",
+    "permission revocation during a held intention produces an explicit rejected receipt with no queue mutation",
+    "orphaned edits expire without replay and ordinary room updates leave unsent draft text intact"
+  ],
+  "errors": [],
+  "fixture": "Three isolated clients with real WebRTC; controlled bufferedAmount, dropped receipts, held mutations, actual guest PC close/recreate and a deterministic local clock step. Provider player documents are fixtures.",
+  "limitations": [
+    "No physical-device or real-network bandwidth benchmark. Native SCTP bytes already sent cannot be preempted."
+  ]
+}

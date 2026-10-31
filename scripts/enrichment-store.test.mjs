@@ -14,7 +14,7 @@ export const idleEnrichment = createIdleQueue({ allowed:()=>!f.viewer,
 f.queue=idleEnrichment;
 export function setEnrichmentViewerOpen(open,searching=false){f.viewer=open||searching;f.wake?.(true);}`;
 const names = [...readFileSync(new URL('../src/lib/videos/persist.ts', import.meta.url), 'utf8').matchAll(/export (?:async )?function (\w+)/g)].map(match => match[1]);
-const persistence = names.map(name => name === 'loadPrefs' ? 'export function loadPrefs(){return null;}'
+const persistence = names.map(name => name === 'saveCatalogMetadataEdit' ? 'export function saveCatalogMetadataEdit(row){return {...row,nonce:"fixture",at:Date.now()};}' : name === 'restoreCatalogMetadata' ? 'export async function restoreCatalogMetadata(base){return base;}' : name === 'loadPrefs' ? 'export function loadPrefs(){return null;}'
   : name === 'saveEnrichmentRows' ? 'export async function saveEnrichmentRows(rows){globalThis.__enrichmentStoreFixture.saved.push(...structuredClone(rows));}'
   : name === 'saveCreatorCoverageRows' ? `export async function saveCreatorCoverageRows(rows,turn,valid){
     const f=globalThis.__enrichmentStoreFixture;await turn();await f.creatorSave?.(rows,valid);

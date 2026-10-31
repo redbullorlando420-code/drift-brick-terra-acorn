@@ -1,3 +1,4 @@
+import { companionFetch } from './companion.ts';
 /** Local cache for desktop game icons (data URLs). Kept separate from hub metadata to avoid blowing reelcase.hub.v1. */
 
 const KEY = "reelcase.game-icons.v1";
@@ -87,7 +88,7 @@ export async function fetchCompanionIcons(paths: string[]): Promise<Map<string, 
   const pending = paths.filter(Boolean).slice(0, 40);
   if (!pending.length) return out;
   try {
-    const response = await fetch("http://127.0.0.1:43123/shortcut-icons", {
+    const response = await companionFetch("/shortcut-icons", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ paths: pending }),

@@ -1,0 +1,39 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "timings": [
+        {
+          "kind": "YouTube",
+          "previewMs": 428,
+          "playerMs": 354
+        },
+        {
+          "kind": "Twitch",
+          "previewMs": 156,
+          "playerMs": 75
+        }
+      ],
+      "errors": [],
+      "mfc": "Inside Realhub default; explicit external choice persists; switching back restores room"
+    },
+    {
+      "viewport": "mobile",
+      "timings": [
+        {
+          "kind": "YouTube",
+          "previewMs": 405,
+          "playerMs": 366
+        },
+        {
+          "kind": "Twitch",
+          "previewMs": 381,
+          "playerMs": 67
+        }
+      ],
+      "errors": [],
+      "mfc": "Inside Realhub default; explicit external choice persists; switching back restores room"
+    }
+  ]
+}

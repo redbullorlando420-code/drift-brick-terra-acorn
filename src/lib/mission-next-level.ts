@@ -27,7 +27,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Crash-safe catalog mutations",
         "Catalog rows and preference ledgers can commit separately during interruption.",
-        "src/lib/videos/store.ts|src/lib/videos/persist.ts",
+        "src/lib/videos/catalog-mutations.ts|src/lib/videos/store.ts|src/lib/videos/persist.ts",
         "Trace a pull, cleanup and tag edit across persistence boundaries; document the partial-write states.|Add a versioned operation journal with idempotent replay and a commit marker; reuse existing stores rather than duplicating media graphs.|Recover interrupted operations before admitting conflicting writes; expose a bounded recovery outcome.",
         "Inject failure before and after each transaction boundary; reload retains accepted rows and manual metadata exactly once.|Recovery scans only pending operations and leaves a 100k-row catalog interactive.",
         [],
@@ -35,7 +35,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Storage pressure recovery",
         "Quota errors need a safe workflow that distinguishes disposable cache from personal state.",
-        "src/lib/videos/persist.ts|src/components/library/settings-section.tsx",
+        "src/lib/videos/storage-recovery.ts|src/components/library/storage-recovery-panel.tsx|src/lib/videos/persist.ts|src/components/library/settings-section.tsx",
         "Inventory browser stores by reclaimability and estimated size; label unavailable measurements.|Offer a preview of disposable artwork/detail cleanup with protected ratings, history, follows and drafts.|Handle quota failure with bounded cleanup and explicit retry; never silently delete media or personal records.",
         "Force QuotaExceededError during writes and verify the prior saved state remains readable.|A preview and cancellation remove nothing; confirmed cleanup reports reclaimed estimates without claiming exact disk bytes.",
         [1],
@@ -43,7 +43,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Backup preflight report",
         "A large backup should be inspected before it can change current data.",
-        "src/lib/videos/persist.ts|src/components/library/settings-section.tsx",
+        "src/lib/videos/pack-preflight.ts|src/components/library/library-pack-transfer.tsx",
         "Trace current library-pack parsing and add a read-only preflight summary of versions, sources, counts and conflicts.|Validate record shapes, sizes and duplicate identities incrementally with actionable rejected-record locations.|Show merge/replace consequences before applying the existing import path.",
         "Malformed, truncated and future-version packs produce a report with no storage mutation.|A 100k-record pack preflight yields to input and reports which personal records would change.",
         [],
@@ -59,7 +59,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Streaming library-pack export",
         "Large exports should avoid building multiple full-library JSON strings in memory.",
-        "src/lib/videos/persist.ts|src/components/library/settings-section.tsx",
+        "src/lib/videos/library-pack-stream.ts|src/lib/videos/pack-stream.ts|src/components/library/library-pack-transfer.tsx",
         "Measure allocations of the existing exporter and define a versioned chunk format compatible with preflight.|Read catalog pages into a bounded stream with record counts and a final integrity manifest.|Support cancellation and the browser download capabilities already available; keep credentials and temporary media bytes out.",
         "Export and restore 100k records with exact IDs and manual signals retained.|Cancel halfway and verify scratch buffers release and the incomplete file is rejected as incomplete.",
         [3],
@@ -67,7 +67,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Cross-tab catalog writer lease",
         "Two open tabs can race while pulling, cleaning or importing the same catalog.",
-        "src/lib/videos/store.ts|src/lib/videos/persist.ts",
+        "src/lib/writer-lease.ts|src/lib/videos/store.ts|src/lib/videos/persist.ts|src/lib/videos/catalog-mutations.ts|src/components/library/catalog-writer-status.tsx",
         "Map shared mutations and introduce a same-origin writer lease with owner generation and expiry.|Broadcast compact invalidations after committed writes; rebase readers without shipping whole catalogs.|Recover stale leases after a tab crash and surface ownership when a second tab requests mutation.",
         "Two isolated tabs cannot apply conflicting cleanup/import transactions simultaneously.|Closing the owner releases work after expiry; a delayed old owner cannot commit against a newer lease.",
         [1],
@@ -121,7 +121,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Provider payload allocation budget",
         "Bounded HTTP bodies can still expand into large parsed and normalized object graphs.",
-        "src/lib/provider-budgets.ts|src/lib/remote/api.ts|src/lib/videos/store.ts",
+        "src/lib/provider-budgets.ts|src/lib/remote/provider-json.ts|src/lib/remote/provider-projection.ts|src/lib/remote/api.ts|scripts/provider-allocation-benchmark.mjs",
         "Measure raw, parsed and admitted payload sizes for representative YouTube/Twitch pages.|Discard unused provider fields before retaining cache entries and avoid duplicate normalization buffers.|Add a regression budget for peak intermediate allocations with a documented baseline.",
         "Oversized valid metadata is rejected or streamed without losing earlier accepted pages.|A 100k-library pull stays within the declared scratch budget and preserves unchanged card references.",
         [],
@@ -145,7 +145,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Budget expensive recommendation passes",
         "Recommendation preprocessing needs a measurable CPU budget across multiple open desks.",
-        "src/lib/recommendations.ts|src/components/library/library-app.tsx",
+        "src/lib/ranking-budget.ts|src/components/library/use-youtube-ranking.ts|src/components/library/use-twitch-vod-ranking.ts|src/components/library/performance-scorecard.tsx",
         "Measure ranking passes triggered by source, rating and progress changes and identify duplicate work.|Coalesce invalidations by input revision; yield between ranking slices and cancel obsolete passes.|Expose bounded timing samples in existing diagnostics without retaining full candidate graphs.",
         "Rapidly change filters and ratings; only the final revision publishes.|A 100k-title fixture keeps interaction latency within a declared baseline and retains ranking correctness.",
         [],
@@ -161,7 +161,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Large import preview virtualization",
         "Import review should stay responsive even when every source needs a decision.",
-        "src/lib/videos/import-session.ts|src/components/library/follow-manager.tsx",
+        "src/lib/videos/import-session.ts|src/lib/videos/import-review.ts|src/components/library/import-review.tsx|src/components/library/connect-panel.tsx",
         "Trace imported creator rows, ambiguity groups and progress rendering at 10k inputs.|Virtualize review rows while keeping logical selection, errors and keyboard position stable.|Apply decisions in bounded batches and retain pending review state after reload.",
         "Review 10k mixed sources without mounting 10k DOM rows.|Keyboard navigation, filter changes and reload preserve unresolved decisions and never auto-follow ambiguous identities.",
         [],
@@ -169,7 +169,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Page-specific network priority proof",
         "Foreground priorities need evidence that deferred provider work cannot monopolize the next page.",
-        "src/lib/pull-priority.ts|src/lib/pull-control.ts|src/lib/remote/youtube-transport.ts",
+        "src/lib/pull-priority.ts|src/lib/pull-control.ts|src/lib/pull-scheduler.ts|src/lib/pull-dispatch-trace.ts|src/components/library/pull-dispatch-panel.tsx|src/lib/remote/youtube-transport.ts",
         "Create deterministic queued/held requests for Live, creator archive, clips and on-demand details.|Verify priority changes only affect undispatched work; accepted results must still drain safely.|Add a diagnostic trace of queued versus in-flight work and tune starvation limits from measured results.",
         "Open Live during a deep archive; a live request starts within the declared dispatch bound.|Repeated priority changes do not starve an oldest-due archive forever or bypass a provider cooldown.",
         [],
@@ -177,7 +177,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Reduced-data transfer accounting",
         "Low-bandwidth mode should expose what it actually saves instead of implying all network use stops.",
-        "src/lib/pull-settings.ts|src/components/library/settings-section.tsx|src/lib/provider-budgets.ts",
+        "src/lib/data-saver.ts|src/lib/transfer-accounting.ts|src/lib/videos/image-load-budget.ts|src/components/library/data-saver-panel.tsx|src/components/library/settings-section.tsx",
         "Classify artwork, metadata, native embeds and Companion transfers with measured or unknown byte totals.|Show a bounded session summary and explicit controls for optional prefetches.|Keep essential room timing and user-initiated actions functional while optional transfers pause.",
         "Save Data suppresses optional artwork/prefetch with no surprise model downloads.|Unknown iframe/media bytes are labeled unmeasured; accounting adds no polling or sensitive URL log.",
         [],
@@ -199,7 +199,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "YouTube feed gap repair",
         "RSS windows can omit uploads when a creator posts more items than the recent feed retains.",
-        "src/lib/remote/api.ts|src/lib/videos/recent-pull.ts|src/components/library/provider-pull-panel.tsx",
+        "src/lib/remote/api.ts|src/lib/remote/youtube-browse.ts|src/lib/videos/youtube-feed-gap.ts|src/lib/videos/recent-pull.ts|src/components/library/provider-pull-panel.tsx",
         "Detect when a previously saved feed watermark is absent without treating a missing watermark as proof of deletion.|Offer a bounded gap-repair action using the creator's separate upload continuation; preserve normal archive progress.|Show gap, repairing and unresolved states and deduplicate admitted uploads.",
         "A fixture with more than 15 intervening uploads recovers the missing range without duplicate cards.|A failed repair keeps both old feed evidence and the archive cursor; no unbounded automatic history walk starts.",
         [],
@@ -231,7 +231,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "YouTube upcoming event transitions",
         "Scheduled broadcasts need a distinct path into live, postponed or completed states.",
-        "src/lib/remote/youtube-live.ts|src/lib/videos/types.ts|src/components/library/live-desk.tsx",
+        "src/lib/remote/youtube-live.ts|src/lib/videos/youtube-events.ts|src/components/library/youtube-upcoming.tsx",
         "Model upcoming identity, scheduled time, last observation and uncertainty separately from live viewers.|Schedule bounded checks near a known start while preserving fairness for ordinary creators.|Handle changed start times and completed events without notification duplication.",
         "A postponed event never appears live merely because its scheduled time passed.|Upcoming → live → completed retains one canonical video and emits at most one live announcement.",
         [23, 24],
@@ -239,7 +239,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Playlist membership reconciliation",
         "Playlist edits need to update membership without deleting the underlying saved video.",
-        "src/lib/remote/api.ts|src/lib/videos/types.ts|src/lib/videos/store.ts",
+        "src/lib/remote/api.ts|src/lib/videos/youtube-playlist-walk.ts|src/lib/videos/store.ts|src/components/library/playlist-reconciliation.tsx",
         "Separate canonical video identity from playlist membership/order and record whether a playlist walk completed.|Diff membership only after a complete traversal; show partial walks as provisional.|Retain favorites/history and other source memberships when an item leaves one playlist.",
         "A removed playlist item stays available through another source and keeps all personal feedback.|Interrupted playlist pagination never removes unobserved tail memberships.",
         [22],
@@ -263,7 +263,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "YouTube endpoint-specific recovery guidance",
         "Feed, browse and HTML failures need targeted recovery instead of a generic channel failure.",
-        "src/lib/remote/youtube-transport.ts|src/components/library/provider-pull-panel.tsx",
+        "src/lib/remote/youtube-transport.ts|src/lib/videos/youtube-recovery.ts|src/components/library/provider-pull-panel.tsx",
         "Expose which endpoint lane failed, its last success and the effective retry deadline.|Offer only actions that use healthy lanes or explicitly retry the affected creator.|Keep provider-wide network blocks distinct from endpoint-specific failures and preserve cooldown revisions.",
         "A feed-only hold leaves a healthy archive/live path available without clearing the hold.|A global challenge blocks all affected queued requests and the UI states the actual wait.",
         [22],
@@ -271,7 +271,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "YouTube adaptive discovery allocation",
         "Discovery allocation should respond to backlog age without repeatedly favoring known-live creators.",
-        "src/lib/videos/youtube-quick-live.ts|src/lib/remote/youtube-sweep.ts",
+        "src/lib/videos/youtube-quick-live.ts|src/lib/videos/youtube-live-allocation.ts|src/components/library/youtube-live-allocation-panel.tsx|src/lib/remote/youtube-sweep.ts",
         "Measure oldest-due age and successful throughput for known-live and discovery classes.|Implement a bounded weighted policy with a minimum discovery share and no new request concurrency.|Expose allocation reasons in diagnostics and test policy under slow/failing prefixes.",
         "A 2k-creator mixed fixture reaches every eligible tail creator within a declared simulated bound.|Frequent live observations cannot consume all slots; provider cooldowns and manual pause still win.",
         [23, 24],
@@ -325,7 +325,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Twitch media identity aliases",
         "Alternate clip URLs and slug/id representations can create duplicate cards.",
-        "src/lib/remote/api.ts|src/lib/videos/types.ts|src/lib/videos/store.ts",
+        "src/lib/videos/twitch-identity.ts|src/lib/videos/catalog-identity.ts|src/lib/videos/remote-merge.ts|src/lib/remote/api.ts|src/lib/videos/types.ts|src/lib/videos/store.ts|src/lib/multiplayer/room-media.ts",
         "Enumerate supported Twitch clip/VOD URL forms and derive canonical typed identities.|Record verified slug/id aliases and merge duplicate source memberships without losing manual metadata.|Apply identity normalization consistently to imports, room links and archive admissions.",
         "Different official URLs for one clip yield one saved card and one room queue identity.|Distinct clips with similar titles or recycled display names never merge.",
         [1],
@@ -333,7 +333,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Twitch VOD chapter context",
         "Long VODs need useful game/chapter context without making routine pulls heavier.",
-        "src/lib/remote/api.ts|src/components/library/pre-video.tsx",
+        "src/lib/remote/twitch-chapters.ts|src/lib/remote/api.ts|src/components/library/twitch-chapters.tsx|docs/TWITCH_CHAPTERS_AND_CANARY.md",
         "Verify a permitted public metadata source for VOD chapter/game segments before implementing an adapter.|Load segments only on explicit detail expansion and cache a bounded selected-VOD record.|Offer timestamp navigation when the player supports it and a truthful external fallback otherwise.",
         "No chapter requests occur during routine live/clip pulls.|A VOD with missing or malformed segments remains playable with no invented chapters.",
         [],
@@ -358,7 +358,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Twitch pull canary runner",
         "Public Twitch changes need a small reproducible real-network check separate from synthetic tests.",
-        "src/lib/remote/api.ts|src/lib/provider-budgets.ts|PERFORMANCE_CHECKS.md",
+        "scripts/twitch-canary.mjs|scripts/twitch-canary-core.mjs|src/lib/remote/api.ts|docs/TWITCH_CHAPTERS_AND_CANARY.md",
         "Add an explicit command accepting a small caller-supplied public creator list and a strict request ceiling.|Report clip/VOD/live contracts, paging stop reasons, status codes and timing without cookies or account data.|Keep rate-limited runs resumable and exclude this command from ordinary page startup and CI by default.",
         "A controlled fake provider proves the request cap and redacted report shape.|Run against available public creators and clearly label failed/unavailable checks; never translate an unrun canary into a pass.",
         [31, 38, 39],
@@ -372,7 +372,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Watch Room connection state timeline",
         "Guests need a clear distinction between signaling, transport and player readiness.",
-        "src/components/library/watch-room-section.tsx|src/lib/multiplayer/room-delivery.ts",
+        "src/components/library/watch-room-section.tsx|src/lib/multiplayer/room-connection-timeline.ts|src/components/library/room-connection-panel.tsx|src/lib/multiplayer/p2p.ts|src/lib/multiplayer/room-delivery.ts",
         "Derive a bounded connection timeline from actual signaling, ICE, room handshake and player events.|Show the last successful stage and an appropriate retry that does not reset a healthy room.|Export a redacted diagnostic excluding invitations, credentials, local paths and private catalog data.",
         "Simulate failure at each stage and verify a distinct state and recovery action.|A slow player cannot be reported as a disconnected peer, and retry preserves the queue.",
         [],
@@ -380,7 +380,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Room transport congestion control",
         "Queue/search payloads can compete with timing and chat on a slow data channel.",
-        "src/lib/multiplayer/room-delivery.ts|src/components/library/use-room-queue-delivery.ts",
+        "src/lib/multiplayer/room-outbox.ts|src/lib/multiplayer/p2p.ts|src/components/library/room-queue-delivery-panel.tsx",
         "Measure bufferedAmount and classify timing, chat and bulk catalog packets.|Bound queued bytes, coalesce obsolete timing packets and pace catalog pages behind transport backpressure.|Retain acknowledgements and define recovery when a bulk transfer is interrupted.",
         "A throttled three-client fixture keeps chat and pause responsive during catalog paging.|Queued bytes remain bounded and interrupted pages retry without duplicate queue mutations.",
         [],
@@ -388,7 +388,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Guest catalog privacy review",
         "Host-library sharing needs granular visibility beyond a single broad permission.",
-        "src/lib/multiplayer/room-search.ts|src/components/library/watch-room-section.tsx",
+        "src/lib/multiplayer/room-catalog-policy.ts|src/components/library/room-catalog-sharing.tsx|src/components/library/use-room-host-catalog.ts",
         "Review every host catalog field sent to peers and define explicit shareable source/collection scopes.|Preview guest-visible titles before enabling a scope; exclude private/adult/local-path metadata by default.|Revoke scope visibility immediately and invalidate pending search pages by permission revision.",
         "A guest cannot receive an excluded title via search, pagination, stale request or queue suggestion.|Revocation during a held response prevents delivery while preserving current authorized playback.",
         [],
@@ -404,7 +404,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Live latency guidance",
         "Live providers cannot promise exact synchronization when ads and DVR windows differ.",
-        "src/lib/multiplayer/room-provider-clock.ts|src/lib/multiplayer/room-player-recovery.ts",
+        "src/lib/multiplayer/room-provider-clock.ts|src/components/library/room-live-guidance.tsx|src/components/library/watch-room-section.tsx",
         "Represent live independent-clock and DVR-capable modes explicitly using observed capabilities.|Show device-local catch-up and latency guidance without endless corrective seeks.|Separate ad/buffering uncertainty from confirmed shared pause state.",
         "A guest in an ad or independent live feed never causes a room-wide seek loop.|DVR seeking is offered only when supported, and current playback remains stable after reload.",
         [],
@@ -412,7 +412,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Room role presets",
         "Host permissions need understandable presets with server/host enforcement preserved.",
-        "src/lib/multiplayer/room-playback-access.ts|src/components/library/watch-room-section.tsx",
+        "src/lib/multiplayer/room-playback-access.ts|src/lib/multiplayer/room-roles.ts|src/components/library/room-role-presets.tsx|src/components/library/watch-room-section.tsx",
         "Define named viewer, contributor and co-controller presets over existing independent permissions.|Preview changes and allow custom combinations without silently granting local-library access.|Enforce the effective permissions on every incoming operation and acknowledge rejected actions.",
         "Switch roles while requests are in flight; stale privileges cannot authorize a later mutation.|Keyboard and mobile controls reflect the preset while host-enforced validation remains authoritative.",
         [],
@@ -428,7 +428,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Reconnect queue intent reconciliation",
         "Guests need clear receipts when disconnecting during an edit rather than guessing whether it applied.",
-        "src/lib/multiplayer/room-queue-session.ts|src/lib/multiplayer/room-delivery.ts",
+        "src/lib/multiplayer/room-delivery.ts|src/components/library/use-room-queue-delivery.ts|src/components/library/room-queue-delivery-panel.tsx",
         "Track bounded pending intents with stable operation IDs and the last host-confirmed revision.|After reconnect, query receipts before retrying a mutation; show applied, superseded or rejected outcomes.|Expire orphaned intents and keep local draft text separate from confirmed room state.",
         "Disconnect after host apply but before receipt; retry changes the queue exactly once.|A removed or consumed title cannot reappear through a delayed reconnect intent.",
         [],
@@ -436,7 +436,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Provider-independent subtitles",
         "Room participants need a device-local subtitle preference where provider APIs permit it.",
-        "src/components/library/watch-room-section.tsx|src/lib/multiplayer/room-player-recovery.ts",
+        "src/lib/multiplayer/room-device-captions.ts|src/components/library/room-device-captions.tsx|src/components/library/room-stream-player.tsx|src/components/library/watch-room-section.tsx",
         "Inventory local-video tracks and supported YouTube/Twitch caption controls without proxying media.|Expose per-device caption/language choices and clear unsupported-provider guidance.|Preserve a local preference without broadcasting personal accessibility choices to peers.",
         "Changing captions on a guest never pauses or changes the host's player.|Missing tracks and unsupported embeds show an honest fallback and preserve keyboard focus.",
         [],
@@ -444,7 +444,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Room accessibility audit protocol",
         "Complex room changes need repeatable assistive-technology verification beyond layout screenshots.",
-        "src/components/library/watch-room-section.tsx|src/components/library/use-room-queue-delivery.ts",
+        "docs/ACCESSIBILITY_STATUS_AND_FOCUS.md|src/components/library/use-room-list-focus.ts|src/components/library/room-queue-panel.tsx|src/components/library/room-suggestions-panel.tsx|scripts/watch-room-roles-timeline-check.mjs",
         "Document named regions, announcement priorities and focus ownership for queue/chat/dialog changes.|Add automated keyboard checks for suggestion review, reconnect errors and player recovery.|Run available screen-reader checks and record exact browser/tool coverage and remaining physical-device requirements.",
         "Queue updates announce useful summaries without repeating every timing heartbeat.|Focus survives a consumed title, dismissed dialog and reconnect; unperformed screen-reader checks remain unverified.",
         [41, 44, 46],
@@ -608,7 +608,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Private recommendation isolation audit",
         "Private labels and viewing signals need proof they cannot influence public sharing surfaces.",
-        "src/lib/videos/private-shelves.ts|src/lib/recommendations.ts|src/lib/multiplayer/room-search.ts",
+        "src/lib/videos/public-visibility.ts|src/lib/videos/guide-picks.ts|src/lib/videos/topic-postings.ts|src/lib/multiplayer/room-catalog-policy.ts",
         "Map private/adult signals through Home, topics, guide reasons, exports and room discovery.|Define an explicit boundary for local private recommendations versus public descriptors.|Add adversarial mixed-catalog fixtures and redacted diagnostic assertions.",
         "A public room, ordinary export preview and public recommendation reason reveal no private title or label.|Unlocking the private section changes only explicitly private surfaces and does not relax guest visibility.",
         [43, 58, 67],
@@ -630,7 +630,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Companion protocol negotiation",
         "Browser and Companion version drift needs actionable capability negotiation.",
-        "src/lib/companion.ts|companion/reelcase-companion.mjs",
+        "src/lib/companion-protocol.ts|src/lib/companion.ts|src/components/library/companion-recovery-panel.tsx|companion/reelcase-companion.mjs",
         "Define a versioned capability response for file, download, artwork, print and launch operations.|Gate each browser control by negotiated capability while retaining older supported Companion versions.|Show minimum-version guidance for missing features without disabling unrelated working features.",
         "An older Companion can still serve supported file operations while newer controls remain unavailable.|Unknown capability fields are ignored safely and incompatible major versions fail with a clear reason.",
         [],
@@ -638,7 +638,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Companion task queue recovery",
         "Long local jobs need durable outcomes when the browser or Companion restarts.",
-        "companion/reelcase-companion.mjs|src/lib/companion.ts",
+        "companion/download-manager.mjs|src/components/library/companion-recovery-panel.tsx|src/components/library/youtube-download-dialog.tsx|docs/COMPANION_PROTOCOL_AND_RECOVERY.md",
         "Inventory existing job persistence and introduce bounded idempotent task receipts where absent.|Recover queued/running/interrupted states without re-launching completed external actions.|Expose resume/cancel for supported job types and a read-only history with clear retention.",
         "Restart during a download or scan; completed files are not downloaded again without user intent.|Cancelled/interrupted jobs cannot be reported complete and receipts contain no secret headers.",
         [71],
@@ -646,7 +646,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Approved-root change audit",
         "Root permission changes need immediate enforcement for queued and active Companion operations.",
-        "companion/reelcase-companion.mjs|src/lib/companion.ts",
+        "companion/root-authority.mjs|companion/download-manager.mjs|companion/reelcase-companion.mjs|src/components/library/root-access-panel.tsx",
         "Trace approved-root checks at enqueue, traversal, file-open and final write boundaries.|Revalidate canonical paths and root generation after symlink/junction or permission changes.|Stop affected queued work and report denied paths without broad disk enumeration.",
         "Revoke a root during a held operation; no later read/write escapes the remaining approved roots.|Traversal, junction and renamed-root fixtures are denied while normal approved files remain usable.",
         [71],
@@ -662,7 +662,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Downloader authentication state",
         "Browser-cookie authentication needs clear consent, scope and failure reporting.",
-        "src/lib/youtube-download.ts|companion/reelcase-companion.mjs",
+        "src/components/library/youtube-download-dialog.tsx|companion/download-auth.mjs|companion/download-manager.mjs|docs/COMPANION_UPDATE_AND_AUTH.md",
         "Audit the existing yt-dlp authentication path and show selected browser/profile without exposing cookie contents.|Require an explicit user action to use eligible local session credentials and keep extraction on the Companion.|Distinguish expired session, unsupported access and downloader failure; provide provider-approved external fallback.",
         "Cookies/tokens never enter browser storage, exports, logs or app server payloads.|Denied/restricted content is not promised playable; failed auth retains the queued URL and a safe retry action.",
         [71, 72],
@@ -670,7 +670,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Download disk-budget preflight",
         "Large download batches need disk-space and destination checks before work begins.",
-        "companion/reelcase-companion.mjs|src/lib/youtube-download.ts",
+        "companion/download-preflight.mjs|companion/download-manager.mjs|src/lib/youtube-download.ts|src/components/library/youtube-download-dialog.tsx|docs/DOWNLOAD_BUDGET_AND_GAME_RECEIPTS.md",
         "Check approved destination, existing partial files and available-space estimates before each queued job.|Show unknown-size estimates honestly and reserve a configurable bounded safety margin.|Pause safely on insufficient space and resume the verified partial file when supported.",
         "A low-space fixture prevents a new write and preserves the existing partial file.|Changing destination or root approval revalidates the path and cannot overwrite an unrelated file.",
         [72, 73],
@@ -678,7 +678,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Game launch receipt and recovery",
         "One-click launches need evidence of what happened without repeatedly starting the same executable.",
-        "companion/reelcase-companion.mjs|src/lib/companion.ts",
+        "companion/launch-manager.mjs|companion/reelcase-companion.mjs|src/lib/companion.ts|src/components/library/games-section.tsx|docs/DOWNLOAD_BUDGET_AND_GAME_RECEIPTS.md",
         "Return a bounded launch receipt with approved shortcut identity, time and observed start outcome.|Separate accepted launch from verified process readiness and show retry only when appropriate.|Prevent double-click duplicate launches within a short idempotency window without globally blocking other games.",
         "Repeated identical launch intents produce one process request and a reusable receipt.|A missing shortcut or permission revocation produces a clear error without shell-command interpolation.",
         [71, 73],
@@ -686,7 +686,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Print model save transaction",
         "Print edits need a safe save-as workflow that preserves originals and editor state.",
-        "src/components/library/prints-section.tsx|companion/reelcase-companion.mjs",
+        "src/components/library/print-model-viewer.tsx|src/components/library/print-save-panel.tsx|src/lib/print-save.ts|companion/print-transactions.mjs|docs/PRINT_SAVE_AND_PLATFORM_CONTRACT.md",
         "Trace model transforms/material edits and define which formats can faithfully store them.|Preview format limitations and save to an approved new path using an atomic temporary file.|Retain the original and recover interrupted saves without marking unsaved edits as persisted.",
         "A write failure leaves the original model unchanged and the editor marked unsaved.|Reopening a supported saved format reproduces verified transforms; unsupported material loss is clearly disclosed.",
         [72, 73],
@@ -694,7 +694,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Companion update health checklist",
         "Upgrading the local service should not silently break browser integration.",
-        "companion/README.md|companion/reelcase-companion.mjs|src/lib/companion.ts",
+        "src/lib/companion-update.ts|src/components/library/companion-update-panel.tsx|companion/reelcase-companion.mjs|docs/COMPANION_UPDATE_AND_AUTH.md",
         "Create an explicit pre/post-update health check for capabilities, roots, queued jobs and configured tool versions.|Export a redacted diagnostic and retain a rollback reference for the previous service configuration.|Keep updating/manual installation separate from ordinary browser health checks.",
         "A simulated incompatible update surfaces missing capabilities and leaves saved catalog data intact.|Health checks do not install packages, change firewall rules or restart unrelated processes.",
         [71, 72],
@@ -702,7 +702,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Cross-platform local integration contract",
         "Platform-specific Companion behavior needs explicit capability fallbacks rather than Windows assumptions.",
-        "companion/reelcase-companion.mjs|companion/README.md|src/lib/companion.ts",
+        "companion/platform-contract.mjs|companion/platform-capabilities.mjs|src/lib/companion-protocol.ts|src/components/library/use-companion-support.ts|companion/README.md|docs/PRINT_SAVE_AND_PLATFORM_CONTRACT.md",
         "Inventory Windows-only shortcut, tray, startup and file inspection paths.|Define a platform-neutral core contract and honest unsupported states for other platforms.|Add filesystem/path and capability fixtures for supported environments without claiming unavailable native tests.",
         "Unsupported platform actions do not appear enabled or execute Windows shell commands.|Document which native OS checks ran; browser-only operation remains usable with no Companion.",
         [71, 73, 79],
@@ -724,7 +724,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Resumable model download integrity",
         "Large model downloads need explicit resumable verification without retaining entire files in browser memory.",
-        "src/components/library/studio-model-library.tsx|companion/reelcase-companion.mjs",
+        "companion/model-transfers.mjs|companion/studio-models.mjs|src/components/library/model-transfer-recovery.tsx|src/components/library/studio-model-library.tsx",
         "Use approved local storage for chunked downloads with verified HTTPS source and optional publisher checksum.|Resume only when remote identity/ETag matches the partial file; otherwise preview a restart.|Publish a model as installed only after complete size/checksum validation and cancellation cleanup.",
         "Interrupt and resume a large fixture without duplicating bytes or loading the complete model into JS memory.|A changed remote file or checksum failure cannot replace the active verified model.",
         [72, 73, 81],
@@ -756,7 +756,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Image output storage policy",
         "Generated images and previews need bounded local retention without losing deliberately saved work.",
-        "src/lib/studio-session.ts|src/components/library/stable-diffusion-section.tsx",
+        "src/lib/studio-outputs.ts|src/lib/studio-session.ts|src/components/library/studio-output-library.tsx|src/components/library/stable-diffusion-section.tsx",
         "Separate temporary previews, completed unsaved results and explicitly saved outputs.|Show retention/storage controls and preview cleanup of disposable previews only.|Release image URLs and buffers after navigation, engine failure and cleanup.",
         "A long generation fixture retains only the declared preview budget.|Saved outputs and recipes survive cleanup/reload; missing local files remain identifiable rather than silently deleted.",
         [2, 84],
@@ -764,7 +764,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Stream Signal pack revisions",
         "Announcement edits need revision-aware recovery across tabs without accidental publication state.",
-        "src/lib/stream-signal.ts|src/components/library/stream-signal-section.tsx",
+        "src/lib/stream-signal-revisions.ts|src/lib/stream-signal.ts|src/components/library/use-stream-signal.ts|src/components/library/stream-signal-section.tsx",
         "Assign stable pack/draft revisions and detect conflicting edits using the cross-tab writer protocol.|Offer keep-current or restore-prior text with a compact edit history and explicit manual sharing receipts.|Keep Copy/Open actions separate from Mark shared and preserve both channel links.",
         "Two tabs editing one draft cannot silently erase the newer text.|Reload/undo restores text and manual checklist state without claiming any external platform published it.",
         [6],
@@ -803,7 +803,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Sensitive export redaction review",
         "Diagnostics and portable files need one audited boundary for secrets and private source data.",
-        "src/lib/companion.ts|src/lib/videos/persist.ts|src/lib/multiplayer/room-search.ts",
+        "src/lib/diagnostic-export.ts|src/components/library/diagnostic-export-preview.tsx|src/components/library/performance-scorecard.tsx|src/lib/multiplayer/room-connection-timeline.ts",
         "Enumerate all export/clipboard/download paths and classify credentials, invitation tokens, local paths and private titles.|Create a shared allowlist-based redactor for diagnostic exports while preserving intentional private backups under explicit choice.|Add a preview showing excluded classes and test nested/unexpected fields.",
         "Canary secrets injected into diagnostic inputs never appear in output bytes or console logs.|A deliberately selected full private backup remains restorable and clearly distinguished from a shareable diagnostic.",
         [3, 43, 69],
@@ -811,7 +811,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Capability consent ledger",
         "Optional integrations need understandable remembered consent and revocation.",
-        "src/lib/companion.ts|src/components/library/settings-section.tsx",
+        "src/lib/capability-consent.ts|companion/capability-consent.mjs|src/components/library/capability-permissions.tsx|src/lib/companion.ts|src/components/library/settings-section.tsx",
         "List local file roots, model downloads, external sharing, provider sessions and optional assistant capabilities.|Show what each capability permits, its current state and how to revoke it without erasing unrelated content.|Re-check consent generation before delayed operations start or commit.",
         "Revoking a capability cancels or denies relevant pending work and leaves unrelated saved data intact.|An unknown/unconfigured integration is never presented as connected or authorized.",
         [71, 73, 81],
@@ -819,11 +819,11 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Remote desktop pairing safeguards",
         "Remote desktop access needs verifiable pairing and expiry rather than broad unattended access defaults.",
-        "src/components/library/remote-desktop-section.tsx|companion/reelcase-companion.mjs",
+        "companion/creative-tools.mjs|src/components/library/remote-desktop-section.tsx|docs/MODEL_TRANSFER_AND_REMOTE_SAFEGUARDS.md",
         "Audit the actual RustDesk launch/integration boundary and document which process handles authentication.|Add explicit pairing/session visibility, expiry guidance and stop/disconnect actions supported by the real integration.|Keep credentials out of URLs/exports and gate unattended access behind an explicit separate choice.",
         "A simulated expired pairing cannot initiate a new session through the app.|Document real native verification separately; a launcher button alone must not be marked as a working remote desktop session.",
         [71, 92],
-        "Native RustDesk session verification requires an installed client and an explicitly approved peer; do not start a session without that authorization.",
+        "This milestone delivers application approval and launch safeguards, not a verified remote session. Native RustDesk session verification requires an installed client and an explicitly approved peer; do not start a session without that authorization.",
       ],
       [
         "Destructive action recovery design",
@@ -844,7 +844,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Accessible status announcement policy",
         "Progress and error updates should be useful to assistive technology without becoming noise.",
-        "src/components/library/live-check-status.tsx|src/components/library/twitch-clips-control.tsx|src/components/library/mission-plan-section.tsx",
+        "src/lib/status-announcement.ts|src/components/library/batch-status-announcement.tsx|src/components/library/live-check-status.tsx|src/components/library/twitch-clips-control.tsx|src/components/library/mission-plan-section.tsx|docs/ACCESSIBILITY_STATUS_AND_FOCUS.md",
         "Inventory live regions and define polite batch summaries versus urgent user-action errors.|Coalesce rapid provider/room updates and retain a readable last outcome.|Verify reduced-motion and high-contrast presentation alongside keyboard navigation.",
         "A 100-creator batch does not announce every internal counter tick.|Important failure and completion states are announced once with a usable recovery control.",
         [50, 95],
@@ -852,7 +852,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Onboarding using existing library state",
         "New and returning users need next steps that reflect actual configuration.",
-        "src/components/library/library-app.tsx|src/components/library/settings-section.tsx",
+        "src/lib/setup-readiness.ts|src/components/library/setup-checklist.tsx|src/components/library/light-home.tsx|src/components/library/settings-section.tsx",
         "Derive onboarding readiness from saved sources, approved Companion capabilities and usable catalog state.|Offer a small contextual checklist with dismiss/resume and no fabricated sample connections.|Keep costly scans/provider imports explicitly initiated and show offline-first options.",
         "An empty library gets useful choices while a populated returning profile avoids onboarding interruption.|Dismissing or completing a step persists without launching downloads, scans or account connections.",
         [71, 92],
@@ -860,7 +860,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Feature readiness inventory",
         "The app needs one truthful distinction between implemented, configured and externally verified features.",
-        "src/components/library/settings-section.tsx|src/components/library/mission-plan-section.tsx|MILESTONE_VERIFICATION.md",
+        "src/lib/feature-readiness.ts|src/components/library/feature-readiness-panel.tsx|src/components/library/settings-section.tsx|src/components/library/mission-plan-section.tsx|MILESTONE_VERIFICATION.md",
         "Define readiness dimensions using actual capability/configuration and linked verification artifacts.|Show unsupported, unconfigured, ready and externally unverified states with concrete next steps.|Keep milestone completion separate from integration connection state and avoid automatic completion promotion.",
         "A built simulator is not labeled connected chat or game control, and an installed model is not proof of generation.|Missing evidence is visibly unverified; opening the inventory performs no external setup.",
         [79, 81, 90, 93],

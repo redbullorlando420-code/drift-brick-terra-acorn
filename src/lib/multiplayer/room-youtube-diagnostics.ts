@@ -1,3 +1,4 @@
+import {diagnosticExport} from '../diagnostic-export.ts';
 import { roomYoutubeError } from "./room-player-recovery.ts";
 export const YOUTUBE_DIAGNOSTIC_TITLES = 12,
   YOUTUBE_DIAGNOSTIC_EVENTS = 6;
@@ -153,16 +154,5 @@ export function exportYoutubeEmbedEvidence(rows: readonly YoutubeEmbedEvidence[]
       },
     ];
   });
-  return JSON.stringify(
-    {
-      format: "realhub-youtube-player-diagnostics",
-      version: 1,
-      exportedAt: new Date(at).toISOString(),
-      scope:
-        "This browser’s current room visit; provider availability and external playback are not verified.",
-      titles,
-    },
-    null,
-    2,
-  );
+  return JSON.stringify(diagnosticExport('youtube-player',{version:2,capturedAt:at,titles}),null,2);
 }

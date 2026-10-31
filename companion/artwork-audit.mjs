@@ -16,7 +16,7 @@ export function createArtworkAudit() {
       row[hit ? 'hits' : 'misses']++;
       lookups.set(source, row);
     },
-    async scan(root, { maxEntries = 10_000, maxMs = 300 } = {}) {
+    async scan(root, { maxEntries = 10_000, maxMs = 300, authority } = {}) {
       const start = Date.now();
       const rows = new Map([...lookups].map(([source, reads]) => [source, { source, ...reads, files: 0, bytes: 0, oldestAt: null }]));
       let examined = 0;
@@ -24,13 +24,15 @@ export function createArtworkAudit() {
       let skipped = 0;
       // The caller supplies its approved cache directory. No recursion, image
       // reads, paths in the response, or symlink traversal are needed to audit.
+      const access=authority?.lease(root);
+      try {access?.assert();
       const dir = await opendir(root);
       for await (const entry of dir) {
         if (examined >= maxEntries || Date.now() - start >= maxMs) { truncated = true; break; }
-        examined++;
+        access?.assert();examined++;
         if (!entry.isFile() || !/\.(jpe?g|png|webp|gif)$/i.test(entry.name)) continue;
         try {
-          const stat = await lstat(join(root, entry.name));
+          access?.assert(join(root,entry.name));const stat = await lstat(join(root, entry.name));access?.assert(join(root,entry.name));
           if (!stat.isFile() || stat.isSymbolicLink()) { skipped++; continue; }
           const source = artworkSource(entry.name);
           const row = rows.get(source) ?? { source, hits: 0, misses: 0, files: 0, bytes: 0, oldestAt: null };
@@ -40,8 +42,9 @@ export function createArtworkAudit() {
           rows.set(source, row);
         } catch { skipped++; }
       }
-      return { ok: true, at: Date.now(), startedAt, examined, truncated, skipped,
+      access?.assert();return { ok: true, at: Date.now(), startedAt, examined, truncated, skipped,
         sources: [...rows.values()].sort((a, b) => a.source.localeCompare(b.source)) };
+      }finally{access?.release();}
     },
   };
 }

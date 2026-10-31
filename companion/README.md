@@ -1,4 +1,20 @@
-# Realhub Companion (v10)
+# Realhub Companion (v19)
+
+## Configured folder access
+
+Settings → **Companion folder access** explicitly reviews configured roots, previews revocation consequences, and revokes or restores only the same pinned folder. Delayed artwork writes, queued downloads, metadata tools and active file streams recheck access. Replaced folders/junctions do not inherit approval. The private `.local-root-policy.json` stores disabled configured-folder identifiers; it is excluded from Git. Keep this policy with your private configuration backup. A malformed policy fails closed. Controls require Companion v15; older services keep their other negotiated features. See [folder access and diagnostic privacy](../docs/FOLDER_ACCESS_AND_DIAGNOSTIC_PRIVACY.md).
+
+## Compatibility and interrupted downloads
+
+Settings → **Companion & local jobs** shows supported features and saved download receipts.
+Restarting Companion leaves interrupted downloads stopped until you explicitly resume them.
+Completed files are reused; browser sign-in requires fresh consent in the video download panel.
+See [the compatibility and recovery runbook](../docs/COMPANION_PROTOCOL_AND_RECOVERY.md).
+
+
+## Before and after updates
+
+Settings now saves a workspace-specific before-update summary and exports a redacted comparison. Keep a separate private backup of the previous service and configuration; the report is a reference, not a backup or updater. Health checks inspect optional folders without creating them. See [update checks and session consent](../docs/COMPANION_UPDATE_AND_AUTH.md).
 
 ## YouTube browser sign-in and saved playback
 
@@ -10,7 +26,7 @@ When a YouTube embed asks for age verification or sign-in, choose **Use browser
 sign-in** in the player. In the download panel, explicitly enable **Use my
 signed-in browser for this download**, choose Chrome, Edge or Firefox, and start
 the download. Your account must already be able to watch the video on YouTube.
-This option resets when the panel closes. No cookies are exported to the app,
+Consent resets after each accepted attempt and when the panel closes. Custom profiles are not supported; the default local profile and selected browser are shown before submission. No cookies are exported to the app,
 localStorage, the download manifest or a cookie file. A browser database may be
 locked, and Chromium encryption can prevent extraction; the panel explains
 retrying with a signed-in Firefox session. YouTube may still reject access.
@@ -110,3 +126,25 @@ The studio now reviews bounded safetensors headers before selecting or generatin
 ### Recipe parameter provenance
 
 The updated studio bridge pins its supported sampler profile and returns bounded parameter observations for recipe version 2. Restart Companion to activate this source update. Saved recipes review exact model choices and warn about missing/unmatched evidence; no automatic model substitution or generation occurs. See [Recipes and keyboard workflow](../docs/RECIPES_AND_KEYBOARD.md).
+
+## Disk budgets and game launch receipts (v16)
+
+Downloads check free space before dispatch; unknown sizes reserve a clearly labeled 2 GiB allowance plus a 512 MiB safety margin. Configure `REELCASE_DOWNLOAD_MARGIN_MIB` (64–16384) and `REELCASE_DOWNLOAD_ESTIMATE_MIB` (64–65536) in the local service environment. Checks occur again on progress at most once per five seconds; this is an estimate, not a disk reservation or guaranteed final size. Paused jobs require explicit resume. New attempts use isolated receipt-ID folders; verified partial ownership and folder/file identity are checked before `--continue --no-overwrites`. Unowned legacy partials or changed files are retained and require **Start fresh copy**. Abrupt crashes may leave unverified partials; no unsafe automatic adoption occurs.
+
+Games → **Review launch receipts** reads at most 50 local receipts. Windows launches use `explorer.exe` with the exact approved canonical file as a literal argument, without cmd.exe or PowerShell. Repeated requests for the same unchanged shortcut share a pending request or an accepted receipt for eight seconds; other games remain independent. Receipt acceptance describes the OS launcher only: actual game readiness remains **unverified**. Missing/revoked shortcuts fail before dispatch. The private `.local-launch-receipts.json` is excluded from Git. Opening history starts nothing.
+
+## Reviewed print copies and platform support (v17)
+
+3D prints → View / Edit → Choose save destination provides a reviewed GLB save-as transaction. Original files remain unchanged; failures keep the draft unconfirmed, and Check pending save recovers a verified result after an interrupted response. The private .local-print-transactions.json journal is excluded from Git. Atomic exclusive creation requires filesystem hard links; unavailable support fails without overwriting. See [print save and platform contract](../docs/PRINT_SAVE_AND_PLATFORM_CONTRACT.md) for format limits and recovery.
+
+Health reports the service OS and filters Windows-only desktop/shortcut/tray/startup capabilities on other platforms. Portable approved-file features remain separate from native desktop support. Absolute roots use semicolons on Windows or colons on POSIX; legacy semicolon POSIX roots still work. Bundled image-engine starts are Windows-only; external APIs remain separately configurable. Windows filesystem/HTTP behavior was exercised; other operating systems have contract fixtures only. No native OS execution beyond the documented checks is claimed.
+
+
+## Optional integration permissions (v18)
+
+Settings → Optional permissions reviews and revokes host-scoped model transfers and browser-session access. Grants default off and persist in the private .local-capability-consent.json policy. Revocation stops affected pending work; generation checks reject stale bodies/lookups and regrants never revive old jobs. Existing models, browser drafts, partial downloads and ordinary unauthenticated downloads remain. Retry an unsaved revocation before closing Companion. These are app permission controls, separate from native folder approval and engine/account readiness. See [permissions and setup](../docs/OPTIONAL_PERMISSIONS_AND_SETUP.md).
+
+
+## Model recovery and scoped remote launch (v19)
+
+Model downloads keep up to eight private .local-model-transfers.json receipts. Review verifies pinned publisher identity and owned partial data; explicit Resume appends, Pause retains a checkpoint, and Cancel removes only a verified owned partial. Changed sources require a separate fresh-transfer review. Existing weights are never overwritten and no transfer replays at startup. Remote approvals add page scoping and redacted launch receipts; stop remains pending until launcher exit is observed. Actual native authentication/session state is always unverified by the website. See [recovery and launch safeguards](../docs/MODEL_TRANSFER_AND_REMOTE_SAFEGUARDS.md).

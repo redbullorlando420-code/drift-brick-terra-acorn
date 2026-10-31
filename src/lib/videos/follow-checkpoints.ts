@@ -1,3 +1,5 @@
+import { normalizePlaylistWalk } from './youtube-playlist-walk.ts';
+import { normalizeYoutubeEvents } from './youtube-events.ts';
 import { normalizeTwitchPullPolicy } from './twitch-pull-policy.ts';
 import { decodeTwitchArchiveCursor, encodeTwitchArchiveCursor } from './twitch-archive-cursor';
 import { decodeTwitchClipCursor, encodeTwitchClipCursor } from './twitch-clip-cursor';
@@ -23,6 +25,7 @@ export function normalizeTwitchPullDiagnostics(raw: unknown): TwitchPullDiagnost
 /** The same compact checkpoint contract is used by reloads and backup imports. */
 export function normalizeFollowCheckpoints(row: Record<string, unknown>): Partial<FollowedChannel> {
   const out: Partial<FollowedChannel> = {};
+  if(row.kind==='youtube'){const walk=normalizePlaylistWalk(row.playlistWalk),events=normalizeYoutubeEvents(row.youtubeEvents);if(walk)out.playlistWalk=walk;if(events)out.youtubeEvents=events;}
   const policy=normalizeTwitchPullPolicy(row.twitchPullPolicy); if(policy && row.kind==='twitch')out.twitchPullPolicy=policy;
   const clip = normalizeTwitchClipDiagnostics(row.twitchClipDiagnostics);
   if (clip) out.twitchClipDiagnostics = clip;

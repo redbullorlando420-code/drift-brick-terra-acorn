@@ -1,3 +1,4 @@
+import { twitchIdentity } from '../videos/twitch-identity.ts';
 import type { LibraryVideo, RemoteRef } from "../videos/types.ts";
 import { exactYoutubePublished } from '../videos/youtube-metadata.ts';
 
@@ -69,6 +70,7 @@ function providerFields(
     Partial<RoomMediaDescriptor>,
     "embedUrl" | "watchUrl" | "videoId" | "channelName" | "live"
   >,
+  extension?:string,
 ) {
   const urls = [safeProviderUrl(item.embedUrl, kind), safeProviderUrl(item.watchUrl, kind)]
     .filter((value): value is string => Boolean(value))
@@ -95,68 +97,17 @@ function providerFields(
       live: Boolean(item.live) || urls.some(url => /^\/live\//.test(url.pathname)),
     };
   }
-  const clip = urls
-    .map(
-      (url) =>
-        url.searchParams.get("clip") ||
-        url.pathname.match(/\/clip\/([\w-]+)/)?.[1] ||
-        (url.hostname === "clips.twitch.tv" && url.pathname !== "/embed"
-          ? url.pathname.slice(1)
-          : undefined),
-    )
-    .find((id) => id && /^[\w-]{1,160}$/.test(id));
-  const vod =
-    urls
-      .map(
-        (url) =>
-          url.searchParams.get("video")?.replace(/^v/, "") ||
-          url.pathname.match(/^\/videos\/(\d+)/)?.[1],
-      )
-      .find((id) => id && /^\d+$/.test(id)) ??
-    (identifier && /^v?\d+$/.test(identifier) ? identifier.replace(/^v/, "") : undefined);
-  const channel =
-    urls
-      .map(
-        (url) =>
-          url.searchParams.get("channel") ||
-          (/^(?:www\.|m\.)?twitch\.tv$/.test(url.hostname) &&
-          !/^\/(?:videos|directory|clip)\b/.test(url.pathname)
-            ? url.pathname.split("/")[1]
-            : undefined),
-      )
-      .find((id) => id && /^[\w]{1,25}$/.test(id)) ??
-    (item.live && typeof item.channelName === "string" && /^[\w]{1,25}$/.test(item.channelName)
-      ? item.channelName
-      : undefined);
-  if ((item.live && channel) || (!clip && !vod && channel))
-    return {
-      live: true,
-      channelName: channel,
-      embedUrl: `https://player.twitch.tv/?channel=${channel}`,
-      watchUrl: `https://www.twitch.tv/${channel}`,
-    };
-  if (clip || (identifier && !vod && !item.live)) {
-    const videoId = clip ?? identifier!;
-    return {
-      live: false,
-      videoId,
-      embedUrl: `https://clips.twitch.tv/embed?clip=${videoId}`,
-      watchUrl: `https://clips.twitch.tv/${videoId}`,
-    };
-  }
-  return vod
-    ? {
-        live: false,
-        videoId: vod,
-        embedUrl: `https://player.twitch.tv/?video=v${vod}`,
-        watchUrl: `https://www.twitch.tv/videos/${vod}`,
-      }
-    : null;
+  const identity = twitchIdentity(item,extension);
+  if(extension==="clip" && identity?.kind==="clip" && /^\d+$/.test(identity.value) && !urls.length)return null;
+  if (!identity) return null;
+  if (identity.kind === 'live') return { live:true,channelName:identity.value,embedUrl:'https://player.twitch.tv/?channel='+identity.value,watchUrl:'https://www.twitch.tv/'+identity.value };
+  if (identity.kind === 'clip') return { live:false,videoId:identity.value,embedUrl:'https://clips.twitch.tv/embed?clip='+identity.value,watchUrl:'https://clips.twitch.tv/'+identity.value };
+  return {live:false,videoId:identity.value,embedUrl:'https://player.twitch.tv/?video=v'+identity.value,watchUrl:'https://www.twitch.tv/videos/'+identity.value};
 }
 
 export function normalizeRoomVideo(video: LibraryVideo): LibraryVideo {
   if (!video.remote || !["youtube", "twitch"].includes(video.remote.kind)) return video;
-  const fields = providerFields(video.remote.kind as "youtube" | "twitch", video.remote);
+  const fields = providerFields(video.remote.kind as "youtube" | "twitch", video.remote,video.extension);
   return fields ? { ...video, remote: { ...video.remote, ...fields } } : video;
 }
 
@@ -165,7 +116,7 @@ export function roomMediaKey(video: LibraryVideo): string {
   if (!video.remote) return `local:${video.id}`;
   const kind = video.remote.kind;
   if (kind !== "youtube" && kind !== "twitch") return `entry:${video.id}`;
-  const fields = providerFields(kind, video.remote);
+  const fields = providerFields(kind, video.remote,video.extension);
   if (!fields) return `entry:${video.id}`;
   if (kind === "youtube") return `youtube:${fields.videoId}`;
   if (fields.live) return `twitch:live:${fields.channelName?.toLowerCase()}`;
@@ -260,7 +211,7 @@ export function describeRoomMedia(
       ? { id: video.id, name: video.name.slice(0, 300), kind: "local", duration: video.duration, size: video.size }
       : null;
   }
-  const fields = providerFields(kind, remote);
+  const fields = providerFields(kind, remote,video.extension);
   if (!fields) return null;
   return {
     id: video.id.slice(0, 300),

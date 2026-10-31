@@ -1,3 +1,4 @@
+import { readProviderJson } from './provider-json.ts';
 import { validateYoutubeItems } from './youtube-contract';
 import { LIBRARY_LIMITS } from '../library-limits';
 import { youtubeCatalogContinuation, youtubeCatalogItems } from './youtube-catalog';
@@ -15,7 +16,7 @@ export async function youtubePublicRequest(endpoint: string, target: object, man
     body: JSON.stringify({ context: { client: { clientName: 'WEB', clientVersion: YOUTUBE_WEB_VERSION, hl: 'en', gl: 'US' } }, ...target }),
     timeoutMs: live ? 8_000 : 15_000, manualRetry, ...(live ? { scope: 'live' as const } : {}),
   });
-  return response.json();
+  return readProviderJson(response,'youtube');
 }
 export const browseYoutubeCatalog = (target: { browseId?: string; continuation?: string; params?: string }, manualRetry?: YoutubeManualRetry, live = false) => youtubePublicRequest('browse', target, manualRetry, live);
 
@@ -24,12 +25,12 @@ type Archive = { rows: YoutubeRenderer[]; cursor: string | null; completed: bool
 /** Read complete provider pages, retaining the unconsumed token on every
  * failure. Resumed pulls start with the saved token, without fetching HTML,
  * RSS or the first hundred uploads again. */
-export async function youtubeBrowseArchive(playlistId: string, limit: number, resumeCursor?: string, manualRetry?: YoutubeManualRetry): Promise<Archive | null> {
+export async function youtubeBrowseArchive(playlistId: string, limit: number, resumeCursor?: string, manualRetry?: YoutubeManualRetry, options?: {stopAtId?:string;maxPages?:number}): Promise<Archive | null> {
   const browseId = youtubePlaylistBrowseId(playlistId);
   const rows: YoutubeRenderer[] = [], seen = new Set<string>(), visited = new Set<string>();
   let cursor: string | null = resumeCursor ?? null, completed = false, reset = false, author: string | undefined, title: string | undefined;
   const deadline = Date.now() + (limit <= 100 ? 30_000 : 120_000);
-  const budget = Math.min(LIBRARY_LIMITS.youtubeArchivePagesPerPull, Math.max(2, Math.ceil(limit / 30) + 2));
+  const budget = Math.min(options?.maxPages??Infinity, LIBRARY_LIMITS.youtubeArchivePagesPerPull, Math.max(2, Math.ceil(limit / 30) + 2));
   for (let page = 0; page < budget && rows.length < limit; page++) {
     if (Date.now() >= deadline || cursor && visited.has(cursor)) break;
     const requesting = cursor;
@@ -55,7 +56,7 @@ export async function youtubeBrowseArchive(playlistId: string, limit: number, re
       if (next === requesting && next) break;
       cursor = next;
       completed = !next;
-      if (completed) break;
+      if (completed || options?.stopAtId && seen.has(options.stopAtId)) break;
     } catch (error) {
       if (requesting === resumeCursor && !reset && error instanceof YoutubeRequestError && (error.status === 400 || error.status === 404)) {
         reset = true; cursor = null; continue;
@@ -68,5 +69,5 @@ export async function youtubeBrowseArchive(playlistId: string, limit: number, re
   return { rows, cursor, completed, author, title };
 }
 
-export const youtubeUploadsArchive = (channelId: string, limit: number, resumeCursor?: string, manualRetry?: YoutubeManualRetry) =>
-  youtubeBrowseArchive(`UU${channelId.slice(2)}`, limit, resumeCursor, manualRetry);
+export const youtubeUploadsArchive = (channelId: string, limit: number, resumeCursor?: string, manualRetry?: YoutubeManualRetry, options?: {stopAtId?:string;maxPages?:number}) =>
+  youtubeBrowseArchive(`UU${channelId.slice(2)}`, limit, resumeCursor, manualRetry, options);

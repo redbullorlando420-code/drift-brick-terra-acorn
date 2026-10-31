@@ -9,6 +9,8 @@ globalThis.__entryLimitFixture = fixture;
 const persistence = readFileSync(new URL('../src/lib/videos/persist.ts', import.meta.url), 'utf8');
 const names = [...persistence.matchAll(/export (?:async )?function (\w+)/g)].map(match => match[1]);
 const mockPersist = names.map(name => {
+  if (name === 'saveCatalogMetadataEdit') return 'export function saveCatalogMetadataEdit(row){return {...row,nonce:"fixture",at:Date.now()};}';
+  if (name === 'restoreCatalogMetadata') return 'export async function restoreCatalogMetadata(base){return base;}';
   if (name === 'saveFollows') return 'export function saveFollows(channels) { globalThis.__entryLimitFixture.followsWrites.push(structuredClone(channels)); }';
   if (name === 'loadPrefs') return 'export function loadPrefs() { return null; }';
   if (name === 'loadFollows') return 'export function loadFollows() { return []; }';
@@ -825,7 +827,7 @@ test('pausing during an automatic live response saves that observation, releases
 
 test('explicit Twitch content pulls queue 100 creators in small archive responses; scheduled turns stay bounded',async()=>{
  reset([]);const follows=Array.from({length:600},(_,i)=>({id:'tw:queue'+i,kind:'twitch',handle:'queue'+i,title:'Queue '+i}));useLibrary.setState({follows});fixture.responseForRequest=data=>({channels:data.channels,videos:[],refreshedIds:data.channels.map(c=>c.id),retryAt:{}});
- const manual=await useLibrary.getState().refreshFollows('twitch',{twitchRoutine:true});assert.equal(manual.pull.total,100);assert.equal(manual.pull.done,100);assert.equal(fixture.requests,50);assert(fixture.inputs.every(d=>d.channels.length<=2));
+ const manual=await useLibrary.getState().refreshFollows('twitch',{twitchRoutine:true});assert.equal(manual.pull.total,100);assert.equal(manual.pull.done,100);assert.equal(fixture.requests,25);assert(fixture.inputs.every(d=>d.channels.length<=4));
  const scheduled=await useLibrary.getState().refreshFollows('twitch',{twitchRoutine:true,scheduled:true});assert.equal(scheduled.pull.total,12);assert.equal(scheduled.pull.done,12);
 });
 
@@ -908,11 +910,11 @@ test('recent upload batches publish fast creators before a held batch, keep two 
  const follows=Array.from({length:8},(_,i)=>({id:'yt:UC'+String(i).padStart(22,'0'),channelId:'UC'+String(i).padStart(22,'0'),kind:'youtube',title:'Recent '+i,handle:'recent'+i,catalogCursor:'keep-'+i,catalogCheckedAt:1,lastProviderFailure:{kind:'unavailable',at:1,message:'Archive failed',recovery:''}}));
  useLibrary.setState({follows});let release,active=0,peak=0;const held=new Promise(r=>release=r);let fastSeen;const fast=new Promise(r=>fastSeen=r);
  fixture.responseForRequest=async data=>{peak=Math.max(peak,++active);try{if(data.channels[0].id===follows[0].id)await held;return{channels:data.channels.map(c=>({...c,catalogCursor:'incorrect',catalogCheckedAt:Date.now(),lastProviderFailure:undefined,lastCheckedAt:Date.now()})),videos:[],refreshedIds:data.channels.map(c=>c.id),retryAt:{}};}finally{active--;}};
- const stop=useLibrary.subscribe(s=>{if(s.follows.find(c=>c.id===follows[2].id)?.recentPull?.checkedAt)fastSeen();});
+ const stop=useLibrary.subscribe(s=>{if(s.follows.find(c=>c.id===follows[4].id)?.recentPull?.checkedAt)fastSeen();});
  const job=useLibrary.getState().refreshFollows('youtube',{channelIds:follows.map(c=>c.id)});
  try{await Promise.race([fast,new Promise((_,reject)=>setTimeout(()=>reject(Error('Fast batch blocked behind held creator')),5000))]);assert.equal(useLibrary.getState().follows.find(c=>c.id===follows[0].id).recentPull,undefined);assert.equal(peak,2);}
  finally{release();stop();await job;}
- const state=useLibrary.getState();assert.equal(fixture.requests,4);assert(fixture.inputs.every(x=>x.channels.length<=2));assert.equal(new Set(fixture.inputs.flatMap(x=>x.channels.map(c=>c.id))).size,8);
+ const state=useLibrary.getState();assert.equal(fixture.requests,2);assert(fixture.inputs.every(x=>x.channels.length<=4));assert.equal(new Set(fixture.inputs.flatMap(x=>x.channels.map(c=>c.id))).size,8);
  for(let i=0;i<8;i++){const c=state.follows.find(c=>c.id===follows[i].id);assert(c.recentPull.checkedAt);assert.equal(c.catalogCursor,'keep-'+i);assert.equal(c.catalogCheckedAt,1);assert.equal(c.lastProviderFailure.message,'Archive failed');}
 });
 
@@ -1053,4 +1055,17 @@ test('YouTube publication repairs require matching identity and preserve precisi
  assert.equal(await store.setYoutubePublication(old.id,'2026-10-01T13:14:15Z',id),true);const written=fixture.writes.length;assert.equal(await store.setYoutubePublication(old.id,'2026-10-02',id),false);assert.equal(fixture.writes.length,written);assert.equal(useLibrary.getState().videos[0].addedAt,Date.parse('2026-10-01T13:14:15Z'));
  await store.setYoutubeMetadata(old.id,{id,date:'2026-10-02',keywords:['provider-tag']});current=useLibrary.getState().videos[0];assert.equal(current.remote.publishedPrecision,'instant');assert.equal(current.addedAt,Date.parse('2026-10-01T13:14:15Z'));assert.deepEqual(useLibrary.getState().tags[old.id],['my-manual-tag']);assert.deepEqual(useLibrary.getState().metadataProvenance[old.id].lockedFields,['tags','category']);assert.equal(useLibrary.getState().favorites,favorites);assert.equal(useLibrary.getState().history,history);
  const n=fixture.writes.length;useLibrary.setState({videos:[{...current,remote:{...current.remote,youtubeType:'upcoming'}}]});await assert.rejects(store.setYoutubePublication(old.id,'2026-10-25',id),/after this stream/);assert.equal(fixture.writes.length,n);
+});
+
+
+test('Twitch clip aliases preserve manual tags, locks, ratings, history and one durable canonical card',async()=>{
+ const {setRating,getRating}=await import('../src/lib/media-feedback.ts');
+ const tw={id:'tw:alias-owner',kind:'twitch',handle:'aliasowner',title:'Alias owner'};
+ const old={...card('saved-clip-id','twitch',tw.id),extension:'clip',remote:{kind:'twitch',videoId:'VerifiedSlug',watchUrl:'https://clips.twitch.tv/VerifiedSlug',embedUrl:'https://clips.twitch.tv/embed?clip=VerifiedSlug'}};
+ reset([old]);const favorites={[old.id]:true},likes={[old.id]:true},tags={[old.id]:['my-manual-tag']},metadataProvenance={[old.id]:{tags:{'my-manual-tag':'manual'},lockedFields:['tags'],updatedAt:1}},categories={[old.id]:'My category'},history=[{id:old.id,at:1,source:'open'}],progress={[old.id]:{t:12,d:30,at:1}};
+ useLibrary.setState({follows:[tw],favorites,likes,tags,metadataProvenance,categories,history,progress});setRating(old.id,5);
+ const next={...old,id:'new-url-wrapper',folderId:'tw:another-owner',remote:{...old.remote,watchUrl:'https://www.twitch.tv/another/clip/VerifiedSlug?tt_content=tracking',embedUrl:undefined,twitchClipIdentity:{version:1,slug:'VerifiedSlug',id:'123456789'}}};
+ fixture.response={channel:{...tw,id:'tw:another-owner',handle:'another'},videos:[next]};
+ await useLibrary.getState().followRemoteQuery('another','twitch');await flush();const state=useLibrary.getState();
+ assert.equal(state.videos.length,1);assert.equal(state.videos[0].id,old.id);assert.deepEqual(state.videos[0].remote.sourceIds,[tw.id,'tw:another-owner']);assert.deepEqual(state.tags[old.id],['my-manual-tag']);assert.deepEqual(state.metadataProvenance[old.id].lockedFields,['tags']);assert.equal(state.categories,categories);assert.equal(state.favorites,favorites);assert.equal(state.likes,likes);assert.equal(state.history,history);assert.equal(state.progress,progress);assert.equal(getRating(old.id),5);assert(fixture.writes.length);assert(fixture.writes.every(row=>row.id===old.id));assert.equal(state.tags[next.id],undefined);
 });

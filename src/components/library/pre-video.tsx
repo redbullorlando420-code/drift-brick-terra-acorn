@@ -1,5 +1,6 @@
-import {AnimeReviewEntry} from './anime-review';
-import {FilmReviewEntry} from './film-review';
+import {TwitchChapters} from './twitch-chapters';
+import {twitchChapterEmbed} from '@/lib/remote/twitch-chapters';
+import { DeferredVideoReviews } from './deferred-video-reviews';
 import { RecommendationButton } from './recommendation-button';
 import { RecommendationChoices } from './recommendation-choices';
 import { knownTwitchContent, twitchContentLabel } from '@/lib/videos/twitch-content';
@@ -63,6 +64,7 @@ export function PreVideo() {
   const metadataProvenance = useLibrary((s) => (previewId ? s.metadataProvenance[previewId] : undefined));
   const category = useLibrary((s) => (previewId ? (s.categories[previewId] ?? "") : ""));
   const [editing, setEditing] = useState(false);
+  const [chapterStart,setChapterStart]=useState<{id:string;seconds:number;revision:number}|null>(null);
   const [tagText, setTagText] = useState("");
   const [categoryText, setCategoryText] = useState("");
   const [vrAvailable, setVrAvailable] = useState(false);
@@ -196,7 +198,7 @@ export function PreVideo() {
     ? null
     : video.remote && !myFreeCamsRoom && (video.remote.embedUrl || video.remote.kind === "youtube") && !directAdultMedia
       ? video.remote.kind === "twitch"
-        ? twitchEmbedUrl(video.remote, window.location.hostname)
+        ? twitchChapterEmbed(twitchEmbedUrl(video.remote, window.location.hostname),chapterStart?.id===video.id?chapterStart.seconds:undefined)
         : video.remote.kind === "youtube"
           ? youtubeEmbedUrl(video.remote.embedUrl ?? video.src ?? video.remote.watchUrl ?? "", video.remote.videoId, window.location.origin)
           : video.remote.embedUrl
@@ -226,6 +228,7 @@ export function PreVideo() {
                 />
               ) : embed ? (
                 isAdultPullKind(video.remote?.kind)?<AdultProviderFrame video={video} src={embed} preview/>:<iframe
+                  key={`chapter:${video.id}:${chapterStart?.id===video.id?chapterStart.revision:0}`}
                   title={`${video.name} preview`}
                   src={embed}
                   className="aspect-video w-full border-0"
@@ -272,7 +275,7 @@ export function PreVideo() {
               {video.tagline ?? "Preview this title, tune its metadata, then start watching."}
             </p>
             {isAdultPullKind(video.remote?.kind)&&!video.remote?.live&&<p data-adult-publication className="mt-3 text-xs text-muted">{['instant','day'].includes(video.remote?.publishedPrecision??'')&&video.addedAt>0?'Published '+(video.remote?.publishedPrecision==='day'?video.remote.publishedDate:new Date(video.addedAt).toLocaleDateString()):'Publication date unknown'}{video.addedAt>0&&!video.remote?.publishedPrecision?' · legacy saved date is unverified':''}</p>}
-            <FilmReviewEntry video={video}/><AnimeReviewEntry video={video}/><div className="mt-5 flex flex-wrap items-start gap-2">
+            <DeferredVideoReviews video={video}/><div className="mt-5 flex flex-wrap items-start gap-2">
               {!myFreeCamsRoom && <Button onClick={() => openVideo(video.id)}>
                 <Play className="size-4 fill-current" /> Watch now
               </Button>}
@@ -315,6 +318,7 @@ export function PreVideo() {
             <PullPauseButton />
             {video.remote?.kind === 'youtube' && <div className="mt-4"><YoutubePublicationControl video={video} /></div>}
             {video.remote?.kind === 'youtube' && <div className="mt-4"><YoutubeTagsControl video={video} /></div>}
+            <TwitchChapters key={`chapters:${video.id}`} video={video} onNavigate={seconds=>setChapterStart(previous=>({id:video.id,seconds,revision:(previous?.revision??0)+1}))}/>
             {video.remote && supportsRemoteComments(video.remote.kind) && (
               <div className="mt-4">
                 <AdultComments key={video.id} video={video} />

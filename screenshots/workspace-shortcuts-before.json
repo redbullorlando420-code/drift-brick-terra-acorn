@@ -1,0 +1,37 @@
+{
+  "ok": false,
+  "reports": [
+    {
+      "mobile": false,
+      "target": "Spotify",
+      "checks": [],
+      "ok": false,
+      "error": "Invalid saved links must not become launch links\n\n1 !== 0\n",
+      "errors": []
+    },
+    {
+      "mobile": false,
+      "target": "Shop",
+      "checks": [],
+      "ok": false,
+      "error": "locator.waitFor: Timeout 7000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Kept order', { exact: true }) to be visible\u001b[22m\n",
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "target": "Spotify",
+      "checks": [],
+      "ok": false,
+      "error": "Invalid saved links must not become launch links\n\n1 !== 0\n",
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "target": "Shop",
+      "checks": [],
+      "ok": false,
+      "error": "locator.waitFor: Timeout 7000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Kept order', { exact: true }) to be visible\u001b[22m\n",
+      "errors": []
+    }
+  ]
+}

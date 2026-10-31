@@ -1,0 +1,317 @@
+{
+  "version": 1,
+  "capturedAt": 1793311657367,
+  "catalogEntries": 1000,
+  "sourceCount": 0,
+  "lowMemory": false,
+  "pullsPaused": true,
+  "frames": {
+    "sampledFrames": 0,
+    "sampledAt": 0,
+    "recentLongFrames": 0,
+    "recentWorstFrameMs": 0,
+    "lastActiveCards": 0,
+    "mountedCards": 0,
+    "longFrames": 0,
+    "lastFrameMs": 0,
+    "worstFrameMs": 0,
+    "startedAt": 1793311649667,
+    "totalSampledFrames": 0,
+    "monitoring": true
+  },
+  "interactions": {
+    "navigation": {
+      "count": 11,
+      "lastMs": 14,
+      "worstMs": 16,
+      "at": 1793311656935
+    },
+    "search": {
+      "count": 3,
+      "lastMs": 12,
+      "worstMs": 12,
+      "at": 1793311652041
+    },
+    "rating": {
+      "count": 0,
+      "lastMs": 0,
+      "worstMs": 0,
+      "at": 0
+    },
+    "playback": {
+      "count": 0,
+      "lastMs": 0,
+      "worstMs": 0,
+      "at": 0
+    },
+    "queue": {
+      "count": 0,
+      "lastMs": 0,
+      "worstMs": 0,
+      "at": 0
+    }
+  },
+  "ranking": {
+    "active": 0,
+    "deferred": 0,
+    "coalesced": 1,
+    "budget": {
+      "settleMs": 80,
+      "sliceMs": 3,
+      "sliceRows": 256,
+      "samples": 32
+    },
+    "samples": [
+      {
+        "kind": "youtube",
+        "outcome": "failed",
+        "rows": 1000,
+        "slices": 4,
+        "maxSliceMs": 0.7000000029802322,
+        "cpuMs": 2,
+        "elapsedMs": 319.20000000298023
+      },
+      {
+        "kind": "youtube",
+        "outcome": "cancelled",
+        "rows": 0,
+        "slices": 0,
+        "maxSliceMs": 0,
+        "cpuMs": 0,
+        "elapsedMs": 130.3999999910593
+      }
+    ]
+  },
+  "search": {
+    "status": "ready",
+    "generation": 5,
+    "pending": 0,
+    "packed": 1000,
+    "workers": 1
+  },
+  "startup": {
+    "startedAt": 0,
+    "moduleReadyMs": 165,
+    "homeReadyMs": 182,
+    "catalogReadyMs": 256,
+    "firstShelfAt": 5159.20000000298,
+    "elapsedMs": 5159,
+    "cards": 4,
+    "routeElapsedMs": 298,
+    "artworkWaitMs": 1197,
+    "artwork": "deferred",
+    "phases": {
+      "preferences": {
+        "startedAt": 183.20000000298023,
+        "elapsedMs": 14
+      },
+      "remoteRead": {
+        "startedAt": 229.79999999701977,
+        "elapsedMs": 16,
+        "rows": 1000
+      },
+      "remotePrepare": {
+        "startedAt": 246.09999999403954,
+        "elapsedMs": 4,
+        "rows": 1000
+      },
+      "localRead": {
+        "startedAt": 254.09999999403954,
+        "elapsedMs": 2,
+        "rows": 0
+      },
+      "localPrepare": {
+        "startedAt": 256.09999999403954,
+        "elapsedMs": 0,
+        "rows": 1000
+      }
+    }
+  },
+  "artwork": {
+    "active": 0,
+    "queued": 0,
+    "inflight": 0,
+    "recalling": 0,
+    "entries": 0,
+    "bytes": 0,
+    "byteLimit": 8388608,
+    "entryLimit": 280,
+    "failures": 0,
+    "hits": 0,
+    "misses": 0,
+    "evictions": 0,
+    "decodes": {
+      "active": 0,
+      "queued": 0,
+      "peak": 4,
+      "completed": 4,
+      "cancelled": 48,
+      "closedLate": 4,
+      "limit": 4
+    },
+    "admission": {
+      "active": 0,
+      "queued": 0,
+      "queuedHigh": 0,
+      "queuedLow": 0,
+      "max": 12
+    }
+  },
+  "viewer": {
+    "entries": 1,
+    "estimatedBytes": 842,
+    "maxEntries": 12,
+    "maxBytes": 512000,
+    "pending": 0,
+    "activeTranscripts": 0,
+    "subscribers": 0
+  },
+  "counters": {
+    "catalog-selectors": {
+      "hits": 31,
+      "misses": 31,
+      "errors": 0,
+      "lastAccessAt": 1793311656986
+    },
+    "thumbnail-disk": {
+      "hits": 0,
+      "misses": 0,
+      "errors": 0
+    }
+  },
+  "providers": [
+    {
+      "kind": "youtube",
+      "samples": 0,
+      "hits": 0,
+      "misses": 0,
+      "uncached": 0,
+      "sizedSamples": 0,
+      "estimatedBytes": 0,
+      "entries": 0
+    },
+    {
+      "kind": "twitch",
+      "samples": 0,
+      "hits": 0,
+      "misses": 0,
+      "uncached": 0,
+      "sizedSamples": 0,
+      "estimatedBytes": 0,
+      "entries": 0
+    }
+  ],
+  "providerBudgets": {
+    "responseBytes": 8388608,
+    "warmCacheRows": 250,
+    "queuedRequests": 80,
+    "errorPrefixBytes": 65536,
+    "bodyTimeoutMs": 15000,
+    "youtubeTransfers": 1,
+    "youtubeFeedTransfers": 2,
+    "youtubeLiveTransfers": 8,
+    "youtubeLiveWorkers": 8,
+    "youtubeLiveRequestGapMs": 80,
+    "twitchTransfers": 6,
+    "adultTransfers": 6,
+    "refreshWorkers": 3,
+    "liveWorkers": 2,
+    "archiveWorkers": 1,
+    "importWorkers": 6,
+    "importAttempts": 2,
+    "warmCacheEntryBytes": 1048576,
+    "youtubeCacheBytes": 4194304,
+    "twitchCacheBytes": 4194304,
+    "adultCacheBytes": 12582912,
+    "json": {
+      "tokens": 120000,
+      "containers": 40000,
+      "depth": 96,
+      "stringUnits": 262144,
+      "scratchBytes": 33554432
+    }
+  },
+  "writes": {
+    "activity": {
+      "pending": 0,
+      "pendingWeight": 0,
+      "writing": false
+    },
+    "artwork": {
+      "pending": 0,
+      "pendingWeight": 0,
+      "writing": false
+    },
+    "artworkMirror": {
+      "pending": 0,
+      "pendingWeight": 0,
+      "writing": false
+    }
+  },
+  "recurring": {
+    "tasks": 4,
+    "running": 0,
+    "timerCount": 1,
+    "paused": 3,
+    "callbacks": 3
+  },
+  "sources": {
+    "objectUrls": 0,
+    "fileHandles": 0,
+    "files": 0
+  },
+  "feedback": {
+    "lastRatingQueueMs": 0,
+    "lastPersistMs": 0,
+    "pendingWrites": 0
+  },
+  "companion": {
+    "posters": {
+      "pending": 0,
+      "pendingWeight": 0,
+      "writing": false
+    },
+    "rememberedPosters": 0
+  },
+  "scorecard": {
+    "health": "unmeasured",
+    "checks": [
+      {
+        "id": "startup",
+        "health": "healthy"
+      },
+      {
+        "id": "input",
+        "health": "healthy"
+      },
+      {
+        "id": "frames",
+        "health": "unmeasured"
+      },
+      {
+        "id": "memory",
+        "health": "healthy"
+      },
+      {
+        "id": "cards",
+        "health": "unmeasured"
+      },
+      {
+        "id": "storage",
+        "health": "healthy"
+      }
+    ]
+  },
+  "diagnostic": {
+    "schema": 1,
+    "kind": "performance",
+    "excluded": [
+      "Credentials, cookies and authorization headers",
+      "Invitation tokens, peer addresses and room IDs",
+      "Local paths, source URLs and media/creator IDs",
+      "Private titles, tags, notes, prompts and chat",
+      "Raw provider responses, errors and unknown fields"
+    ],
+    "unknownFields": "omitted"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "youtube publication sorting excludes future/unknown/relative dates, grows 8→16, personalizes liked tags and opens the player; last open time is separate",
+        "twitch publication sorting excludes future/unknown/relative dates, grows 8→16, personalizes liked tags and opens the player; last open time is separate",
+        "Provider-wide response disables every affected endpoint without clearing saved observations",
+        "Feed-only hold leaves archive/live ready; explicit gap repair preserves feed watermark and normal archive cursor, healthy archive resumes independently and all checkpoints survive reload"
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "youtube publication sorting excludes future/unknown/relative dates, grows 8→16, personalizes liked tags and opens the player; last open time is separate",
+        "twitch publication sorting excludes future/unknown/relative dates, grows 8→16, personalizes liked tags and opens the player; last open time is separate",
+        "Provider-wide response disables every affected endpoint without clearing saved observations",
+        "Feed-only hold leaves archive/live ready; explicit gap repair preserves feed watermark and normal archive cursor, healthy archive resumes independently and all checkpoints survive reload"
+      ]
+    }
+  ],
+  "limitation": "Isolated desktop/mobile Chrome with controlled metadata/player documents. No actual provider media, login, physical phone or upstream throughput claim."
+}

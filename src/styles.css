@@ -241,3 +241,9 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
   [data-public-touch-card] > [data-touch-card-actions] { display: flex; }
   .media-shelf > div > div > button { min-height: 2.75rem; min-width: 2.75rem; }
 }
+
+/* Keep keyboard location visible even when the OS replaces the app palette. */
+@media (forced-colors: active) {
+  [data-room-a11y] :focus-visible, [data-status-scope] :focus-visible { outline: 2px solid Highlight; outline-offset: 3px; }
+  [data-status-scope] progress { border: 1px solid CanvasText; }
+}

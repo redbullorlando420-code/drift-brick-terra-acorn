@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "version": 18,
+  "checks": [
+    "origin-gated native HTTP routes",
+    "literal shortcut arguments and one reusable double-click receipt",
+    "independent launches and revoked shortcut denial",
+    "low-space pause before output creation",
+    "verified partial kept across low-space pause and explicit resume",
+    "changed partial blocked and fresh destination isolated"
+  ],
+  "limitations": "Disposable copied Companion with mocked OS spawn, tool version and disk measurements. No user game, downloader, provider session or installed service was invoked."
+}

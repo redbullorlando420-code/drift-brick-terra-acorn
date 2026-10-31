@@ -1,0 +1,37 @@
+✔ worker-free search yields, preserves metadata and exact tags, and cancels without an index (409.8712ms)
+✔ cancelled offscreen thumbnail requests leave no queued work or leaked slots (2.9888ms)
+✔ aborting an awakened waiter still lets the next visible image load (0.3052ms)
+✔ remote artwork does not grow the local frame-thumbnail cache (0.7143ms)
+✔ real frame captures release media on viewer pause, resume subscribed cards, and cancel unmounted work (19.9475ms)
+✔ binary thumbnails obey backing-byte limits and revoke evicted URLs (1.3112ms)
+✔ an evicted binary disk thumbnail reopens without file access or video decoding (2.8432ms)
+✔ worker batches preserve search metadata and replace stale generations (4.9305ms)
+✔ search client applies backpressure, rejects stale replies, and settles worker failures (30.1989ms)
+✔ registry inventories all seven existing adapters with distinct search, media, paging and player support (1.6531ms)
+✔ embed capabilities allow only implemented HTTPS provider paths; MFC and images cannot become iframe players (0.7568ms)
+✔ unreadable envelopes and malformed identities fail; genuine empty containers remain distinguishable (0.9944ms)
+✔ all seven adapters execute redacted fixtures with real conversion, cursor and completeness diagnostics (63.405ms)
+✔ malformed tube/short/image/feed payloads cannot confirm empty/exhausted catalogs (6.656ms)
+✔ valid empty results remain empty without unnecessary fallback requests (4.191ms)
+✔ a failing provider leaves healthy siblings intact and unknown sources cannot widen a request (3.1782ms)
+✔ later malformed archive pages retain accepted rows and retry the unconsumed page exactly once per walk (1.5994ms)
+✔ publication values reject absent, invalid and future dates and preserve only evidenced prior dates (0.2278ms)
+✔ completeness counters and report exports stay aggregate and bounded without private payloads (2.1902ms)
+✔ remembered official URLs strip tracking/secrets and reject arbitrary schemes, credentials, hosts and unsupported modes (0.7684ms)
+✔ viewing preferences persist only seven allowlisted choices; forgetting has a monotonic deletion boundary (0.2982ms)
+✔ 100 cancelled viewports cannot exceed the native decode limit or publish obsolete bitmaps (7.3076ms)
+✔ queued decoding has strict backpressure, cancellation releases source references and disposal is idempotent (0.8306ms)
+✔ decode failures free capacity and lowered limits stop dispatch until native work settles (1.5027ms)
+✔ thumbnail queue withdraws excess low-priority jobs when the worker budget shrinks (0.6924ms)
+✔ a crash settles pending search, releases the catalog and retries only after explicit intent (3.461ms)
+✔ silent search timeout and unreadable results leave a retry state with no retained worker (1.4532ms)
+✔ superseding a held generation drains its request and ignores the late result (0.466ms)
+✔ constructor and postMessage failure are recovered without an unhandled exception (0.3533ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 740.1513

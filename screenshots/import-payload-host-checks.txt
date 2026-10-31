@@ -1,0 +1,54 @@
+✔ the flag predicate matches src/lib/auth (0.5093ms)
+✔ reads the value a live dev server resolved (0.1335ms)
+✔ a server started without the flag reads as sign-in on (0.0649ms)
+✔ agreement passes (0.1259ms)
+✔ divergence fails in either direction (0.1174ms)
+✔ an unobservable dev server is indeterminate, not agreement (0.0648ms)
+✔ a dev server that cannot be reached probes as null (0.0938ms)
+✔ a server without the endpoint probes as null, not as agreement (0.1746ms)
+✔ only a divergence warns the smoke verdict (0.6366ms)
+✔ the build side resolves the template's shipped app-env (1.0836ms)
+✖ the CLI reports rather than silently passing when run via a symlink (2.0053ms)
+✔ local media byte ranges handle seeking, suffixes and malformed/out-of-bounds requests (0.9179ms)
+✖ completed local media serves bounded ranges and HEAD, with truthful missing/invalid responses (19.1405ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 11
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 193.9182
+
+✖ failing tests:
+
+test at scripts\check-auth-invariant.test.mjs:98:1
+✖ the CLI reports rather than silently passing when run via a symlink (2.0053ms)
+  Error: EPERM: operation not permitted, symlink 'E:\codex\drift-brick-terra-acorn\scripts' -> 'C:\Users\icecr\AppData\Local\Packages\sandbox.{d0970cc4-4752-4d89-8134-e60e95dd53cf}\AC\Temp\auth-invariant-link-ekQJOI\scripts'
+      at symlinkSync (node:fs:1937:11)
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/check-auth-invariant.test.mjs:102:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4048,
+    code: 'EPERM',
+    syscall: 'symlink',
+    path: 'E:\\codex\\drift-brick-terra-acorn\\scripts',
+    dest: 'C:\\Users\\icecr\\AppData\\Local\\Packages\\sandbox.{d0970cc4-4752-4d89-8134-e60e95dd53cf}\\AC\\Temp\\auth-invariant-link-ekQJOI\\scripts'
+  }
+
+test at scripts\download-media.test.mjs:18:1
+✖ completed local media serves bounded ranges and HEAD, with truthful missing/invalid responses (19.1405ms)
+  [TypeError [Error]: fetch failed] {
+    [cause]: Error: connect EACCES 127.0.0.1:54335
+        at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+      errno: -4092,
+      code: 'EACCES',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 54335
+    }
+  }

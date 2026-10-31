@@ -1,7 +1,7 @@
 import type { LibraryVideo, FollowedChannel } from './types';
 import type { PullSettings } from '../pull-settings.ts';
 import { forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
-import { youtubeVideoKey } from '../remote/youtube-sources.ts';
+import { catalogIdentityKeys, catalogIdentityKey, lookupCatalogIdentity } from './catalog-identity.ts';
 import { remoteVideoIndexAsync } from './remote-merge.ts';
 
 export type EntryGroup = 'youtube' | 'twitch' | 'adult' | 'other';
@@ -39,14 +39,14 @@ export async function admitRemoteEntries(existing: LibraryVideo[], incoming: Lib
   const counts = { ...await remoteEntryCounts(existing) };
   const index = known ?? await remoteVideoIndexAsync(existing);
   const admitted: LibraryVideo[] = [], newIds = new Map<string, string>(), skippedSources = new Set<string>();
-  let skipped = 0;
+  let skipped = 0, added = 0;
   await forEachCatalogSlice(incoming, video => {
-    const key = youtubeVideoKey(video) ?? video.id;
+    const key = catalogIdentityKey(video) ?? video.id;
     const group = entryGroup(video);
-    if (!group || index.has(video.id) || index.has(key) || newIds.has(key)) {
-      const found = index.get(video.id) ?? index.get(key);
+    if (!group || lookupCatalogIdentity(index,video) !== undefined || lookupCatalogIdentity(newIds,video) !== undefined) {
+      const found = lookupCatalogIdentity(index,video);
       const previous = typeof found === 'number' ? existing[found] : found as LibraryVideo | undefined;
-      const canonical = previous?.id ?? newIds.get(key) ?? video.id;
+      const canonical = previous?.id ?? lookupCatalogIdentity(newIds,video) ?? video.id;
       admitted.push(canonical !== video.id ? { ...video, id: canonical } : video);
       return;
     }
@@ -55,9 +55,9 @@ export async function admitRemoteEntries(existing: LibraryVideo[], incoming: Lib
       for (const source of video.remote?.sourceIds ?? []) skippedSources.add(source);
       return;
     }
-    newIds.set(key, video.id); counts[group]++; counts.total++; admitted.push(video);
+    newIds.set(video.id,video.id); for(const alias of catalogIdentityKeys(video)) newIds.set(alias,video.id); added++; counts[group]++; counts.total++; admitted.push(video);
   }, yieldCatalogTask);
-  return { videos: admitted, skipped, skippedSources, added: newIds.size, counts, settings };
+  return { videos: admitted, skipped, skippedSources, added, counts, settings };
 }
 /** Additive merges can carry forward their five counters without a rescan. */
 export function rememberEntryCounts(videos: LibraryVideo[], counts: EntryCounts) { completed.set(videos, counts); }
@@ -67,6 +67,7 @@ export function rememberEntryCounts(videos: LibraryVideo[], counts: EntryCounts)
 export function holdEntryLimitCursors(previous: FollowedChannel[], incoming: FollowedChannel[], skippedSources: ReadonlySet<string>) {
   const saved = new Map(previous.map(channel => [channel.id, channel]));
   return incoming.map(channel => skippedSources.has(channel.id) ? { ...channel,
+    playlistWalk: saved.get(channel.id)?.playlistWalk ? {...saved.get(channel.id)!.playlistWalk!,membership:'provisional' as const,completed:false} : undefined,
     catalogCursor: saved.get(channel.id)?.catalogCursor,
     catalogExhaustedAt: saved.get(channel.id)?.catalogExhaustedAt,
     twitchArchiveCursor: saved.get(channel.id)?.twitchArchiveCursor,

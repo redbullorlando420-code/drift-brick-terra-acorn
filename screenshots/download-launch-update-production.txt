@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "errors": [],
+      "checks": [
+        "Explicit owner-scoped baseline stores redacted summaries only",
+        "Comparison exposes lost features, approvals, tools and interrupted jobs without replacing the baseline",
+        "Export contains summaries and rollback reference without paths, job identities or session data",
+        "Failed save preserves the previous rollback reference",
+        "Reload retains baseline; no automatic polling, install, launch, restart or session read"
+      ],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "errors": [],
+      "checks": [
+        "Explicit owner-scoped baseline stores redacted summaries only",
+        "Comparison exposes lost features, approvals, tools and interrupted jobs without replacing the baseline",
+        "Export contains summaries and rollback reference without paths, job identities or session data",
+        "Failed save preserves the previous rollback reference",
+        "Reload retains baseline; no automatic polling, install, launch, restart or session read"
+      ],
+      "ok": true
+    }
+  ],
+  "limitation": "Isolated browser contexts and controlled Companion responses. No actual update, process restart, provider download or cookie extraction."
+}

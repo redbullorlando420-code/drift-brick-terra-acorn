@@ -1,0 +1,18 @@
+✔ request cap applies even when production catches its error; resume skips completed contracts (86.7923ms)
+✔ rate-limited runs stop without additional requests and resume honors saved provider cooldown (2.8531ms)
+✔ reports reject unsafe targets, future resume schemas and arbitrary fields without exposing error bodies (1.0571ms)
+✔ unreadable live/identity/subtype results cannot be passed or confused with a healthy empty shelf (0.2777ms)
+✔ routine Twitch archives and clips never query chapter markers; selected detail reads are validated and cached (229.8719ms)
+✔ only VOD identities expose chapter navigation; clips and live are excluded (0.962ms)
+✔ real marker bounds, ordering, labels and overlaps are validated without invented fallback chapters (1.2202ms)
+✔ selected public detail reads coalesce and retain at most eight cache entries, with bounded in-flight work and expiry (0.9283ms)
+✔ provider errors remain explicit, never return arbitrary provider text and can be retried deliberately (0.6947ms)
+✔ timestamp navigation changes only numeric VOD embed start time and uses a canonical external fallback (0.5261ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 553.2381

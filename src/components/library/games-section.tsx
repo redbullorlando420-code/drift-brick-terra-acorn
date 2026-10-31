@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import {useCompanionSupport} from './use-companion-support';
+import { companionFetch, companionLaunchGame, companionLaunchHistory, type GameLaunchReceipt } from '@/lib/companion';
+import { useEffect, useRef, useState } from "react";
 import { Download, ExternalLink, Gamepad2, ImagePlus, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { fetchCompanionIcons, iconsFromFolderFiles, loadGameIconCache, saveGameIcon } from "@/lib/game-icons";
@@ -34,10 +36,13 @@ function gameBadge(item: LocalItem) {
 }
 
 export function GamesSection() {
+  const support=useCompanionSupport();
   const [games, setGames] = useState<LocalItem[]>([]);
   const [filter, setFilter] = useState("");
   const [removeGame, setRemoveGame] = useState<string | null>(null);
   const [launchNotice, setLaunchNotice] = useState("");
+  const [launches,setLaunches]=useState<GameLaunchReceipt[]>([]),[historyLoading,setHistoryLoading]=useState(false),[launching,setLaunching]=useState<string[]>([]);
+  const pendingLaunches=useRef(new Set<string>());
   const [shortcutView, setShortcutView] = useState<"all" | "ready" | "desktop" | "unknown">("all");
   const [fileType, setFileType] = useState("all");
   const [sort, setSort] = useState<"name" | "newest" | "type">("name");
@@ -66,7 +71,7 @@ export function GamesSection() {
     });
   const pullMissingIcons = async (list: LocalItem[]) => {
     const missing = list.filter((game) => !game.iconData).map((game) => game.path);
-    if (!missing.length) return list;
+    if (!missing.length||!support.can('shortcut-icons')) return list;
     setIconPulling(true);
     try {
       const iconMap = await fetchCompanionIcons(missing);
@@ -122,18 +127,25 @@ export function GamesSection() {
   };
   useEffect(() => { if (sourceShortcuts.length) void add(sourceShortcuts, true); }, [sourceShortcuts]);
   const launchDesktop = async (game: LocalItem) => {
+    if(pendingLaunches.current.has(game.path))return;
+    pendingLaunches.current.add(game.path);setLaunching([...pendingLaunches.current]);
     try {
-      const response = await fetch("http://127.0.0.1:43123/launch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ path: game.path }) });
-      const result = await response.json() as { ok?: boolean; error?: string };
-      setLaunchNotice(result.ok ? `Launching ${game.name} through the local companion.` : result.error ?? "The companion could not launch this item.");
-    } catch {
-      setLaunchNotice("Desktop launch needs the Realhub Companion running and this shortcut inside one of its approved Windows folders.");
-    }
+      const result=await companionLaunchGame(game.path);
+      if(result.receipt){const receipt=result.receipt;setLaunches(rows=>[receipt,...rows.filter(row=>row.id!==receipt.id)].slice(0,50));setLaunchNotice((receipt.reused?'Reused recent launch request. ':'')+receipt.detail);}
+      else setLaunchNotice(result.ok?'Launch request accepted by Companion. Game readiness is unverified. Update Companion for saved launch receipts.':result.error??'The companion could not launch this item.');
+    } catch {setLaunchNotice('Desktop launch needs Realhub Companion on this computer and a shortcut inside an approved Windows folder.');}
+    finally{pendingLaunches.current.delete(game.path);setLaunching([...pendingLaunches.current]);}
+  };
+  const reviewLaunches=async()=>{
+    if(historyLoading)return;setHistoryLoading(true);
+    try{const result=await companionLaunchHistory();if(!result.ok)throw Error(result.error||'Launch history is unavailable.');setLaunches((result.receipts??[]).slice(0,50));setLaunchNotice(result.persistent===false?'Launch receipts could not be saved. Check Companion storage before launching.':'Launch receipts refreshed. Accepted requests do not verify game readiness.');}
+    catch(error){setLaunchNotice(error instanceof Error?error.message:'Companion launch history is unavailable.');}
+    finally{setHistoryLoading(false);}
   };
   const loadApprovedShortcuts = async () => {
     setCompanionLoading(true);
     try {
-      const response = await fetch("http://127.0.0.1:43123/shortcuts?limit=300");
+      const response = await companionFetch("/shortcuts?limit=300");
       const result = await response.json() as { ok?: boolean; shortcuts?: Array<{ name: string; path: string; launchUrl?: string }>; error?: string };
       if (!result.ok) throw new Error(result.error ?? "The companion could not read approved shortcuts.");
       const cachedIcons = loadGameIconCache();
@@ -181,7 +193,8 @@ export function GamesSection() {
       title="A clearer game drawer."
       copy="Choose a dedicated games folder (icons from sibling .ico/.png), load approved Desktop shortcuts through the companion (shell icons + folder art), or set a cover manually. Web shortcuts open directly; desktop launchers need the companion."
     >
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+      <section aria-label="Desktop platform support" className="mt-5 rounded-lg border border-border p-4"><p role="status" className="text-xs leading-5 text-muted">{support.note}</p><Button size="sm" variant="secondary" className="mt-2 min-h-11" onClick={support.refresh}>Refresh desktop support</Button></section>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
         <label>
           <input
             className="sr-only"
@@ -190,14 +203,14 @@ export function GamesSection() {
             accept=".url"
             onChange={(event) => void add(event.target.files, true)}
           />
-          <span className="inline-flex min-h-10 items-center rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg">
+          <span className="inline-flex min-h-11 items-center whitespace-nowrap rounded-sm bg-accent px-4 text-sm font-medium text-accent-fg">
             Add web game shortcut
           </span>
         </label>
-        <Button variant="secondary" disabled={companionLoading} onClick={() => void loadApprovedShortcuts()}>
+        <Button variant="secondary" className="min-h-11 max-w-full whitespace-normal" disabled={companionLoading||!support.can('shortcut-catalog')} onClick={() => void loadApprovedShortcuts()}>
           {companionLoading ? "Reading approved shortcuts…" : "Load approved desktop shortcuts"}
         </Button>
-        <Button variant="secondary" disabled={companionLoading} onClick={() => void (async () => {
+        <Button variant="secondary" disabled={companionLoading||!support.can('steam-epic-catalog')} onClick={() => void (async () => {
           setCompanionLoading(true);
           try {
             const listed = await companionSteamEpicGames(250);
@@ -230,7 +243,7 @@ export function GamesSection() {
         </Button>
         <Button
           variant="secondary"
-          disabled={iconPulling || companionLoading || !games.some((game) => !game.iconData)}
+          disabled={!support.can('shortcut-icons') || iconPulling || companionLoading || !games.some((game) => !game.iconData)}
           onClick={() => void (async () => {
             const next = await pullMissingIcons(games);
             const filled = next.filter((game) => game.iconData).length - games.filter((game) => game.iconData).length;
@@ -247,20 +260,21 @@ export function GamesSection() {
             {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
             onChange={(event) => void add(event.target.files)}
           />
-          <span className="inline-flex min-h-10 items-center rounded-sm bg-elevated px-4 text-sm text-fg shadow-border">
+          <span className="inline-flex min-h-11 items-center whitespace-nowrap rounded-sm bg-elevated px-4 text-sm text-fg shadow-border">
             Choose game folder
           </span>
         </label>
         <Input
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
+          className="min-h-11 w-full min-w-0 sm:w-64"
           placeholder="Filter your games"
           aria-label="Filter games"
         />
         {(["all", "ready", "desktop", "unknown"] as const).map((view) => <Button key={view} size="sm" variant={shortcutView === view ? "default" : "secondary"} onClick={() => setShortcutView(view)}>{view === "all" ? "All (helpers hidden)" : view === "ready" ? "Web ready" : view === "desktop" ? "Desktop" : "Unknown URL"}</Button>)}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2"><span className="text-xs text-muted">File type</span><Button size="sm" variant={fileType === "all" ? "default" : "secondary"} onClick={() => setFileType("all")}>All types</Button>{gameTypes.map((type) => <Button key={type} size="sm" variant={fileType === type ? "default" : "secondary"} onClick={() => setFileType(type)}>.{type}</Button>)}<span className="ml-2 text-xs text-muted">Sort</span>{(["name", "newest", "type"] as const).map((value) => <Button key={value} size="sm" variant={sort === value ? "default" : "secondary"} onClick={() => setSort(value)}>{value === "name" ? "A–Z" : value === "newest" ? "Recently added" : "File type"}</Button>)}</div>
-      <div className="mt-3 flex items-center justify-between gap-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-muted"><span>{visible.length} shown · {games.filter((game) => gameKind(game) === "web-needs-target").length} web shortcuts need a readable target</span><Button size="sm" variant="ghost" onClick={() => downloadCsv([["name", "path", "kind", "extension", "launch_ready", "helper", "added_at"], ...games.map((game) => [game.name, game.path, gameKind(game), game.name.split(".").pop() ?? "", Boolean(game.launchUrl), isGameHelper(game), new Date(game.addedAt).toISOString()])], `reelcase-games-debug-${new Date().toISOString().slice(0, 10)}.csv`)}><Download className="size-3" /> Export game debug CSV</Button></div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-sm bg-bg/45 px-3 py-2 text-xs text-muted"><span>{visible.length} shown · {games.filter((game) => gameKind(game) === "web-needs-target").length} web shortcuts need a readable target</span><Button size="sm" variant="ghost" onClick={() => downloadCsv([["name", "path", "kind", "extension", "launch_ready", "helper", "added_at"], ...games.map((game) => [game.name, game.path, gameKind(game), game.name.split(".").pop() ?? "", Boolean(game.launchUrl), isGameHelper(game), new Date(game.addedAt).toISOString()])], `reelcase-games-debug-${new Date().toISOString().slice(0, 10)}.csv`)}><Download className="size-3" /> Export game debug CSV</Button></div>
       {visible.length ? (
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {visible.map((game) => (
@@ -284,7 +298,8 @@ export function GamesSection() {
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <Button
-                    size="sm"
+                    size="sm" className="min-h-11"
+                    disabled={launching.includes(game.path)||(!game.launchUrl&&!support.can('launch'))} aria-label={"Launch "+game.name}
                     onClick={() => {
                       if (game.launchUrl) {
                         const link = document.createElement("a");
@@ -300,7 +315,7 @@ export function GamesSection() {
                     }}
                   >
                     <Rocket className="size-3" />
-                    {gameKind(game) === "web-needs-target" ? "Open .url shortcut" : isWebGame(game) ? "Open web game" : "Launch desktop game"}
+                    {launching.includes(game.path) ? "Requesting launch…" : gameKind(game) === "web-needs-target" ? "Open .url shortcut" : isWebGame(game) ? "Open web game" : "Launch desktop game"}
                   </Button>
                   <label className="inline-flex cursor-pointer items-center text-xs text-muted hover:text-fg">
                     <ImagePlus className="mr-1 size-3" /> Set icon
@@ -362,7 +377,12 @@ export function GamesSection() {
           </p>
         </div>
       )}
-      {launchNotice && <p className="mt-3 rounded-md bg-elevated px-3 py-2 text-xs leading-5 text-muted shadow-border">{launchNotice}</p>}
+      <section aria-label="Game launch receipts" className="mt-6 rounded-lg border border-border bg-surface p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-medium text-fg">Recent launch requests</h2><p className="mt-1 text-xs leading-5 text-muted">Stored on this computer by Companion. A request can be accepted while the game is still loading. Game readiness is unverified.</p></div><Button variant="secondary" className="min-h-11" disabled={historyLoading||!support.can('launch-receipts')} onClick={()=>void reviewLaunches()}>{historyLoading?'Checking launch receipts…':'Review launch receipts'}</Button></div>
+        {!launches.length && <p className="mt-3 text-sm text-muted">Launch a desktop game or review saved receipts. Nothing launches when you review.</p>}
+        <ul className="mt-3 divide-y divide-border">{launches.slice(0,6).map(receipt=><li key={receipt.id} className="py-3"><div className="flex flex-wrap items-center justify-between gap-2"><span className="min-w-0 break-all text-sm font-medium">{receipt.name}</span><span className="rounded border border-border px-2 py-1 text-xs text-muted">{receipt.status==='accepted'?'Request accepted':receipt.status==='failed'?'Launch failed':receipt.status==='interrupted'?'Check before retry':'Pending request'}</span></div><p className="mt-1 text-xs leading-5 text-muted">{receipt.detail}</p><p className="mt-1 text-xs text-muted">{new Date(receipt.at).toLocaleString()} · {receipt.launcherExit===0?'Launcher exited successfully':'Launcher readiness unverified'}{receipt.reused?' · Reused recent request':''}</p>{!receipt.persistent&&<p className="mt-1 text-xs text-muted">Receipt storage is unavailable. Check Companion before another launch.</p>}</li>)}</ul>
+      </section>
+      {launchNotice && <p role="status" className="mt-3 rounded-md bg-elevated px-3 py-2 text-xs leading-5 text-muted shadow-border">{launchNotice}</p>}
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <ServiceLink
           name="Nexus Mods"

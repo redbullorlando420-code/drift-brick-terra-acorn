@@ -1,0 +1,26 @@
+✔ readiness wire data is a strict bounded whitelist without telemetry, names, paths or credentials (1.3656ms)
+✔ player readiness preserves blocked/error and observed playback against incidental ready signals (0.1975ms)
+✔ manual ready and queue votes remain independent of actual blocked, buffering and playing reports (0.4602ms)
+✔ title changes clear only media readiness and reject delayed or future reports from connected peers (0.1899ms)
+✔ repeated player observations do not grow participation revisions or history (2.9673ms)
+✔ queue consumption retains player observations, departure drops them and roster size stays bounded (0.452ms)
+✔ participation state validates generation-scoped player data and remains compatible with old manual-only clients (0.4686ms)
+✔ invalid and no-op reports cannot alter manual choices or the queue, and each participant owns only their report (0.2768ms)
+✔ presets preserve independent authority and never contain catalog/local access grants (1.3862ms)
+✔ old and missing permission revisions cannot authorize a mutation after revoke and regrant (0.3746ms)
+✔ a blocked or failing player never changes signaling, ICE, data or accepted handshake evidence (0.3714ms)
+✔ timeline captures only changed stages, retains 24 transitions and does not store heartbeats (0.6421ms)
+✔ diagnostic allowlist excludes nested secrets, titles, paths, raw events and invitation/peer identities (0.4065ms)
+✔ real signaling retry reports failure/recovery, serializes polls and preserves healthy peer channels (85.4321ms)
+✔ review revisions reject stale, malformed and legacy snapshots after modern state is accepted (0.6276ms)
+✔ review deduplicates canonical identities across devices, retries and live queue entries (1.8215ms)
+✔ review limits each guest to eight and the room to twenty-four without affecting the input queue (2.5966ms)
+✔ review snapshots reject malformed/local media, strip private fields and bound names and arrays (0.8931ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 204.0719

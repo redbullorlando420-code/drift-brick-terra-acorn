@@ -1,3 +1,4 @@
+import { YoutubeLiveAllocationPanel } from './youtube-live-allocation-panel';
 import { useDeferredValue, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,6 +86,7 @@ export function YoutubeLiveCoveragePanel({
           </p>
         )}
       </div>
+      <YoutubeLiveAllocationPanel allocation={scan?.allocation} />
       <details className="mt-3" onToggle={(event) => setOpen(event.currentTarget.open)}>
         <summary className="min-h-11 cursor-pointer text-sm text-fg">
           YouTube creator check queue · {coverage.due.toLocaleString()} ready ·{" "}

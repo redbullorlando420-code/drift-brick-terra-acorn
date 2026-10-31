@@ -1,0 +1,36 @@
+{
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "GLB limits and new path require explicit review; write failure leaves the draft unsaved and original untouched.",
+        "Interrupted response stays unconfirmed; reload preserves edits and explicit status recovery confirms the copy without reuploading.",
+        "Orbit interaction renders, damping settles, unchanged WebGL scenes stop drawing, and the mobile Close control remains on screen.",
+        "Actual exported GLB reproduces transformed bounds and edited material; reimport opens with neutral draft transforms instead of applying them twice.",
+        "A non-Windows Companion disables native game/startup controls even if contradictory capabilities are advertised; browser games still open."
+      ],
+      "failureScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\print-platform-dev-failed-desktop.png",
+      "savedScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\print-platform-dev-saved-desktop.png",
+      "reopenScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\print-platform-dev-reopened-desktop.png",
+      "platformScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\print-platform-dev-platform-desktop.png",
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "GLB limits and new path require explicit review; write failure leaves the draft unsaved and original untouched.",
+        "Interrupted response stays unconfirmed; reload preserves edits and explicit status recovery confirms the copy without reuploading.",
+        "Orbit interaction renders, damping settles, unchanged WebGL scenes stop drawing, and the mobile Close control remains on screen.",
+        "Actual exported GLB reproduces transformed bounds and edited material; reimport opens with neutral draft transforms instead of applying them twice.",
+        "A non-Windows Companion disables native game/startup controls even if contradictory capabilities are advertised; browser games still open."
+      ],
+      "failureScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\print-platform-dev-failed-mobile.png",
+      "savedScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\print-platform-dev-saved-mobile.png",
+      "reopenScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\print-platform-dev-reopened-mobile.png",
+      "platformScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\print-platform-dev-platform-mobile.png",
+      "ok": true
+    }
+  ]
+}

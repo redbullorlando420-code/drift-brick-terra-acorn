@@ -1,0 +1,104 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "errors": [],
+      "checks": [
+        "Save Data controls pause optional work and have accessible selected state",
+        "Observed transfer summary separates measured and unknown totals without recording resource URLs",
+        "Real Twitch recommendation path completes with bounded preparation timings in diagnostic export",
+        "Saved mode survives reload and optional work can be enabled again",
+        "100k instrumented packing keeps a 16ms input heartbeat below the declared 100ms gap limit"
+      ],
+      "ranking": {
+        "active": 0,
+        "deferred": 0,
+        "coalesced": 0,
+        "budget": {
+          "settleMs": 80,
+          "sliceMs": 3,
+          "sliceRows": 256,
+          "samples": 32
+        },
+        "samples": [
+          {
+            "kind": "twitch",
+            "outcome": "complete",
+            "rows": 3600,
+            "slices": 15,
+            "maxSliceMs": 3,
+            "cpuMs": 10.199999928474426,
+            "elapsedMs": 13.800000071525574
+          }
+        ]
+      },
+      "latency": {
+        "finished": true,
+        "responded": true,
+        "beats": 123,
+        "worstHeartbeatMs": 17.800000071525574,
+        "checksum": -2089162320,
+        "sample": {
+          "kind": "youtube",
+          "outcome": "complete",
+          "rows": 100000,
+          "slices": 391,
+          "maxSliceMs": 2.200000047683716,
+          "cpuMs": 38.600000500679016,
+          "elapsedMs": 1978.5
+        }
+      }
+    },
+    {
+      "mobile": true,
+      "errors": [],
+      "checks": [
+        "Save Data controls pause optional work and have accessible selected state",
+        "Observed transfer summary separates measured and unknown totals without recording resource URLs",
+        "Real Twitch recommendation path completes with bounded preparation timings in diagnostic export",
+        "Saved mode survives reload and optional work can be enabled again",
+        "100k instrumented packing keeps a 16ms input heartbeat below the declared 100ms gap limit"
+      ],
+      "ranking": {
+        "active": 0,
+        "deferred": 0,
+        "coalesced": 0,
+        "budget": {
+          "settleMs": 80,
+          "sliceMs": 3,
+          "sliceRows": 256,
+          "samples": 32
+        },
+        "samples": [
+          {
+            "kind": "twitch",
+            "outcome": "complete",
+            "rows": 3600,
+            "slices": 15,
+            "maxSliceMs": 2.899999976158142,
+            "cpuMs": 9.200000047683716,
+            "elapsedMs": 13.199999928474426
+          }
+        ]
+      },
+      "latency": {
+        "finished": true,
+        "responded": true,
+        "beats": 123,
+        "worstHeartbeatMs": 18.399999976158142,
+        "checksum": -2089162320,
+        "sample": {
+          "kind": "youtube",
+          "outcome": "complete",
+          "rows": 100000,
+          "slices": 391,
+          "maxSliceMs": 0.3999999761581421,
+          "cpuMs": 33.400001645088196,
+          "elapsedMs": 1978.6999999284744
+        }
+      }
+    }
+  ],
+  "limitation": "Isolated 1,200-row Twitch UI fixture plus 100k packing workload using the production slice helper. Desktop/mobile Chromium emulation; not a physical phone, full-library heap or real provider-throughput benchmark."
+}

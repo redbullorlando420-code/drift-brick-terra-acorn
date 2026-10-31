@@ -9,11 +9,11 @@ import type {BridgeLedger} from './topic-bridges.ts';
 import {normalizeRecommendationSession,sessionAllows,sessionPreferenceAdjustment,createSessionPicks,type RecommendationSession} from './recommendation-session.ts';
 import {createBoundedPicks} from './bounded-picks.ts';
 import {hasFreshViewerCount,type LibraryVideo} from './types.ts';
-import {ADULT_PULL_PROVIDERS} from './adult-providers.ts';
+import {publicVideoBoundary} from './public-visibility.ts';
 import {LIBRARY_LIMITS} from '../library-limits.ts';
 import {canonicalTopic,hasTopicForScan,topicEvidenceForScan} from './topics.ts';
 import {guideContentTags,guideChoice,guideClip,guideNotices,personalGuideExplanation,topicGuideReason,type GuideReason,type GuideExplanation} from './guide-evidence.ts';
-const adultProviders=new Set<string>(ADULT_PULL_PROVIDERS);
+
 export type GuideInput={
  weights?:GuideWeights;bridgeSuppressions?:BridgeLedger;session?:RecommendationSession;recommendationExposure?:ExposureLedger;ratingOf?:(id:string)=>number;
  recommendationRejections?:RejectionLedger;creatorIsFavorited?:(name:string)=>boolean;tagIsLiked?:(topic:string)=>boolean;
@@ -26,8 +26,8 @@ export type GuideSnapshot={
 };
 export type GuideReply={distribution:Distribution;text:string;picks:LibraryVideo[];reasons:Record<string,string>;explanations:Record<string,GuideExplanation>};
 export function guideVisibility(input:GuideInput){
- const privateIds=new Set(input.folders?.filter(folder=>folder.adult).map(folder=>folder.id)),known=input.folders?new Set(input.folders.map(folder=>folder.id)):undefined;
- return (video:LibraryVideo)=>(!input.provider||video.remote?.kind===input.provider)&&!privateIds.has(video.folderId)&&!adultProviders.has(video.remote?.kind??'')&&!input.hidden?.[video.id]&&!input.unavailable?.[video.id]&&!video.isSample&&Boolean(video.remote||!known||known.has(video.folderId));
+ const publicTitle=publicVideoBoundary(input.folders),known=input.folders?new Set(input.folders.map(folder=>folder.id)):undefined;
+ return (video:LibraryVideo)=>(!input.provider||video.remote?.kind===input.provider)&&publicTitle(video)&&!input.hidden?.[video.id]&&!input.unavailable?.[video.id]&&!video.isSample&&Boolean(video.remote||!known||known.has(video.folderId));
 }
 export function guideConfirmedLive(video:LibraryVideo,now:number){
  const remote=video.remote;if(!remote?.live||!['youtube','twitch'].includes(remote.kind)||remote.liveUnconfirmed||remote.liveOfflineSince)return false;

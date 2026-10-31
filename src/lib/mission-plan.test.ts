@@ -431,5 +431,145 @@ test('revision 53 promotes verified recipes and keyboard coverage together while
 });
 
 test('revision 54 promotes worker recovery and artwork lifecycle without changing unrelated reopens',()=>{
- const done=['next-012','next-013','next-016'];const current:Mission[]=['next-012','next-013','next-014','next-015','next-016','next-017'].map(id=>({id,title:id,detail:'Current defaults',done:done.includes(id),status:done.includes(id)?'complete':'planned'}));const saved=current.map(m=>({...m,done:false,status:'blocked' as const}));const migrated=mergeMissionPlan(saved,current,53);assert.deepEqual(migrated.map(m=>m.done),[false,true,false,false,true,false]);assert(mergeMissionPlan(saved,current,54).every(m=>!m.done));
+ const done=['next-022','next-013','next-016'];const current:Mission[]=['next-022','next-013','next-014','next-015','next-016','next-017'].map(id=>({id,title:id,detail:'Current defaults',done:done.includes(id),status:done.includes(id)?'complete':'planned'}));const saved=current.map(m=>({...m,done:false,status:'blocked' as const}));const migrated=mergeMissionPlan(saved,current,53);assert.deepEqual(migrated.map(m=>m.done),[false,true,false,false,true,false]);assert(mergeMissionPlan(saved,current,54).every(m=>!m.done));
+});
+
+test('revision 55 promotes verified feed repair and endpoint recovery while retaining custom/manual states',()=>{
+ const done=['next-021','next-027','next-029'];const current:Mission[]=['next-020','next-021','next-027','next-029','next-030'].map(id=>({id,title:id,detail:'Current defaults',done:done.includes(id),status:done.includes(id)?'complete':'planned'}));const saved=current.map(m=>({...m,done:false,status:'blocked' as const}));const migrated=mergeMissionPlan(saved,current,54);assert.deepEqual(migrated.map(m=>m.done),[false,true,false,true,false]);assert(mergeMissionPlan(saved,current,55).every(m=>!m.done));
+});
+
+ test('revision 56 promotes live allocation and dispatch evidence once without changing unrelated or custom work',()=>{
+ const done=['next-018','next-030']; const current:Mission[]=['next-017','next-018','next-029','next-030','next-040'].map(id=>({id,title:id,detail:'Current defaults',done:done.includes(id)||id==='next-029',status:done.includes(id)||id==='next-029'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-live',title:'Custom',detail:'Keep exact work',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,55); assert.deepEqual(migrated.map(m=>m.done),[false,true,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact work');assert(mergeMissionPlan(saved,current,56).every(m=>!m.done));
+ });
+
+test('revision 57 promotes verified room connection and role workflows once and preserves unrelated manual work',()=>{
+ const done=['next-041','next-046'];const current:Mission[]=['next-030','next-041','next-042','next-043','next-046','next-048'].map(id=>({id,title:id,detail:'Current defaults',done:done.includes(id)||id==='next-030',status:done.includes(id)||id==='next-030'?'complete':'planned'}));const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-room',title:'My room idea',detail:'Keep my exact words',done:false,status:'in-progress'}];const migrated=mergeMissionPlan(saved,current,56);assert.deepEqual(migrated.map(m=>m.done),[false,true,false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep my exact words');assert(mergeMissionPlan(saved,current,57).every(m=>!m.done));
+});
+
+test('revision 58 promotes catalog privacy and recommendation isolation once, preserving reopens and custom work',()=>{
+ const done=['next-043','next-069'];const current:Mission[]=['next-041','next-042','next-043','next-048','next-069','next-070'].map(id=>({id,title:id,detail:'Current defaults',done:done.includes(id)||id==='next-041',status:done.includes(id)||id==='next-041'?'complete':'planned'}));const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-privacy',title:'Private idea',detail:'Keep exact private notes',done:false,status:'in-progress'}];const migrated=mergeMissionPlan(saved,current,57);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact private notes');assert.equal(migrated[1].status,'blocked');assert(mergeMissionPlan(saved,current,58).every(m=>!m.done));
+});
+
+test('revision 59 promotes paced transport and reconnect receipts once while preserving manual/custom work',()=>{
+ const done=['next-042','next-048'];const current:Mission[]=['next-041','next-042','next-043','next-045','next-048','next-049'].map(id=>({id,title:id,detail:'Current defaults',done:done.includes(id)||id==='next-043',status:done.includes(id)||id==='next-043'?'complete':'planned'}));const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-reconnect',title:'My room follow-up',detail:'Keep exact draft',done:false,status:'in-progress'}];const migrated=mergeMissionPlan(saved,current,58);assert.deepEqual(migrated.map(m=>m.done),[false,true,false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact draft');assert.equal(migrated[3].status,'blocked');assert(mergeMissionPlan(saved,current,59).every(m=>!m.done));
+});
+
+test('revision 60 promotes verified live guidance and device captions once, preserving unrelated manual and custom states',()=>{
+ const done=['next-045','next-049']; const current:Mission[]=['next-042','next-045','next-048','next-049','next-050'].map(id=>({id,title:id,detail:'Current defaults',done:done.includes(id)||id==='next-042',status:done.includes(id)||id==='next-042'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-device',title:'My caption idea',detail:'Keep exact draft',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,59); assert.deepEqual(migrated.map(m=>m.done),[false,true,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep exact draft');assert.equal(migrated[4].status,'blocked');assert(mergeMissionPlan(saved,current,60).every(m=>!m.done));
+});
+
+test('revision 61 promotes the room audit protocol and semantic status policy once without changing external verification or manual reopens',()=>{
+ const done=['next-050','next-096'];const current:Mission[]=['next-045','next-050','next-071','next-095','next-096','next-098'].map(id=>({id,title:id,detail:'Current defaults',done:done.includes(id)||id==='next-045',status:done.includes(id)||id==='next-045'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-reader',title:'My reader check',detail:'Keep speech output unverified',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,60);assert.deepEqual(migrated.map(m=>m.done),[false,true,false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep speech output unverified');assert(mergeMissionPlan(saved,current,61).every(m=>!m.done));
+});
+
+
+test('revision 62 promotes Companion negotiation and recovery once without resetting manual, custom or external states',()=>{
+ const complete=['next-071','next-072'];const current:Mission[]=['next-050','next-071','next-072','next-073','next-098'].map(id=>({id,title:id,detail:'Current defaults',done:complete.includes(id)||id==='next-050',status:complete.includes(id)||id==='next-050'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-native',title:'My native check',detail:'Preserve my exact notes',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,61);assert.deepEqual(migrated.map(m=>m.done),[false,true,true,false,false,false]);assert.equal(migrated.at(-1)?.detail,'Preserve my exact notes');assert(mergeMissionPlan(saved,current,62).every(m=>!m.done));
+});
+
+
+test('revision 63 completes downloader auth and update checklist once without changing external, prior or custom states',()=>{
+ const ids=['next-075','next-079'];const current:Mission[]=['next-071','next-073','next-075','next-079','next-098'].map(id=>({id,title:id,detail:'Current defaults',done:ids.includes(id)||id==='next-071',status:ids.includes(id)||id==='next-071'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-update',title:'My update notes',detail:'Keep private backup review open',done:false,status:'in-progress'}];
+ const result=mergeMissionPlan(saved,current,62);assert.deepEqual(result.map(m=>m.done),[false,false,true,true,false,false]);assert.equal(result.at(-1)?.detail,'Keep private backup review open');assert(mergeMissionPlan(saved,current,63).every(m=>!m.done));
+});
+
+
+test('revision 64 promotes verified chapter support and canary tooling once without asserting healthy external providers',()=>{
+ const complete=['next-037','next-040'];const current:Mission[]=['next-034','next-037','next-040','next-079','next-098'].map(id=>({id,title:id,detail:'Current defaults',done:complete.includes(id)||id==='next-079',status:complete.includes(id)||id==='next-079'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-twitch',title:'My provider check',detail:'Keep live observation unverified',done:false,status:'in-progress'}];
+ const result=mergeMissionPlan(saved,current,63);assert.deepEqual(result.map(m=>m.done),[false,true,true,false,false,false]);assert.equal(result.at(-1)?.detail,'Keep live observation unverified');assert(mergeMissionPlan(saved,current,64).every(m=>!m.done));
+});
+
+
+test('revision 65 promotes measured ranking work and Save Data once without resetting manual, external or custom states',()=>{
+ const complete=['next-015','next-019'];const current:Mission[]=['next-012','next-015','next-019','next-040','next-098'].map(id=>({id,title:id,detail:'Current defaults',done:complete.includes(id)||id==='next-040',status:complete.includes(id)||id==='next-040'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-budget',title:'My budget review',detail:'Keep physical phone measurements open',done:false,status:'in-progress'}];
+ const result=mergeMissionPlan(saved,current,64);assert.deepEqual(result.map(m=>m.done),[false,true,true,false,false,false]);assert.equal(result.at(-1)?.detail,'Keep physical phone measurements open');assert(mergeMissionPlan(saved,current,65).every(m=>!m.done));
+});
+
+
+test('revision 66 promotes provider allocation and import review once while preserving manual, custom and external states',()=>{
+ const complete=['next-012','next-017'];const current:Mission[]=['next-003','next-012','next-015','next-017','next-098'].map(id=>({id,title:id,detail:'Current defaults',done:complete.includes(id)||id==='next-015',status:complete.includes(id)||id==='next-015'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-import',title:'My import review',detail:'Keep account access unverified',done:false,status:'in-progress'}];
+ const result=mergeMissionPlan(saved,current,65);assert.deepEqual(result.map(m=>m.done),[false,true,false,true,false,false]);assert.equal(result.at(-1)?.detail,'Keep account access unverified');assert(mergeMissionPlan(saved,current,66).every(m=>!m.done));
+});
+
+test('revision 67 promotes upcoming transitions and playlist reconciliation once without changing other manual or external work',()=>{
+ const complete=['next-025','next-026'];const current:Mission[]=['next-003','next-017','next-025','next-026','next-098'].map(id=>({id,title:id,detail:'Current defaults',done:complete.includes(id)||id==='next-017',status:complete.includes(id)||id==='next-017'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-playlists',title:'My playlist idea',detail:'Keep native and real-provider checks open',done:false,status:'in-progress'}];
+ const result=mergeMissionPlan(saved,current,66);assert.deepEqual(result.map(m=>m.done),[false,false,true,true,false,false]);assert.equal(result.at(-1)?.detail,'Keep native and real-provider checks open');assert(mergeMissionPlan(saved,current,67).every(m=>!m.done));
+});
+
+
+test('revision 68 promotes backup inspection and streaming exports together while preserving manual reopens and external checks',()=>{
+ const complete=['next-003','next-005'];const current:Mission[]=['next-001','next-003','next-004','next-005','next-026','next-098'].map(id=>({id,title:id,detail:'Current defaults',done:complete.includes(id)||id==='next-026',status:complete.includes(id)||id==='next-026'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-backup',title:'My backup notes',detail:'Keep atomic restore and physical-device tests open',done:false,status:'in-progress'}];
+ const result=mergeMissionPlan(saved,current,67);assert.deepEqual(result.map(m=>m.done),[false,true,false,true,false,false,false]);assert.equal(result.at(-1)?.detail,'Keep atomic restore and physical-device tests open');assert(mergeMissionPlan(saved,current,68).every(m=>!m.done));
+});
+
+
+test('revision 69 promotes folder access and diagnostic privacy without completing unrelated integration work',()=>{
+ const complete=['next-073','next-091'];const current:Mission[]=['next-003','next-073','next-074','next-091','next-092','next-093'].map(id=>({id,title:id,detail:'Current defaults',done:complete.includes(id)||id==='next-003',status:complete.includes(id)||id==='next-003'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-access',title:'My access notes',detail:'Keep native and private profile verification open',done:false,status:'in-progress'}];
+ const result=mergeMissionPlan(saved,current,68);assert.deepEqual(result.map(m=>m.done),[false,true,false,true,false,false,false]);assert.equal(result.at(-1)?.detail,'Keep native and private profile verification open');assert(mergeMissionPlan(saved,current,69).every(m=>!m.done));
+});
+
+
+test('revision 70 promotes verified disk budgets and launch receipts once while preserving manual and external states',()=>{
+ const complete=['next-076','next-077'];const current:Mission[]=['next-073','next-074','next-076','next-077','next-078','next-098'].map(id=>({id,title:id,detail:'Current defaults',done:complete.includes(id)||id==='next-073',status:complete.includes(id)||id==='next-073'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-desktop',title:'My desktop notes',detail:'Keep native game readiness unverified',done:false,status:'in-progress'}];
+ const result=mergeMissionPlan(saved,current,69);assert.deepEqual(result.map(m=>m.done),[false,false,true,true,false,false,false]);assert.equal(result.at(-1)?.detail,'Keep native game readiness unverified');assert(mergeMissionPlan(saved,current,70).every(m=>!m.done));
+});
+
+test('revision 71 promotes verified print saves and platform contracts while retaining manual and external states',()=>{
+ const complete=['next-078','next-080'];const current:Mission[]=['next-076','next-078','next-079','next-080','next-082','next-098'].map(id=>({id,title:id,detail:'Current defaults',done:complete.includes(id)||id==='next-076',status:complete.includes(id)||id==='next-076'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-platform',title:'My platform notes',detail:'Keep native OS execution unverified',done:false,status:'in-progress'}];
+ const result=mergeMissionPlan(saved,current,70);assert.deepEqual(result.map(m=>m.done),[false,true,false,true,false,false,false]);assert.equal(result.at(-1)?.detail,'Keep native OS execution unverified');assert(mergeMissionPlan(saved,current,71).every(m=>!m.done));
+});
+
+
+test('revision 72 promotes capability permissions and contextual setup once without changing manual or external states',()=>{
+ const complete=['next-092','next-097'];const current:Mission[]=['next-080','next-092','next-093','next-097','next-098'].map(id=>({id,title:id,detail:'Current defaults',done:complete.includes(id)||id==='next-080',status:complete.includes(id)||id==='next-080'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-consent',title:'My setup choice',detail:'Keep native pairing unverified',done:false,status:'in-progress'}];
+ const result=mergeMissionPlan(saved,current,71);assert.deepEqual(result.map(m=>m.done),[false,true,false,true,false,false]);assert.equal(result.at(-1)?.detail,'Keep native pairing unverified');assert(mergeMissionPlan(saved,current,72).every(m=>!m.done));
+});
+
+
+test('revision 73 promotes model recovery and app remote safeguards without asserting native session readiness',()=>{
+ const complete=['next-082','next-093'];const current:Mission[]=['next-080','next-082','next-086','next-093','next-098'].map(id=>({id,title:id,detail:'Current defaults',done:complete.includes(id)||id==='next-080',status:complete.includes(id)||id==='next-080'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-native-peer',title:'My native peer check',detail:'No actual RustDesk session verified',done:false,status:'in-progress'}];const result=mergeMissionPlan(saved,current,72);assert.deepEqual(result.map(m=>m.done),[false,true,false,true,false,false]);assert.equal(result.at(-1)?.detail,'No actual RustDesk session verified');assert(mergeMissionPlan(saved,current,73).every(m=>!m.done));
+});
+
+test('revision 74 promotes readiness once without converting installation or manual integration states to verification',()=>{
+ const current:Mission[]=['companion','next-093','next-098','next-099'].map(id=>({id,title:id,detail:'Current contract',done:id!=='next-099',status:id!=='next-099'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-native-check',title:'Verify my device',detail:'Keep real session and engine tests open',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,73);assert.deepEqual(migrated.map(m=>m.done),[false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep real session and engine tests open');assert(mergeMissionPlan(saved,current,74).every(m=>!m.done));
+});
+
+test('revision 75 promotes durable mutations and storage recovery once while preserving manual, custom and external checks',()=>{
+ const current:Mission[]=['next-001','next-002','next-004','next-006','next-098'].map(id=>({id,title:id,detail:'Current contract',done:['next-001','next-002','next-098'].includes(id),status:['next-001','next-002','next-098'].includes(id)?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-recovery',title:'My recovery choice',detail:'Keep full restore, cross-tab leasing and native checks open',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,74);assert.deepEqual(migrated.map(m=>m.done),[true,true,false,false,false,false]);assert.equal(migrated.at(-1)?.detail,'Keep full restore, cross-tab leasing and native checks open');assert(mergeMissionPlan(saved,current,75).every(m=>!m.done));
+});
+
+
+test('revision 76 promotes Twitch media aliases and image retention once without completing unresolved foundations',()=>{
+ const ids=['next-036','next-086'];const current:Mission[]=['next-006','next-007','next-034','next-036','next-084','next-086','next-087'].map(id=>({id,title:id,detail:'Current contract',done:ids.includes(id)||id==='next-084',status:ids.includes(id)||id==='next-084'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-preserved-76',title:'Keep my work',detail:'Native engine and rename verification remain separate',done:false,status:'in-progress'}];
+ const result=mergeMissionPlan(saved,current,75);assert.deepEqual(result.map(m=>m.done),[false,false,false,true,false,true,false,false]);assert(mergeMissionPlan(saved,current,76).every(m=>!m.done));assert.equal(result.at(-1)?.detail,'Native engine and rename verification remain separate');
+});
+
+
+test('revision 77 promotes shared catalog leases and announcement revisions without completing dependent recovery work',()=>{
+ const ids=['next-006','next-087'];const current:Mission[]=['next-001','next-004','next-006','next-007','next-010','next-087','next-094'].map(id=>({id,title:id,detail:'Current contract',done:ids.includes(id)||id==='next-001',status:ids.includes(id)||id==='next-001'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(m=>({...m,done:false,status:'blocked' as const})),{id:'custom-77',title:'My recovery plan',detail:'Keep tombstones, whole-library restore and native checks separate',done:false,status:'in-progress'}];const result=mergeMissionPlan(saved,current,76);assert.deepEqual(result.map(m=>m.done),[false,false,true,false,false,true,false,false]);assert(mergeMissionPlan(saved,current,77).every(m=>!m.done));assert.equal(result.at(-1)?.detail,'Keep tombstones, whole-library restore and native checks separate');
 });

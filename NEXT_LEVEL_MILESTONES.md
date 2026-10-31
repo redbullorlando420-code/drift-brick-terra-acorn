@@ -11,7 +11,7 @@ This file is generated from verified defaults. Use the current in-app status whe
 ---
 
 # next-001 — Crash-safe catalog mutations
-Status: planned
+Status: complete
 Track: Data durability
 Priority: P0
 
@@ -31,6 +31,7 @@ Catalog rows and preference ledgers can commit separately during interruption.
 None.
 
 ## Start in
+- src/lib/videos/catalog-mutations.ts
 - src/lib/videos/store.ts
 - src/lib/videos/persist.ts
 
@@ -49,7 +50,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-002 — Storage pressure recovery
-Status: planned
+Status: complete
 Track: Data durability
 Priority: P0
 
@@ -66,9 +67,11 @@ Quota errors need a safe workflow that distinguishes disposable cache from perso
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-001 — Crash-safe catalog mutations [planned]
+- next-001 — Crash-safe catalog mutations [complete]
 
 ## Start in
+- src/lib/videos/storage-recovery.ts
+- src/components/library/storage-recovery-panel.tsx
 - src/lib/videos/persist.ts
 - src/components/library/settings-section.tsx
 
@@ -87,7 +90,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-003 — Backup preflight report
-Status: planned
+Status: complete
 Track: Data durability
 Priority: P1
 
@@ -107,8 +110,8 @@ A large backup should be inspected before it can change current data.
 None.
 
 ## Start in
-- src/lib/videos/persist.ts
-- src/components/library/settings-section.tsx
+- src/lib/videos/pack-preflight.ts
+- src/components/library/library-pack-transfer.tsx
 
 ## Implementation
 1. Trace current library-pack parsing and add a read-only preflight summary of versions, sources, counts and conflicts.
@@ -142,8 +145,8 @@ An interrupted restore must not leave half of a new library installed.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-001 — Crash-safe catalog mutations [planned]
-- next-003 — Backup preflight report [planned]
+- next-001 — Crash-safe catalog mutations [complete]
+- next-003 — Backup preflight report [complete]
 
 ## Start in
 - src/lib/videos/persist.ts
@@ -164,7 +167,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-005 — Streaming library-pack export
-Status: planned
+Status: complete
 Track: Data durability
 Priority: P1
 
@@ -181,11 +184,12 @@ Large exports should avoid building multiple full-library JSON strings in memory
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-003 — Backup preflight report [planned]
+- next-003 — Backup preflight report [complete]
 
 ## Start in
-- src/lib/videos/persist.ts
-- src/components/library/settings-section.tsx
+- src/lib/videos/library-pack-stream.ts
+- src/lib/videos/pack-stream.ts
+- src/components/library/library-pack-transfer.tsx
 
 ## Implementation
 1. Measure allocations of the existing exporter and define a versioned chunk format compatible with preflight.
@@ -202,7 +206,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-006 — Cross-tab catalog writer lease
-Status: planned
+Status: complete
 Track: Data durability
 Priority: P0
 
@@ -219,11 +223,14 @@ Two open tabs can race while pulling, cleaning or importing the same catalog.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-001 — Crash-safe catalog mutations [planned]
+- next-001 — Crash-safe catalog mutations [complete]
 
 ## Start in
+- src/lib/writer-lease.ts
 - src/lib/videos/store.ts
 - src/lib/videos/persist.ts
+- src/lib/videos/catalog-mutations.ts
+- src/components/library/catalog-writer-status.tsx
 
 ## Implementation
 1. Map shared mutations and introduce a same-origin writer lease with owner generation and expiry.
@@ -257,8 +264,8 @@ Late provider responses can revive intentionally removed media across sessions.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-001 — Crash-safe catalog mutations [planned]
-- next-006 — Cross-tab catalog writer lease [planned]
+- next-001 — Crash-safe catalog mutations [complete]
+- next-006 — Cross-tab catalog writer lease [complete]
 
 ## Start in
 - src/lib/videos/store.ts
@@ -296,7 +303,7 @@ Import merging needs explainable choices when two backups disagree about persona
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-003 — Backup preflight report [planned]
+- next-003 — Backup preflight report [complete]
 - next-004 — Atomic restore with recovery slot [planned]
 
 ## Start in
@@ -335,7 +342,7 @@ Renamed or moved local files need verified identity continuity without guessing 
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-001 — Crash-safe catalog mutations [planned]
+- next-001 — Crash-safe catalog mutations [complete]
 - next-007 — Deletion and undo tombstones [planned]
 
 ## Start in
@@ -376,7 +383,7 @@ Optional multiple local profiles require explicit isolation of personal and priv
 
 ## Dependencies
 - next-004 — Atomic restore with recovery slot [planned]
-- next-006 — Cross-tab catalog writer lease [planned]
+- next-006 — Cross-tab catalog writer lease [complete]
 
 ## Start in
 - src/lib/videos/store.ts
@@ -436,7 +443,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-012 — Provider payload allocation budget
-Status: planned
+Status: complete
 Track: Performance at scale
 Priority: P0
 
@@ -457,8 +464,10 @@ None.
 
 ## Start in
 - src/lib/provider-budgets.ts
+- src/lib/remote/provider-json.ts
+- src/lib/remote/provider-projection.ts
 - src/lib/remote/api.ts
-- src/lib/videos/store.ts
+- scripts/provider-allocation-benchmark.mjs
 
 ## Implementation
 1. Measure raw, parsed and admitted payload sizes for representative YouTube/Twitch pages.
@@ -555,7 +564,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-015 — Budget expensive recommendation passes
-Status: planned
+Status: complete
 Track: Performance at scale
 Priority: P1
 
@@ -575,8 +584,10 @@ Recommendation preprocessing needs a measurable CPU budget across multiple open 
 None.
 
 ## Start in
-- src/lib/recommendations.ts
-- src/components/library/library-app.tsx
+- src/lib/ranking-budget.ts
+- src/components/library/use-youtube-ranking.ts
+- src/components/library/use-twitch-vod-ranking.ts
+- src/components/library/performance-scorecard.tsx
 
 ## Implementation
 1. Measure ranking passes triggered by source, rating and progress changes and identify duplicate work.
@@ -634,7 +645,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-017 — Large import preview virtualization
-Status: planned
+Status: complete
 Track: Performance at scale
 Priority: P1
 
@@ -655,7 +666,9 @@ None.
 
 ## Start in
 - src/lib/videos/import-session.ts
-- src/components/library/follow-manager.tsx
+- src/lib/videos/import-review.ts
+- src/components/library/import-review.tsx
+- src/components/library/connect-panel.tsx
 
 ## Implementation
 1. Trace imported creator rows, ambiguity groups and progress rendering at 10k inputs.
@@ -672,7 +685,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-018 — Page-specific network priority proof
-Status: planned
+Status: complete
 Track: Performance at scale
 Priority: P0
 
@@ -694,6 +707,9 @@ None.
 ## Start in
 - src/lib/pull-priority.ts
 - src/lib/pull-control.ts
+- src/lib/pull-scheduler.ts
+- src/lib/pull-dispatch-trace.ts
+- src/components/library/pull-dispatch-panel.tsx
 - src/lib/remote/youtube-transport.ts
 
 ## Implementation
@@ -711,7 +727,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-019 — Reduced-data transfer accounting
-Status: planned
+Status: complete
 Track: Performance at scale
 Priority: P1
 
@@ -731,9 +747,11 @@ Low-bandwidth mode should expose what it actually saves instead of implying all 
 None.
 
 ## Start in
-- src/lib/pull-settings.ts
+- src/lib/data-saver.ts
+- src/lib/transfer-accounting.ts
+- src/lib/videos/image-load-budget.ts
+- src/components/library/data-saver-panel.tsx
 - src/components/library/settings-section.tsx
-- src/lib/provider-budgets.ts
 
 ## Implementation
 1. Classify artwork, metadata, native embeds and Companion transfers with measured or unknown byte totals.
@@ -768,9 +786,9 @@ Performance changes need comparable measurements across builds and data sizes.
 
 ## Dependencies
 - next-011 — Eight-hour lifecycle soak harness [planned]
-- next-012 — Provider payload allocation budget [planned]
+- next-012 — Provider payload allocation budget [complete]
 - next-014 — IndexedDB cursor backpressure [planned]
-- next-015 — Budget expensive recommendation passes [planned]
+- next-015 — Budget expensive recommendation passes [complete]
 
 ## Start in
 - PERFORMANCE_CHECKS.md
@@ -792,7 +810,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-021 — YouTube feed gap repair
-Status: planned
+Status: complete
 Track: YouTube reliability
 Priority: P1
 
@@ -813,6 +831,8 @@ None.
 
 ## Start in
 - src/lib/remote/api.ts
+- src/lib/remote/youtube-browse.ts
+- src/lib/videos/youtube-feed-gap.ts
 - src/lib/videos/recent-pull.ts
 - src/components/library/provider-pull-panel.tsx
 
@@ -946,7 +966,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-025 — YouTube upcoming event transitions
-Status: planned
+Status: complete
 Track: YouTube reliability
 Priority: P1
 
@@ -968,8 +988,8 @@ Scheduled broadcasts need a distinct path into live, postponed or completed stat
 
 ## Start in
 - src/lib/remote/youtube-live.ts
-- src/lib/videos/types.ts
-- src/components/library/live-desk.tsx
+- src/lib/videos/youtube-events.ts
+- src/components/library/youtube-upcoming.tsx
 
 ## Implementation
 1. Model upcoming identity, scheduled time, last observation and uncertainty separately from live viewers.
@@ -986,7 +1006,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-026 — Playlist membership reconciliation
-Status: planned
+Status: complete
 Track: YouTube reliability
 Priority: P1
 
@@ -1007,8 +1027,9 @@ Playlist edits need to update membership without deleting the underlying saved v
 
 ## Start in
 - src/lib/remote/api.ts
-- src/lib/videos/types.ts
+- src/lib/videos/youtube-playlist-walk.ts
 - src/lib/videos/store.ts
+- src/components/library/playlist-reconciliation.tsx
 
 ## Implementation
 1. Separate canonical video identity from playlist membership/order and record whether a playlist walk completed.
@@ -1101,7 +1122,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-029 — YouTube endpoint-specific recovery guidance
-Status: planned
+Status: complete
 Track: YouTube reliability
 Priority: P1
 
@@ -1122,6 +1143,7 @@ Feed, browse and HTML failures need targeted recovery instead of a generic chann
 
 ## Start in
 - src/lib/remote/youtube-transport.ts
+- src/lib/videos/youtube-recovery.ts
 - src/components/library/provider-pull-panel.tsx
 
 ## Implementation
@@ -1139,7 +1161,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-030 — YouTube adaptive discovery allocation
-Status: planned
+Status: complete
 Track: YouTube reliability
 Priority: P1
 
@@ -1161,6 +1183,8 @@ Discovery allocation should respond to backlog age without repeatedly favoring k
 
 ## Start in
 - src/lib/videos/youtube-quick-live.ts
+- src/lib/videos/youtube-live-allocation.ts
+- src/components/library/youtube-live-allocation-panel.tsx
 - src/lib/remote/youtube-sweep.ts
 
 ## Implementation
@@ -1370,7 +1394,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-036 — Twitch media identity aliases
-Status: planned
+Status: complete
 Track: Twitch depth and coverage
 Priority: P1
 
@@ -1387,12 +1411,16 @@ Alternate clip URLs and slug/id representations can create duplicate cards.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-001 — Crash-safe catalog mutations [planned]
+- next-001 — Crash-safe catalog mutations [complete]
 
 ## Start in
+- src/lib/videos/twitch-identity.ts
+- src/lib/videos/catalog-identity.ts
+- src/lib/videos/remote-merge.ts
 - src/lib/remote/api.ts
 - src/lib/videos/types.ts
 - src/lib/videos/store.ts
+- src/lib/multiplayer/room-media.ts
 
 ## Implementation
 1. Enumerate supported Twitch clip/VOD URL forms and derive canonical typed identities.
@@ -1409,7 +1437,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-037 — Twitch VOD chapter context
-Status: planned
+Status: complete
 Track: Twitch depth and coverage
 Priority: P1
 
@@ -1429,8 +1457,10 @@ Long VODs need useful game/chapter context without making routine pulls heavier.
 None.
 
 ## Start in
+- src/lib/remote/twitch-chapters.ts
 - src/lib/remote/api.ts
-- src/components/library/pre-video.tsx
+- src/components/library/twitch-chapters.tsx
+- docs/TWITCH_CHAPTERS_AND_CANARY.md
 
 ## Implementation
 1. Verify a permitted public metadata source for VOD chapter/game segments before implementing an adapter.
@@ -1528,7 +1558,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-040 — Twitch pull canary runner
-Status: planned
+Status: complete
 Track: Twitch depth and coverage
 Priority: P1
 
@@ -1550,9 +1580,10 @@ Public Twitch changes need a small reproducible real-network check separate from
 - next-039 — Twitch content type precision [complete]
 
 ## Start in
+- scripts/twitch-canary.mjs
+- scripts/twitch-canary-core.mjs
 - src/lib/remote/api.ts
-- src/lib/provider-budgets.ts
-- PERFORMANCE_CHECKS.md
+- docs/TWITCH_CHAPTERS_AND_CANARY.md
 
 ## Implementation
 1. Add an explicit command accepting a small caller-supplied public creator list and a strict request ceiling.
@@ -1569,7 +1600,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-041 — Watch Room connection state timeline
-Status: planned
+Status: complete
 Track: Watch Together collaboration
 Priority: P1
 
@@ -1590,6 +1621,9 @@ None.
 
 ## Start in
 - src/components/library/watch-room-section.tsx
+- src/lib/multiplayer/room-connection-timeline.ts
+- src/components/library/room-connection-panel.tsx
+- src/lib/multiplayer/p2p.ts
 - src/lib/multiplayer/room-delivery.ts
 
 ## Implementation
@@ -1607,7 +1641,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-042 — Room transport congestion control
-Status: planned
+Status: complete
 Track: Watch Together collaboration
 Priority: P0
 
@@ -1627,8 +1661,9 @@ Queue/search payloads can compete with timing and chat on a slow data channel.
 None.
 
 ## Start in
-- src/lib/multiplayer/room-delivery.ts
-- src/components/library/use-room-queue-delivery.ts
+- src/lib/multiplayer/room-outbox.ts
+- src/lib/multiplayer/p2p.ts
+- src/components/library/room-queue-delivery-panel.tsx
 
 ## Implementation
 1. Measure bufferedAmount and classify timing, chat and bulk catalog packets.
@@ -1645,7 +1680,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-043 — Guest catalog privacy review
-Status: planned
+Status: complete
 Track: Watch Together collaboration
 Priority: P0
 
@@ -1665,8 +1700,9 @@ Host-library sharing needs granular visibility beyond a single broad permission.
 None.
 
 ## Start in
-- src/lib/multiplayer/room-search.ts
-- src/components/library/watch-room-section.tsx
+- src/lib/multiplayer/room-catalog-policy.ts
+- src/components/library/room-catalog-sharing.tsx
+- src/components/library/use-room-host-catalog.ts
 
 ## Implementation
 1. Review every host catalog field sent to peers and define explicit shareable source/collection scopes.
@@ -1721,7 +1757,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-045 — Live latency guidance
-Status: planned
+Status: complete
 Track: Watch Together collaboration
 Priority: P1
 
@@ -1742,7 +1778,8 @@ None.
 
 ## Start in
 - src/lib/multiplayer/room-provider-clock.ts
-- src/lib/multiplayer/room-player-recovery.ts
+- src/components/library/room-live-guidance.tsx
+- src/components/library/watch-room-section.tsx
 
 ## Implementation
 1. Represent live independent-clock and DVR-capable modes explicitly using observed capabilities.
@@ -1759,7 +1796,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-046 — Room role presets
-Status: planned
+Status: complete
 Track: Watch Together collaboration
 Priority: P1
 
@@ -1780,6 +1817,8 @@ None.
 
 ## Start in
 - src/lib/multiplayer/room-playback-access.ts
+- src/lib/multiplayer/room-roles.ts
+- src/components/library/room-role-presets.tsx
 - src/components/library/watch-room-section.tsx
 
 ## Implementation
@@ -1835,7 +1874,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-048 — Reconnect queue intent reconciliation
-Status: planned
+Status: complete
 Track: Watch Together collaboration
 Priority: P1
 
@@ -1855,8 +1894,9 @@ Guests need clear receipts when disconnecting during an edit rather than guessin
 None.
 
 ## Start in
-- src/lib/multiplayer/room-queue-session.ts
 - src/lib/multiplayer/room-delivery.ts
+- src/components/library/use-room-queue-delivery.ts
+- src/components/library/room-queue-delivery-panel.tsx
 
 ## Implementation
 1. Track bounded pending intents with stable operation IDs and the last host-confirmed revision.
@@ -1873,7 +1913,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-049 — Provider-independent subtitles
-Status: planned
+Status: complete
 Track: Watch Together collaboration
 Priority: P1
 
@@ -1893,8 +1933,10 @@ Room participants need a device-local subtitle preference where provider APIs pe
 None.
 
 ## Start in
+- src/lib/multiplayer/room-device-captions.ts
+- src/components/library/room-device-captions.tsx
+- src/components/library/room-stream-player.tsx
 - src/components/library/watch-room-section.tsx
-- src/lib/multiplayer/room-player-recovery.ts
 
 ## Implementation
 1. Inventory local-video tracks and supported YouTube/Twitch caption controls without proxying media.
@@ -1911,7 +1953,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-050 — Room accessibility audit protocol
-Status: planned
+Status: complete
 Track: Watch Together collaboration
 Priority: P1
 
@@ -1928,13 +1970,16 @@ Complex room changes need repeatable assistive-technology verification beyond la
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-041 — Watch Room connection state timeline [planned]
+- next-041 — Watch Room connection state timeline [complete]
 - next-044 — Per-guest playback readiness [complete]
-- next-046 — Room role presets [planned]
+- next-046 — Room role presets [complete]
 
 ## Start in
-- src/components/library/watch-room-section.tsx
-- src/components/library/use-room-queue-delivery.ts
+- docs/ACCESSIBILITY_STATUS_AND_FOCUS.md
+- src/components/library/use-room-list-focus.ts
+- src/components/library/room-queue-panel.tsx
+- src/components/library/room-suggestions-panel.tsx
+- scripts/watch-room-roles-timeline-check.mjs
 
 ## Implementation
 1. Document named regions, announcement priorities and focus ownership for queue/chat/dialog changes.
@@ -2646,7 +2691,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-069 — Private recommendation isolation audit
-Status: planned
+Status: complete
 Track: Film, anime and private media
 Priority: P0
 
@@ -2663,14 +2708,15 @@ Private labels and viewing signals need proof they cannot influence public shari
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-043 — Guest catalog privacy review [planned]
+- next-043 — Guest catalog privacy review [complete]
 - next-058 — Cross-source topic bridge audit [complete]
 - next-067 — Adult provider capability registry [complete]
 
 ## Start in
-- src/lib/videos/private-shelves.ts
-- src/lib/recommendations.ts
-- src/lib/multiplayer/room-search.ts
+- src/lib/videos/public-visibility.ts
+- src/lib/videos/guide-picks.ts
+- src/lib/videos/topic-postings.ts
+- src/lib/multiplayer/room-catalog-policy.ts
 
 ## Implementation
 1. Map private/adult signals through Home, topics, guide reasons, exports and room discovery.
@@ -2725,7 +2771,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-071 — Companion protocol negotiation
-Status: planned
+Status: complete
 Track: Desktop and local workflows
 Priority: P2
 
@@ -2745,7 +2791,9 @@ Browser and Companion version drift needs actionable capability negotiation.
 None.
 
 ## Start in
+- src/lib/companion-protocol.ts
 - src/lib/companion.ts
+- src/components/library/companion-recovery-panel.tsx
 - companion/reelcase-companion.mjs
 
 ## Implementation
@@ -2763,7 +2811,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-072 — Companion task queue recovery
-Status: planned
+Status: complete
 Track: Desktop and local workflows
 Priority: P2
 
@@ -2780,11 +2828,13 @@ Long local jobs need durable outcomes when the browser or Companion restarts.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-071 — Companion protocol negotiation [planned]
+- next-071 — Companion protocol negotiation [complete]
 
 ## Start in
-- companion/reelcase-companion.mjs
-- src/lib/companion.ts
+- companion/download-manager.mjs
+- src/components/library/companion-recovery-panel.tsx
+- src/components/library/youtube-download-dialog.tsx
+- docs/COMPANION_PROTOCOL_AND_RECOVERY.md
 
 ## Implementation
 1. Inventory existing job persistence and introduce bounded idempotent task receipts where absent.
@@ -2801,7 +2851,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-073 — Approved-root change audit
-Status: planned
+Status: complete
 Track: Desktop and local workflows
 Priority: P0
 
@@ -2818,11 +2868,13 @@ Root permission changes need immediate enforcement for queued and active Compani
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-071 — Companion protocol negotiation [planned]
+- next-071 — Companion protocol negotiation [complete]
 
 ## Start in
+- companion/root-authority.mjs
+- companion/download-manager.mjs
 - companion/reelcase-companion.mjs
-- src/lib/companion.ts
+- src/components/library/root-access-panel.tsx
 
 ## Implementation
 1. Trace approved-root checks at enqueue, traversal, file-open and final write boundaries.
@@ -2857,7 +2909,7 @@ Disconnected files need grouped repair actions with verified matching and no des
 
 ## Dependencies
 - next-009 — File identity migration ledger [planned]
-- next-073 — Approved-root change audit [planned]
+- next-073 — Approved-root change audit [complete]
 
 ## Start in
 - src/lib/videos/local-runtime.ts
@@ -2879,7 +2931,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-075 — Downloader authentication state
-Status: planned
+Status: complete
 Track: Desktop and local workflows
 Priority: P2
 
@@ -2896,12 +2948,14 @@ Browser-cookie authentication needs clear consent, scope and failure reporting.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-071 — Companion protocol negotiation [planned]
-- next-072 — Companion task queue recovery [planned]
+- next-071 — Companion protocol negotiation [complete]
+- next-072 — Companion task queue recovery [complete]
 
 ## Start in
-- src/lib/youtube-download.ts
-- companion/reelcase-companion.mjs
+- src/components/library/youtube-download-dialog.tsx
+- companion/download-auth.mjs
+- companion/download-manager.mjs
+- docs/COMPANION_UPDATE_AND_AUTH.md
 
 ## Implementation
 1. Audit the existing yt-dlp authentication path and show selected browser/profile without exposing cookie contents.
@@ -2918,7 +2972,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-076 — Download disk-budget preflight
-Status: planned
+Status: complete
 Track: Desktop and local workflows
 Priority: P2
 
@@ -2935,12 +2989,15 @@ Large download batches need disk-space and destination checks before work begins
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-072 — Companion task queue recovery [planned]
-- next-073 — Approved-root change audit [planned]
+- next-072 — Companion task queue recovery [complete]
+- next-073 — Approved-root change audit [complete]
 
 ## Start in
-- companion/reelcase-companion.mjs
+- companion/download-preflight.mjs
+- companion/download-manager.mjs
 - src/lib/youtube-download.ts
+- src/components/library/youtube-download-dialog.tsx
+- docs/DOWNLOAD_BUDGET_AND_GAME_RECEIPTS.md
 
 ## Implementation
 1. Check approved destination, existing partial files and available-space estimates before each queued job.
@@ -2957,7 +3014,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-077 — Game launch receipt and recovery
-Status: planned
+Status: complete
 Track: Desktop and local workflows
 Priority: P2
 
@@ -2974,12 +3031,15 @@ One-click launches need evidence of what happened without repeatedly starting th
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-071 — Companion protocol negotiation [planned]
-- next-073 — Approved-root change audit [planned]
+- next-071 — Companion protocol negotiation [complete]
+- next-073 — Approved-root change audit [complete]
 
 ## Start in
+- companion/launch-manager.mjs
 - companion/reelcase-companion.mjs
 - src/lib/companion.ts
+- src/components/library/games-section.tsx
+- docs/DOWNLOAD_BUDGET_AND_GAME_RECEIPTS.md
 
 ## Implementation
 1. Return a bounded launch receipt with approved shortcut identity, time and observed start outcome.
@@ -2996,7 +3056,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-078 — Print model save transaction
-Status: planned
+Status: complete
 Track: Desktop and local workflows
 Priority: P2
 
@@ -3013,12 +3073,15 @@ Print edits need a safe save-as workflow that preserves originals and editor sta
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-072 — Companion task queue recovery [planned]
-- next-073 — Approved-root change audit [planned]
+- next-072 — Companion task queue recovery [complete]
+- next-073 — Approved-root change audit [complete]
 
 ## Start in
-- src/components/library/prints-section.tsx
-- companion/reelcase-companion.mjs
+- src/components/library/print-model-viewer.tsx
+- src/components/library/print-save-panel.tsx
+- src/lib/print-save.ts
+- companion/print-transactions.mjs
+- docs/PRINT_SAVE_AND_PLATFORM_CONTRACT.md
 
 ## Implementation
 1. Trace model transforms/material edits and define which formats can faithfully store them.
@@ -3035,7 +3098,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-079 — Companion update health checklist
-Status: planned
+Status: complete
 Track: Desktop and local workflows
 Priority: P2
 
@@ -3052,13 +3115,14 @@ Upgrading the local service should not silently break browser integration.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-071 — Companion protocol negotiation [planned]
-- next-072 — Companion task queue recovery [planned]
+- next-071 — Companion protocol negotiation [complete]
+- next-072 — Companion task queue recovery [complete]
 
 ## Start in
-- companion/README.md
+- src/lib/companion-update.ts
+- src/components/library/companion-update-panel.tsx
 - companion/reelcase-companion.mjs
-- src/lib/companion.ts
+- docs/COMPANION_UPDATE_AND_AUTH.md
 
 ## Implementation
 1. Create an explicit pre/post-update health check for capabilities, roots, queued jobs and configured tool versions.
@@ -3075,7 +3139,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-080 — Cross-platform local integration contract
-Status: planned
+Status: complete
 Track: Desktop and local workflows
 Priority: P2
 
@@ -3092,14 +3156,17 @@ Platform-specific Companion behavior needs explicit capability fallbacks rather 
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-071 — Companion protocol negotiation [planned]
-- next-073 — Approved-root change audit [planned]
-- next-079 — Companion update health checklist [planned]
+- next-071 — Companion protocol negotiation [complete]
+- next-073 — Approved-root change audit [complete]
+- next-079 — Companion update health checklist [complete]
 
 ## Start in
-- companion/reelcase-companion.mjs
+- companion/platform-contract.mjs
+- companion/platform-capabilities.mjs
+- src/lib/companion-protocol.ts
+- src/components/library/use-companion-support.ts
 - companion/README.md
-- src/lib/companion.ts
+- docs/PRINT_SAVE_AND_PLATFORM_CONTRACT.md
 
 ## Implementation
 1. Inventory Windows-only shortcut, tray, startup and file inspection paths.
@@ -3156,7 +3223,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-082 — Resumable model download integrity
-Status: planned
+Status: complete
 Track: AI studio and creator tools
 Priority: P2
 
@@ -3173,13 +3240,15 @@ Large model downloads need explicit resumable verification without retaining ent
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-072 — Companion task queue recovery [planned]
-- next-073 — Approved-root change audit [planned]
+- next-072 — Companion task queue recovery [complete]
+- next-073 — Approved-root change audit [complete]
 - next-081 — Image model compatibility preflight [complete]
 
 ## Start in
+- companion/model-transfers.mjs
+- companion/studio-models.mjs
+- src/components/library/model-transfer-recovery.tsx
 - src/components/library/studio-model-library.tsx
-- companion/reelcase-companion.mjs
 
 ## Implementation
 1. Use approved local storage for chunked downloads with verified HTTPS source and optional publisher checksum.
@@ -3315,7 +3384,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-086 — Image output storage policy
-Status: planned
+Status: complete
 Track: AI studio and creator tools
 Priority: P2
 
@@ -3332,11 +3401,13 @@ Generated images and previews need bounded local retention without losing delibe
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-002 — Storage pressure recovery [planned]
+- next-002 — Storage pressure recovery [complete]
 - next-084 — Generation job lifecycle [complete]
 
 ## Start in
+- src/lib/studio-outputs.ts
 - src/lib/studio-session.ts
+- src/components/library/studio-output-library.tsx
 - src/components/library/stable-diffusion-section.tsx
 
 ## Implementation
@@ -3354,7 +3425,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-087 — Stream Signal pack revisions
-Status: planned
+Status: complete
 Track: AI studio and creator tools
 Priority: P2
 
@@ -3371,10 +3442,12 @@ Announcement edits need revision-aware recovery across tabs without accidental p
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-006 — Cross-tab catalog writer lease [planned]
+- next-006 — Cross-tab catalog writer lease [complete]
 
 ## Start in
+- src/lib/stream-signal-revisions.ts
 - src/lib/stream-signal.ts
+- src/components/library/use-stream-signal.ts
 - src/components/library/stream-signal-section.tsx
 
 ## Implementation
@@ -3516,7 +3589,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-091 — Sensitive export redaction review
-Status: planned
+Status: complete
 Track: Trust, accessibility and release
 Priority: P0
 
@@ -3533,14 +3606,15 @@ Diagnostics and portable files need one audited boundary for secrets and private
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-003 — Backup preflight report [planned]
-- next-043 — Guest catalog privacy review [planned]
-- next-069 — Private recommendation isolation audit [planned]
+- next-003 — Backup preflight report [complete]
+- next-043 — Guest catalog privacy review [complete]
+- next-069 — Private recommendation isolation audit [complete]
 
 ## Start in
-- src/lib/companion.ts
-- src/lib/videos/persist.ts
-- src/lib/multiplayer/room-search.ts
+- src/lib/diagnostic-export.ts
+- src/components/library/diagnostic-export-preview.tsx
+- src/components/library/performance-scorecard.tsx
+- src/lib/multiplayer/room-connection-timeline.ts
 
 ## Implementation
 1. Enumerate all export/clipboard/download paths and classify credentials, invitation tokens, local paths and private titles.
@@ -3557,7 +3631,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-092 — Capability consent ledger
-Status: planned
+Status: complete
 Track: Trust, accessibility and release
 Priority: P2
 
@@ -3574,11 +3648,14 @@ Optional integrations need understandable remembered consent and revocation.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-071 — Companion protocol negotiation [planned]
-- next-073 — Approved-root change audit [planned]
+- next-071 — Companion protocol negotiation [complete]
+- next-073 — Approved-root change audit [complete]
 - next-081 — Image model compatibility preflight [complete]
 
 ## Start in
+- src/lib/capability-consent.ts
+- companion/capability-consent.mjs
+- src/components/library/capability-permissions.tsx
 - src/lib/companion.ts
 - src/components/library/settings-section.tsx
 
@@ -3597,7 +3674,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-093 — Remote desktop pairing safeguards
-Status: planned
+Status: complete
 Track: Trust, accessibility and release
 Priority: P0
 
@@ -3614,12 +3691,13 @@ Remote desktop access needs verifiable pairing and expiry rather than broad unat
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-071 — Companion protocol negotiation [planned]
-- next-092 — Capability consent ledger [planned]
+- next-071 — Companion protocol negotiation [complete]
+- next-092 — Capability consent ledger [complete]
 
 ## Start in
+- companion/creative-tools.mjs
 - src/components/library/remote-desktop-section.tsx
-- companion/reelcase-companion.mjs
+- docs/MODEL_TRANSFER_AND_REMOTE_SAFEGUARDS.md
 
 ## Implementation
 1. Audit the actual RustDesk launch/integration boundary and document which process handles authentication.
@@ -3631,7 +3709,7 @@ Remote desktop access needs verifiable pairing and expiry rather than broad unat
 - [ ] Document real native verification separately; a launcher button alone must not be marked as a working remote desktop session.
 
 ## External requirement
-Native RustDesk session verification requires an installed client and an explicitly approved peer; do not start a session without that authorization.
+This milestone delivers application approval and launch safeguards, not a verified remote session. Native RustDesk session verification requires an installed client and an explicitly approved peer; do not start a session without that authorization.
 Do not claim this external requirement passed from fixtures alone.
 
 ## Required handoff
@@ -3657,7 +3735,7 @@ Removal, reset and replacement actions need consistent previews and meaningful u
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-001 — Crash-safe catalog mutations [planned]
+- next-001 — Crash-safe catalog mutations [complete]
 - next-004 — Atomic restore with recovery slot [planned]
 - next-007 — Deletion and undo tombstones [planned]
 
@@ -3721,7 +3799,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-096 — Accessible status announcement policy
-Status: planned
+Status: complete
 Track: Trust, accessibility and release
 Priority: P2
 
@@ -3738,13 +3816,16 @@ Progress and error updates should be useful to assistive technology without beco
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-050 — Room accessibility audit protocol [planned]
+- next-050 — Room accessibility audit protocol [complete]
 - next-095 — Keyboard command coverage map [complete]
 
 ## Start in
+- src/lib/status-announcement.ts
+- src/components/library/batch-status-announcement.tsx
 - src/components/library/live-check-status.tsx
 - src/components/library/twitch-clips-control.tsx
 - src/components/library/mission-plan-section.tsx
+- docs/ACCESSIBILITY_STATUS_AND_FOCUS.md
 
 ## Implementation
 1. Inventory live regions and define polite batch summaries versus urgent user-action errors.
@@ -3761,7 +3842,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-097 — Onboarding using existing library state
-Status: planned
+Status: complete
 Track: Trust, accessibility and release
 Priority: P2
 
@@ -3778,11 +3859,13 @@ New and returning users need next steps that reflect actual configuration.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-071 — Companion protocol negotiation [planned]
-- next-092 — Capability consent ledger [planned]
+- next-071 — Companion protocol negotiation [complete]
+- next-092 — Capability consent ledger [complete]
 
 ## Start in
-- src/components/library/library-app.tsx
+- src/lib/setup-readiness.ts
+- src/components/library/setup-checklist.tsx
+- src/components/library/light-home.tsx
 - src/components/library/settings-section.tsx
 
 ## Implementation
@@ -3800,7 +3883,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-098 — Feature readiness inventory
-Status: planned
+Status: complete
 Track: Trust, accessibility and release
 Priority: P2
 
@@ -3817,12 +3900,14 @@ The app needs one truthful distinction between implemented, configured and exter
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-079 — Companion update health checklist [planned]
+- next-079 — Companion update health checklist [complete]
 - next-081 — Image model compatibility preflight [complete]
 - next-090 — Local racing adapter contract [complete]
-- next-093 — Remote desktop pairing safeguards [planned]
+- next-093 — Remote desktop pairing safeguards [complete]
 
 ## Start in
+- src/lib/feature-readiness.ts
+- src/components/library/feature-readiness-panel.tsx
 - src/components/library/settings-section.tsx
 - src/components/library/mission-plan-section.tsx
 - MILESTONE_VERIFICATION.md
@@ -3861,7 +3946,7 @@ A release needs a rehearsed recovery path for stored data and browser assets.
 ## Dependencies
 - next-004 — Atomic restore with recovery slot [planned]
 - next-020 — Performance release artifact comparison [planned]
-- next-091 — Sensitive export redaction review [planned]
+- next-091 — Sensitive export redaction review [complete]
 
 ## Start in
 - src/lib/videos/persist.ts
@@ -3901,8 +3986,8 @@ Future model work needs a consistent verified handoff rather than vague completi
 
 ## Dependencies
 - next-020 — Performance release artifact comparison [planned]
-- next-091 — Sensitive export redaction review [planned]
-- next-098 — Feature readiness inventory [planned]
+- next-091 — Sensitive export redaction review [complete]
+- next-098 — Feature readiness inventory [complete]
 - next-099 — Release rollback drill [planned]
 
 ## Start in

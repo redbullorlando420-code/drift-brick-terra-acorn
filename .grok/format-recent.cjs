@@ -1,0 +1,4 @@
+const ts=require('typescript'), fs=require('node:fs');
+const printer=ts.createPrinter({newLine:ts.NewLineKind.LineFeed});
+for(const p of ['src/lib/videos/youtube-feed-gap.ts','src/lib/videos/youtube-recovery.ts','src/lib/videos/provider-recent.ts','src/components/library/provider-recent-section.tsx','src/components/library/provider-pull-panel.tsx','scripts/recent-discovery-batch.test.mjs','scripts/recent-discovery-browser-check.mjs']){const source=fs.readFileSync(p,'utf8'), parsed=ts.createSourceFile(p,source,ts.ScriptTarget.Latest,true,p.endsWith('.tsx')?ts.ScriptKind.TSX:p.endsWith('.mjs')?ts.ScriptKind.JS:ts.ScriptKind.TS);if(parsed.parseDiagnostics.length)throw Error('Invalid source '+p);fs.writeFileSync(p,printer.printFile(parsed));}
+console.log('Formatted recent discovery sources and fixtures');

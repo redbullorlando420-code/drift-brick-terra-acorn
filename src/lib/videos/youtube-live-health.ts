@@ -1,3 +1,4 @@
+import { youtubeLiveInterval } from './youtube-events';
 import type { FollowedChannel, ProviderFailure } from './types';
 import { verifiedYoutubeSource } from './follow-import';
 import { selectYoutubeQuickLiveChannels, YOUTUBE_QUICK_LIVE } from './youtube-quick-live';
@@ -49,7 +50,7 @@ export function youtubeLiveCoverage(channels: readonly FollowedChannel[], now = 
     if (latestFailed && failure?.retryAt && failure.retryAt > now) {
       cooling++; nextRetryAt = Math.min(nextRetryAt ?? Infinity, failure.retryAt);
     }
-    const nextAt = Math.max(checked > 0 ? checked + (channel.live ? YOUTUBE_QUICK_LIVE.knownLiveMs : YOUTUBE_QUICK_LIVE.discoveryMs) : 0, latestFailed ? failure?.retryAt ?? 0 : 0);
+    const nextAt = Math.max(checked > 0 ? checked + youtubeLiveInterval(channel,now,YOUTUBE_QUICK_LIVE.knownLiveMs,YOUTUBE_QUICK_LIVE.discoveryMs) : 0, latestFailed ? failure?.retryAt ?? 0 : 0);
     queue.push({channel,status:latestFailed && (failure?.retryAt ?? 0)>now ? 'waiting' : nextAt<=now ? 'due' : 'fresh',lastSuccessAt:hasSuccess?checked:undefined,lastAttemptAt:Math.max(checked,failure?.at??0,channel.youtubeLiveEvidence?.at??0)||undefined,nextAt,failed:latestFailed,neverChecked:!hasSuccess});
   }
   const due = selectYoutubeQuickLiveChannels(creators, creators.length, true, now);

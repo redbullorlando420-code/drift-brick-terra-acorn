@@ -12,7 +12,7 @@ export function mediaRange(header, size) {
 
 /** Only a manager-validated, completed job can reach this function. Existing
  * loopback/origin checks run before dispatch; no arbitrary path is accepted. */
-export function serveDownloadMedia(req, res, media) {
+export function serveDownloadMedia(req, res, media, {authority}={}) {
   if (!media) { res.writeHead(404); res.end('Completed download is unavailable.'); return; }
   const range = mediaRange(req.headers.range, media.size);
   res.setHeader('cache-control', 'private, no-store');
@@ -24,8 +24,11 @@ export function serveDownloadMedia(req, res, media) {
   if (range.partial) res.setHeader('content-range', 'bytes ' + range.start + '-' + range.end + '/' + media.size);
   res.writeHead(range.partial ? 206 : 200);
   if (req.method === 'HEAD') { res.end(); return; }
+  let access;try{access=authority?.lease(media.path);access?.assert();}catch{res.destroy();return;}
   const stream = createReadStream(media.path, { start: range.start, end: range.end });
-  res.on('close', () => stream.destroy());
+  const abort=()=>{stream.destroy();res.destroy();};access?.signal.addEventListener('abort',abort,{once:true});
+  const release=()=>{access?.signal.removeEventListener('abort',abort);access?.release();};
+  stream.on('close',release);res.on('close', () => {stream.destroy();release();});
   stream.on('error', () => res.destroy());
   stream.pipe(res);
 }

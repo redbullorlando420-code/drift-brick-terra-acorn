@@ -1,0 +1,26 @@
+✔ personal reasons cite real public positive signals and raw shared labels without mutating source fields (10.1271ms)
+✔ empty, private-only and orphan signals do not become public counts, evidence or topic choices (1.3163ms)
+✔ history-only input is honest discovery and operational facets cannot train affinity (0.4728ms)
+✔ query reasons distinguish saved title, tag, creator and category with exact field quotes (0.9012ms)
+✔ contradictory feedback, favorite protection and exposure notices state actual evidence (0.6782ms)
+✔ live explanations require actual fresh confirmations rather than grace holds or viewer counts (1.6519ms)
+✔ artifact bounds limit affinity vocabulary, candidate explanations and chooser rows (61.6833ms)
+✔ empty and explicit queries honor cancellation before reading input (0.5752ms)
+✔ reviewed aliases preserve the raw supporting fields in personal explanations (1.002ms)
+✔ mixed private favorites, history and merged source signals never become public Guide evidence, topics or ordinary report exports (13.5181ms)
+✔ scopes exclude private/adult/merged/hidden/orphan titles and provider aliases before pagination (3.8229ms)
+✔ revocation blocks stale IDs, public aliases, regrant retries and unpublished suggestions while active playback survives (0.2795ms)
+✔ local title opt-in sends only a filename and playback duration, never directory or filesystem metadata (0.7534ms)
+✔ 100k catalog builds and denied searches yield, retain only page data and support cancellation (251.1153ms)
+✔ room recommendation preparation excludes private signals and canonical aliases regardless of private desk state (0.6579ms)
+✔ host catalog requests and result pages reject malformed, oversized or duplicate identities (2.4716ms)
+✔ host searches exclude local titles by default and page only eligible matches (2.1285ms)
+✔ large Unicode metadata stays below the reliable-message budget without losing the next offset (0.4266ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 400.2271

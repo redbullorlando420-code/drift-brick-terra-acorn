@@ -1,0 +1,168 @@
+Realhub
+
+Vault · networks · live
+
+Library
+Home
+Landing page
+3009
+Movies
+Anime
+Topics
+YouTube
+3000
+Twitch
+2
+Live
+2
+Favorites
+0
+Continue
+0
+History
+0
+Adults
+0
+Fetish Explorer
+Workspace
+Stable Diffusion
+Remote desktop
+Photos
+Spotify
+3D prints
+Games
+Shop
+Streaming
+Stream Signal
+Watch room
+X accounts
+Tools
+Connection guide
+Find my phone
+AI guide
+Mission plan
+Settings
+Stats
+Local sources
+2
+Following
+2
+Add folder
+
+Movies
+
+Control room
+
+Search
+Date added
+7:47 PM
+Resume pulls
+Folder
+
+Twitch pull complete
+
+2 / 2 targets · 2 returned · 0 new · 0 failed · 7:46 PM
+
+Automatic pulls and archive requests are paused. One-shot live checks you start manually can still run; select Resume pulls to continue queued work.
+
+FEATURED · 2016
+
+Arrival (2016)
+Play
+My List
+
+YOUR FILM COLLECTION
+
+Movie night.
+Random pick
+Reload local files
+
+Full-film evidence and a verified runtime over 10 minutes are required. Trailers, reviews, gameplay and series episodes stay in the general library. A long video alone is not a movie.
+
+Films
+
+2
+
+Feature length · 40m+
+
+2
+
+Short films · 10–40m
+
+0
+
+Documentaries
+
+0
+
+Review film identities and editions
+Movie length
+Any film length
+Feature · 40m+
+Short · 10–40m
+Movie genre
+All genres
+Movie decade
+All release years
+Year unknown
+2020s
+2010s
+2000s
+1990s
+1980s
+1970s
+1960s
+1950s
+1940s
+1930s
+1920s
+1910s
+1900s
+1890s
+1880s
+Movie source
+All sources
+Local films
+YouTube films
+Movie watch filter
+All films
+Unwatched
+Favorites
+Movie order
+Title A–Z
+Release year
+Longest first
+Recently added
+Browse all films
+
+Release-year filters use saved metadata or clear filename years; missing years stay unknown. Browsing never changes your tags or watch history.
+
+Feature films
+
+At least 40 minutes, with film evidence.
+
+Minimize
+
+1 likely movie awaiting runtime
+
+These titles have movie evidence, but their length is missing. Check up to five at a time using YouTube metadata or your connected local files. Only films longer than 10 minutes enter Movies.
+
+Check next 5 movie runtimes
+Likely movies · runtime unverified
+Minimize
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.scrollIntoViewIfNeeded: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByRole('list', { name: 'From your source folders · 2 titles', exact: true })
+
+    at E:\codex\drift-brick-terra-acorn\scripts\refined-desks-browser-check.mjs:42:229 {
+  log: [
+    "  - waiting for getByRole('list', { name: 'From your source folders · 2 titles', exact: true })"
+  ],
+  name: 'TimeoutError'
+}
+
+Node.js v24.22.1

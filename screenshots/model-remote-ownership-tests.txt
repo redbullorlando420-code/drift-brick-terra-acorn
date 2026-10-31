@@ -1,0 +1,38 @@
+✔ studio requests survive navigation, keep the submitted settings and retain a prior image on failure (4.0892ms)
+✔ studio session storage is bounded and isolates each account (0.2058ms)
+✔ duplicate interrupts are coalesced and a returned partial image is labeled honestly (0.4081ms)
+✔ portable recipes round-trip only approved settings and reject unsupported files (1.7111ms)
+✔ recipe restoration is bounded and keeps valid entries when another is damaged (0.384ms)
+✔ engine response limit cancels chunked and declared oversized bodies before buffering all data (19.6886ms)
+✔ publication comes from the matching video, never a pull time, relative label or recommended date (3.0856ms)
+✔ generation sends a bounded allow-list and rejects missing/oversized prompts and bad numbers (0.4533ms)
+✔ studio restores valid settings, migrates the legacy prompt and uses actual random seeds (1.5745ms)
+✔ cancelling an approval is token/origin-bound and cannot cancel a newer request (4.5334ms)
+✔ an authenticated API failure is visible and never starts a duplicate engine (6.242ms)
+✔ remote approval is expiring, one-use, peer/origin-bound and never supplies a password (3.6366ms)
+✔ local image API stays on the fixed loopback target and refuses non-image output (0.6703ms)
+✔ engine lifecycle launches only the installed Python with loopback and isolated caches (8.1009ms)
+✔ generation is single-flight and interrupt only applies to a request owned by the bridge (0.5076ms)
+✔ large model resumes after restart from a verified checkpoint with bounded ranges and exact output (189.8164ms)
+✔ extra uncommitted suffix is read-only during review then removed only when explicit resume starts (159.6422ms)
+✔ ETag, pinned revision and local partial changes cannot be silently resumed (79.0142ms)
+✔ modified or replaced partials are never adopted or deleted by cancellation (65.5351ms)
+✔ cancelling a verified saved partial removes only its owned temporary data (60.708ms)
+✔ fresh-transfer preview binds current publisher metadata and never overwrites an active verified model (72.0654ms)
+✔ checksum failure never enables a model and preserves installed files (30.6235ms)
+✔ future journals and failed journal writes cannot start unrecorded model work (5.5407ms)
+✔ range reads reject insecure or foreign redirects, changed/missing validators and oversized responses (0.7628ms)
+✔ page-scoped remote approvals expire, resist foreign invalidation, reject unattended arguments and expose no secrets (9.049ms)
+✔ publication interruption is recovered by verifying the existing destination without re-downloading weights (68.2074ms)
+✔ receipt admission is bounded and cancelled empty receipts can be replaced without scanning storage (14.8569ms)
+✔ concurrent partial reviews share a single native verification budget (74.128ms)
+✔ future and malformed native receipt lists remain unavailable without crashing the browser consumer (0.4814ms)
+✔ an existing provenance sidecar is preserved when a new verified model is installed (32.9033ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 999.4425

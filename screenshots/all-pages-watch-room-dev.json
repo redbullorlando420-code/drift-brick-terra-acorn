@@ -1,0 +1,8 @@
+{
+  "ok": false,
+  "errors": [],
+  "checks": [
+    "QR image decodes to the exact phone-reachable room invitation, not loopback"
+  ],
+  "error": "page.waitForFunction: Timeout 30000ms exceeded.\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\watch-room-collaboration-check.mjs:296:14"
+}

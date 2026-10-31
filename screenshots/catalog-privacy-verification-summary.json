@@ -1,0 +1,91 @@
+{
+  "verifiedAt": "2026-10-28T14:36:28.969Z",
+  "missionRevision": 58,
+  "totalDefaultMilestones": 306,
+  "completeDefaultMilestones": 251,
+  "nextLevelComplete": 49,
+  "nextLevelPlanned": 51,
+  "newlyVerified": [
+    "next-043",
+    "next-069"
+  ],
+  "previousBatchFinalized": [
+    "next-041",
+    "next-046"
+  ],
+  "build": {
+    "passed": true,
+    "log": "screenshots/catalog-privacy-build.txt"
+  },
+  "typecheck": {
+    "passed": true,
+    "log": ".grok/catalog-privacy-typecheck.log"
+  },
+  "suites": [
+    {
+      "file": "screenshots/catalog-privacy-room-regressions.txt",
+      "passed": 170,
+      "failed": 0
+    },
+    {
+      "file": "screenshots/catalog-privacy-public-regressions.txt",
+      "passed": 137,
+      "failed": 0
+    },
+    {
+      "file": "screenshots/catalog-privacy-shelf-regressions.txt",
+      "passed": 54,
+      "failed": 0
+    }
+  ],
+  "totalPassingTests": 361,
+  "browserReports": [
+    {
+      "file": "screenshots/catalog-privacy-dev.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/catalog-privacy-production.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/catalog-privacy-guide-dev.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/catalog-privacy-guide-production.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/catalog-privacy-mission-dev.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/catalog-privacy-mission-production.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/catalog-privacy-roles-production.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/catalog-privacy-home-dev.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/catalog-privacy-home-production.json",
+      "ok": true
+    }
+  ],
+  "visuallyReviewed": [
+    "Home dev desktop/mobile",
+    "catalog production desktop/mobile guest",
+    "catalog production mobile host",
+    "roles prior production desktop/mobile"
+  ],
+  "limits": [
+    "Provider player documents are fixtures; real service authorization and physical phone autoplay are not verified.",
+    "No cross-network TURN or long-running personal library soak was performed.",
+    "Revocation prevents future discovery; it cannot erase previously delivered data."
+  ]
+}

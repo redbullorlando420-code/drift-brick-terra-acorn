@@ -1,0 +1,21 @@
+✔ real activity, preferences and dedicated stores clone sparse updates and recover old plus recent records (141.5354ms)
+✔ versioned operations accept bounded deltas, not future or oversized batches (1.3044ms)
+✔ manual records validate paired tags, provenance, field clocks and category shape (0.2483ms)
+✔ unknown and corrupt control generations remain rejected instead of reset (0.1613ms)
+✔ explicit snapshot retry invalidates only the slice writer reference cache (0.1346ms)
+✔ field clocks restore category separately from newer automatic tags without walking base dictionaries (3.766ms)
+✔ actual sparse persistence batches restore in 256-row pages without reading full preferences or losing locks (542.375ms)
+✔ pack generation keeps both stream links, all four editable drafts, short X text and manual-only sharing (3.7603ms)
+✔ channel validation rejects spoofed domains, credentials, non-HTTPS and video links; owner namespaces cannot overlap (0.3792ms)
+✔ ballots use latest valid normalized viewer vote, deduplicate IDs, preserve invalid replacements, and reject late messages (1.5585ms)
+✔ whole-sequence ties are deterministic regardless of arrival order; overflow rejects all moves (0.2615ms)
+✔ controller checks resources for every move, interrupts a blocked sequence, and emergency stop clears everything (0.2373ms)
+✔ simulator retains bounded logs, replay IDs and viewer entries under sustained messages (5.182ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 970.6027

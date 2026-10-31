@@ -1,0 +1,11 @@
+✔ tiny saved edits survive failures, acknowledge only committed values and compact behind complete snapshots (503.1473ms)
+✔ follow normalization retains import review flags and original query aliases over reload (1.7286ms)
+✔ full local storage does not erase the in-session durable follow queue (0.3669ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 773.2164

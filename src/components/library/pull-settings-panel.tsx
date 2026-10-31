@@ -1,3 +1,4 @@
+import { PullDispatchPanel } from './pull-dispatch-panel';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ export function PullSettingsPanel() {
       <Button variant="secondary" disabled={!processing && !queue.active && !queue.waiting} onClick={cancelQueuedPulls}>Cancel current pull queue</Button>
       <span className="text-xs text-muted" role="status">{queue.active} active · {queue.waiting} queued{queue.held ? ' · waiting for browsing to settle' : processing && !queue.active && !queue.waiting ? ' · preparing catalog batch' : ''}</span>
     </div>
+    <PullDispatchPanel />
     <EntryLimitSettings settings={settings} />
     {CLEANUP_GROUPS.map(group => <YoutubeCleanupSettings key={group} settings={settings} group={group} />)}
     <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

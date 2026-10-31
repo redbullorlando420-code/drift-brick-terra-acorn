@@ -1,3 +1,4 @@
+import {DiagnosticExportPreview} from './diagnostic-export-preview';
 import { memo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, RefreshCw, Download } from "lucide-react";
@@ -69,6 +70,7 @@ export const YoutubeEmbedRecovery = memo(function YoutubeEmbedRecovery({
           </p>
         )}
       </div>
+      <DiagnosticExportPreview kind="youtube-player" data={{version:2,capturedAt:Date.now(),titles:rows}}/>
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="secondary" className="min-h-11" onClick={onReload}>
           <RefreshCw className="size-3" />

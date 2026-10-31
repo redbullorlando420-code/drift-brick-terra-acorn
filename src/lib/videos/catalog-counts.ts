@@ -1,3 +1,4 @@
+import { videoIsPrivate } from './public-visibility.ts';
 export type CatalogCounts = { publicCount: number; ytCount: number; twitchCount: number; liveCount: number; favCount: number; historyCount: number; adultCount: number };
 export const emptyCatalogCounts = (): CatalogCounts => ({ publicCount: 0, ytCount: 0, twitchCount: 0, liveCount: 0, favCount: 0, historyCount: 0, adultCount: 0 });
 import type { LibraryVideo } from './types';
@@ -8,7 +9,7 @@ import { savedRecordScan } from './saved-library.ts';
 export type CountRow = [flags: number, historyEvents: number];
 export function catalogCountFlags(video: LibraryVideo, adultIds: ReadonlySet<string>, hidden: Record<string, true>, hideDemo: boolean) {
   const visible = !hidden[video.id] && !(hideDemo && video.isSample);
-  if (adultIds.has(video.folderId)) return visible ? 32 : 0;
+  if (videoIsPrivate(adultIds,video)) return visible ? 32 : 0;
   return (visible ? 1 : 0) | (video.remote?.kind === 'youtube' ? 2 : 0)
     | (video.remote?.kind === 'twitch' ? 4 : 0) | (video.remote?.live ? 8 : 0);
 }
@@ -35,7 +36,7 @@ export function addCountBatch(counts: CatalogCounts, rows: CountRow[]) {
 export function countActivityMatches(matches: ReadonlyMap<string, readonly LibraryVideo[]>, saved: ReadonlySet<string>, events: ReadonlyMap<string, number>, adultIds: ReadonlySet<string>, hidden: Record<string, true>, hideDemo: boolean) {
   let favCount = 0, historyCount = 0;
   for (const [id, cards] of matches) for (const card of cards) {
-    if (card.id !== id || adultIds.has(card.folderId) || hidden[id] || hideDemo && card.isSample) continue;
+    if (card.id !== id || videoIsPrivate(adultIds,card) || hidden[id] || hideDemo && card.isSample) continue;
     if (saved.has(id)) favCount++;
     historyCount += events.get(id) ?? 0;
   }
@@ -54,7 +55,7 @@ export async function countActivityMatchesAsync(matches: ReadonlyMap<string, rea
   let favCount = 0, historyCount = 0;
   function* rows() { for (const [id, cards] of matches) for (const card of cards) yield { id, card }; }
   await forEachCatalogEntry(rows(), ({ id, card }) => {
-    if (card.id !== id || adultIds.has(card.folderId) || hidden[id] || hideDemo && card.isSample) return;
+    if (card.id !== id || videoIsPrivate(adultIds,card) || hidden[id] || hideDemo && card.isSample) return;
     if (saved.has(id)) favCount++;
     historyCount += events.get(id) ?? 0;
   }, turn);

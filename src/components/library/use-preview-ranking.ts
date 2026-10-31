@@ -167,21 +167,26 @@ export function usePreviewRanking(video: LibraryVideo | undefined, videos: Libra
     if (!video) return;
     if(failure.current?.id===video.id&&failure.current.attempt===attempt&&failure.current.seed===seed)return;
     failure.current=undefined;
-    let session:Session;setPending(true);setError('');
-    try{session=sessionForPreview();}catch{failure.current={id:video.id,attempt,seed};setPending(false);setError("Preview suggestions worker could not start.");return;}
-    session.failed=reason=>{failure.current={id:video.id,attempt,seed};setPending(false);setError(reason);};
+    let session:Session | undefined;setPending(true);setError('');
     const receive = (data: PreviewWorkerResult) => {setPending(false);setError('');startTransition(() => setPacket({ id: data.id, result: data.result }));};
-    session.listener = receive;
-    prepare(session, { target: video, videos, tags, adultFolders, unavailable, hidden, feedbackRevision, exposureRevision: getExposureRevision(), favorites, likes, cameCounts, viewCounts });
-    const message = { type: "rank" as const, generation: session.generation, requestId: ++session.requestId, id: video.id, seed };
-    latestRequest = { session, message };
-    send(session, message);
+    const cancelStart = scheduleBackgroundWork(() => {
+      try{session=sessionForPreview();}catch{failure.current={id:video.id,attempt,seed};setPending(false);setError("Preview suggestions worker could not start.");return;}
+      session.failed=reason=>{failure.current={id:video.id,attempt,seed};setPending(false);setError(reason);};
+      session.listener = receive;
+      prepare(session, { target: video, videos, tags, adultFolders, unavailable, hidden, feedbackRevision, exposureRevision: getExposureRevision(), favorites, likes, cameCounts, viewCounts });
+      const message = { type: "rank" as const, generation: session.generation, requestId: ++session.requestId, id: video.id, seed };
+      latestRequest = { session, message };
+      send(session, message);
+    });
     return () => {
+      cancelStart();
+      if (!session) return;
       if (session.listener !== receive) return;
       session.listener = undefined;session.failed=undefined;clearTimeout(session.deadline);session.deadline=undefined;
       // Browsing back and reopening reuses the catalog; a quiet/hidden page
       // releases it completely rather than retaining workers indefinitely.
-      session.disposeTimer = window.setTimeout(() => dispose(session), 1000);
+      const owner = session;
+      session.disposeTimer = window.setTimeout(() => dispose(owner), 1000);
     };
   }, [video?.id, videos, tags, adultFolders, unavailable, hidden, seed, revision, favorites, likes, cameCounts, viewCounts,attempt]);
   return { ...(packet && packet.id === video?.id ? packet.result : EMPTY),pending,error,retry:()=>setAttempt(value=>value+1) };

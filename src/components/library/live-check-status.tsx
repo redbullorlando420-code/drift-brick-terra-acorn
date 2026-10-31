@@ -1,3 +1,4 @@
+import { BatchStatusAnnouncement } from './batch-status-announcement';
 import { YoutubeLiveCoveragePanel } from './youtube-live-coverage-panel';
 import { youtubeEvidenceExplanation } from '@/lib/remote/youtube-live-evidence';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
@@ -37,6 +38,11 @@ export function LiveCheckStatus({ kind, action = true }: { kind: 'youtube' | 'tw
   const busy = scan?.status === 'running';
   const retryAt = Math.max(scan?.retryAt ?? 0, kind === 'youtube' ? youtubeLiveCooldown(follows, Math.max(clock, Date.now()))?.retryAt ?? 0 : 0);
   const cooling = retryAt > Math.max(clock, Date.now());
+  const checkAll = async () => {
+    setActionError('');
+    try { await refresh(kind, { youtubeLiveOnly: kind === 'youtube', twitchLiveOnly: kind === 'twitch', liveSweep: true }); }
+    catch(error) { setActionError(error instanceof Error ? error.message : 'The live check could not start.'); }
+  };
   const checkDue = async () => {
     setActionError('');
     try {
@@ -54,20 +60,21 @@ export function LiveCheckStatus({ kind, action = true }: { kind: 'youtube' | 'tw
       if (!result.pull) setActionError(result.skipped === 'cooldown' ? 'This creator is waiting for its retry deadline.' : result.skipped === 'busy' ? 'A live check is already running.' : 'This creator could not be checked yet.');
     } catch(error) { setActionError(error instanceof Error ? error.message : 'Recheck could not start.'); }
   };
-  return <section className="mb-5 rounded-lg border border-border bg-elevated p-4" aria-label={label + ' quick live checks'}>
+  return <section data-status-scope className="mb-5 rounded-lg border border-border bg-elevated p-4" aria-label={label + ' quick live checks'}>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="min-w-0"><p className="text-sm font-medium text-fg">{label} quick live checks</p>
         <p className="mt-1 text-xs leading-5 text-muted">{coverage.recent.toLocaleString()} / {coverage.total.toLocaleString()} creators checked successfully in the last 5 minutes{coverage.failed ? ` · ${coverage.failed.toLocaleString()} latest attempts failed` : ''}. Known-live checks share each batch with oldest-first discovery; a large backlog reserves more discovery slots. {coverage.unchecked.toLocaleString()} not checked yet · {coverage.due.toLocaleString()} due for a check{coverage.cooling ? ` · ${coverage.cooling.toLocaleString()} waiting to retry` : ''}.</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        {kind === 'youtube' && <Button variant="secondary" disabled={busy || cooling || !coverage.due} onClick={() => void checkDue()}><RefreshCw className={busy ? 'size-4 animate-spin' : 'size-4'} />Check due YouTube creators{coverage.due ? ` (${coverage.due.toLocaleString()})` : ''}</Button>}
-        {action && <Button variant="secondary" disabled={busy || cooling || !coverage.total} onClick={() => void refresh(kind, { youtubeLiveOnly: kind === 'youtube', twitchLiveOnly: kind === 'twitch', liveSweep: true })}><RefreshCw className={busy ? 'size-4 animate-spin' : 'size-4'} />{busy ? 'Checking ' + label + ' live…' : 'Check all ' + label + ' live channels'}</Button>}
+        {kind === 'youtube' && <Button variant="secondary" disabled={busy || cooling || !coverage.due} onClick={() => void checkDue()}><RefreshCw className={busy ? 'size-4 animate-spin motion-reduce:animate-none' : 'size-4'} />Check due YouTube creators{coverage.due ? ` (${coverage.due.toLocaleString()})` : ''}</Button>}
+        {action && <Button variant="secondary" disabled={busy || cooling || !coverage.total} onClick={() => void checkAll()}><RefreshCw className={busy ? 'size-4 animate-spin' : 'size-4'} />{busy ? 'Checking ' + label + ' live…' : 'Check all ' + label + ' live channels'}</Button>}
       </div>
     </div>
     {!settings.automaticPulls ? <p className="mt-2 text-sm text-accent">Automatic live checks are off. <Button variant="secondary" onClick={() => updatePullSettings({ automaticPulls: true })}>Enable automatic checks</Button></p>
       : settings.pauseWhileWatching && viewerOpen ? <p className="mt-2 text-xs text-muted">Live checks wait while a player or preview is open.</p>
       : paused ? <p className="mt-2 text-xs text-muted">{demand ? 'Bulk archive pulls are paused; live checks on this page remain enabled.' : 'Automatic live checks are paused with bulk pulls. Open Live to continue checking status.'}</p> : null}
-    {scan && <div className="mt-3" role="status" aria-live="polite">
+    <BatchStatusAnnouncement id={String(scan?.startedAt ?? 0)} label={label+' live check'} phase={!scan?'idle':cooling?'waiting':busy?'running':'complete'} total={scan?.total} outcome={cooling?label+' is waiting for a provider cooldown. Saved results are retained. Use the live check controls after the wait.':scan?label+' live check '+(scan.status==='partial'?'partially complete':'complete')+'. '+scan.checked+' of '+scan.total+' creators checked; '+scan.broadcasts+' broadcasts; '+(scan.failed??0)+' need attention. Review check details or use Check all to retry.':''}/>
+    {scan && <div className="mt-3">
       <p className="text-sm text-accent">{busy ? 'Checking' : scan.status === 'partial' ? 'Partial check' : scan.automatic ? 'Batch complete' : 'Check complete'} · {scan.checked.toLocaleString()} / {scan.total.toLocaleString()} creators · {scan.broadcasts.toLocaleString()} {scan.broadcasts === 1 ? 'broadcast' : 'broadcasts'}{scan.failed ? ` · ${scan.failed.toLocaleString()} unavailable` : ''}</p>
       <progress className="mt-2 h-2 w-full accent-accent" aria-label={label + ' live check progress'} max={Math.max(1, scan.total)} value={scan.checked} />
     </div>}

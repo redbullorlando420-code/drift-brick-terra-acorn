@@ -1,3 +1,4 @@
+import { createDispatchTrace } from '../pull-dispatch-trace.ts';
 import { PROVIDER_BUDGETS, ProviderBudgetError } from '../provider-budgets.ts';
 import { readProviderBody } from './provider-body.ts';
 
@@ -25,6 +26,7 @@ export function youtubeRequestScope(url: string): Exclude<YoutubeRequestScope, '
 export function createYoutubeTransport(options: {
   fetch?: typeof fetch; now?: () => number; sleep?: (ms: number) => Promise<void>; gapMs?: () => number; liveGapMs?: () => number;
 } = {}) {
+  const trace = createDispatchTrace(options.now);
   const now = options.now ?? (() => Date.now());
   const sleep = options.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
   const cooldowns = new Map<YoutubeRequestScope, Cooldown>();
@@ -96,6 +98,8 @@ export function createYoutubeTransport(options: {
     if (queued >= PROVIDER_BUDGETS.queuedRequests) return Promise.reject(new ProviderBudgetError('queue', 'YouTube metadata queue is full; accepted pages and saved positions are preserved.'));
     const scope = init?.scope ?? youtubeRequestScope(url);
     const path = new URL(url).pathname;
+    const record = trace.begin('youtube transfer', scope === 'live' ? 'live' : scope === 'details' ? 'details' : scope === 'feed' ? 'recent' : 'archive');
+    record('queued');
     queued++;
     const html = !path.startsWith('/youtubei/') && !path.startsWith('/feeds/') && path !== '/oembed';
     const checkReady = () => { ready(scope, now(), init?.manualRetry); if (html && scope !== 'page') ready('page', now(), init?.manualRetry); };
@@ -126,6 +130,7 @@ export function createYoutubeTransport(options: {
       // Request timeouts begin at transport start, not while waiting behind
       // another job or a user-selected pacing gap.
       if (timeoutMs) requestInit.signal = AbortSignal.any([...(requestInit.signal ? [requestInit.signal] : []), AbortSignal.timeout(timeoutMs)]);
+      record('started');
       const response = await (options.fetch ?? globalThis.fetch)(url, requestInit);
       // Finish the body before releasing this lane slot.
       let body: Uint8Array;
@@ -150,12 +155,13 @@ export function createYoutubeTransport(options: {
         if (position < 0) return;
         waiting.splice(position, 1); queued--;
         init?.signal?.removeEventListener('abort', abort);
+        record('cancelled');
         reject(init?.signal?.reason ?? new Error('YouTube request cancelled.'));
         pump();
       };
       const job = { lane, start: () => {
         init?.signal?.removeEventListener('abort', abort);
-        void work().then(resolve, reject).finally(() => {
+        void work().then(value => { record('complete'); resolve(value); }, error => { record(init?.signal?.aborted ? 'cancelled' : 'failed'); reject(error); }).finally(() => {
           queued--; active[lane]--; pump();
         });
       } };
@@ -164,7 +170,7 @@ export function createYoutubeTransport(options: {
       pump();
     });
   };
-  return { request, retryAt, ready, accept, cooldownScope, manualRetry };
+  return { request, retryAt, ready, accept, cooldownScope, manualRetry, diagnostics: trace.snapshot };
 }
 let requestGapMs = 80;
 export function setYoutubeRequestGap(value: unknown) {

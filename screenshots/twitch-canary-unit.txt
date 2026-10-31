@@ -1,0 +1,12 @@
+✔ request cap applies even when production catches its error; resume skips completed contracts (70.3934ms)
+✔ rate-limited runs stop without additional requests and resume honors saved provider cooldown (6.496ms)
+✔ reports reject unsafe targets, future resume schemas and arbitrary fields without exposing error bodies (1.2249ms)
+✔ unreadable live/identity/subtype results cannot be passed or confused with a healthy empty shelf (0.2254ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 233.746

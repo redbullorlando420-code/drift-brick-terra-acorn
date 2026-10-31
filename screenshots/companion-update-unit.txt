@@ -1,0 +1,28 @@
+✔ failed admission retains all forty prior receipts in memory and on disk (14.6725ms)
+✔ restart restores active and queued work as interrupted without starting anything; explicit resume retains ID and clears old browser consent (45.7373ms)
+✔ completed receipt survives restart and a repeated enqueue/resume never starts another process without an explicit new-download request (59.4638ms)
+✔ a failed receipt commit cannot start a downloader and leaves the prior manifest readable (22.1829ms)
+✔ future or malformed manifests are preserved and cannot be overwritten by a new operation (5.3894ms)
+✔ legacy receipt migration allowlists fields and does not expose URLs or injected credential headers (17.8941ms)
+✔ cancellation and timeout outcomes cannot be changed to complete by a late process exit (18.9432ms)
+✔ receipt history remains bounded while partial files are retained and offline URLs cannot carry embedded credentials (689.3821ms)
+✔ update report allowlist strips paths, identities, URLs and arbitrary nested data (1.4907ms)
+✔ baseline parser bounds future/corrupt job state and never trusts arbitrary version text (0.427ms)
+✔ post-update differences preserve baseline and expose missing features, tools, approvals and interrupted jobs (0.4241ms)
+✔ download failures are stable categories and never return raw credentials or cookie content (0.5973ms)
+✔ YouTube accepts canonical IDs and rejects URLs, arguments, traversal and playlists (1.4428ms)
+✔ 100% progress is not completion: successful exit and a nonempty video file are required (38.6412ms)
+✔ errors and empty successful exits never report completion; stderr is bounded (34.6739ms)
+✔ queue deduplicates active videos, is bounded, and cancellation waits for process exit (78.217ms)
+✔ process launch errors, revoked roots and restarts remain truthful (33.9259ms)
+✔ browser session authentication is opt-in, enum-only, per job and yt-dlp-only (31.2255ms)
+✔ cookie and authorization header values never become UI status or persisted diagnostics (20.0167ms)
+✔ local playback resolves only completed nonempty media from the exact approved job directory (38.9531ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 984.7646

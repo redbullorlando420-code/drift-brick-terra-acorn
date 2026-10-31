@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Actual same-origin tabs: second writer refused; stopped renewal expires; delayed old owner cannot commit or release the newer generation; closing an owner permits generation-2 recovery after expiry",
+        "Catalog cleanup/import APIs share the lease; mounted status surfaces second-tab ownership; compact notices trigger paged reader rebase without catalog payloads",
+        "Two editors retain conflicting local text; keep-current and restore-mine create explicit outcomes; only changed fields are rebased, newer Facebook text/manual mark survive, clean readers refresh, and reload/history restore text and manual-only sharing state",
+        "Previously unseen local files stay deferred until reload restores their saved privacy and permission metadata; existing shared remote catalogs continue to update"
+      ],
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "Actual same-origin tabs: second writer refused; stopped renewal expires; delayed old owner cannot commit or release the newer generation; closing an owner permits generation-2 recovery after expiry",
+        "Catalog cleanup/import APIs share the lease; mounted status surfaces second-tab ownership; compact notices trigger paged reader rebase without catalog payloads",
+        "Two editors retain conflicting local text; keep-current and restore-mine create explicit outcomes; only changed fields are rebased, newer Facebook text/manual mark survive, clean readers refresh, and reload/history restore text and manual-only sharing state",
+        "Previously unseen local files stay deferred until reload restores their saved privacy and permission metadata; existing shared remote catalogs continue to update"
+      ],
+      "ok": true
+    }
+  ]
+}

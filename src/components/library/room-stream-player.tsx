@@ -1,3 +1,4 @@
+import { RoomDeviceCaptions } from './room-device-captions';
 import type { PlayerReadinessStatus } from '@/lib/multiplayer/room-player-readiness';
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -54,5 +55,6 @@ export function RoomStreamPlayer({ stream, title, playing, position, duration, o
       <p className="text-xs leading-5 text-muted">Play, pause and seek affect the room. Sound and fullscreen affect only this device.</p>
       {(notice||waiting&&playing)&&<p role="status" className="text-xs text-accent">{notice||"Waiting for the host’s video frames…"}</p>}
     </div>
+    <RoomDeviceCaptions provider="stream" mediaRef={ref} scope={stream.id+':'+reload}/>
   </section>;
 }

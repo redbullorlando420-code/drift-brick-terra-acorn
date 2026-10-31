@@ -1,0 +1,129 @@
+{
+  "schema": 1,
+  "kind": "realhub-twitch-canary",
+  "checkedAt": 1793218994613,
+  "creators": [
+    "twitch",
+    "lirik"
+  ],
+  "maxRequests": 12,
+  "requests": [
+    {
+      "scope": "live",
+      "creator": "twitch",
+      "status": null,
+      "elapsedMs": 10671
+    },
+    {
+      "scope": "vods",
+      "creator": "twitch",
+      "status": 200,
+      "elapsedMs": 346
+    },
+    {
+      "scope": "clips",
+      "creator": "twitch",
+      "status": 200,
+      "elapsedMs": 162
+    },
+    {
+      "scope": "clips",
+      "creator": "twitch",
+      "status": 200,
+      "elapsedMs": 498
+    },
+    {
+      "scope": "live",
+      "creator": "lirik",
+      "status": 200,
+      "elapsedMs": 151
+    },
+    {
+      "scope": "vods",
+      "creator": "lirik",
+      "status": 200,
+      "elapsedMs": 247
+    },
+    {
+      "scope": "clips",
+      "creator": "lirik",
+      "status": 200,
+      "elapsedMs": 111
+    },
+    {
+      "scope": "clips",
+      "creator": "lirik",
+      "status": 200,
+      "elapsedMs": 152
+    }
+  ],
+  "retryAt": 0,
+  "tasks": [
+    {
+      "creator": "twitch",
+      "scope": "live",
+      "state": "failed",
+      "checkedAt": 1793218991454,
+      "rows": 0,
+      "pages": 0,
+      "duplicates": 0,
+      "stops": []
+    },
+    {
+      "creator": "twitch",
+      "scope": "vods",
+      "state": "passed",
+      "checkedAt": 1793218992028,
+      "rows": 100,
+      "pages": 1,
+      "duplicates": 0,
+      "stops": [
+        "entry-budget"
+      ]
+    },
+    {
+      "creator": "twitch",
+      "scope": "clips",
+      "state": "passed",
+      "checkedAt": 1793218993122,
+      "rows": 2,
+      "pages": 1,
+      "duplicates": 0,
+      "stops": []
+    },
+    {
+      "creator": "lirik",
+      "scope": "live",
+      "state": "failed",
+      "checkedAt": 1793218993475,
+      "rows": 0,
+      "pages": 0,
+      "duplicates": 0,
+      "stops": []
+    },
+    {
+      "creator": "lirik",
+      "scope": "vods",
+      "state": "passed",
+      "checkedAt": 1793218993933,
+      "rows": 100,
+      "pages": 1,
+      "duplicates": 0,
+      "stops": [
+        "entry-budget"
+      ]
+    },
+    {
+      "creator": "lirik",
+      "scope": "clips",
+      "state": "passed",
+      "checkedAt": 1793218994613,
+      "rows": 2,
+      "pages": 1,
+      "duplicates": 0,
+      "stops": []
+    }
+  ],
+  "ok": false,
+  "limit": "Public metadata contract check only. No cookies, playback, subscriptions or private account data. Empty means a readable empty result, not a playable-video verification."
+}

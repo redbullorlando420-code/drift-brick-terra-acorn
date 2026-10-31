@@ -1,0 +1,42 @@
+✔ failed admission retains all forty prior receipts in memory and on disk (9.4962ms)
+✔ restart restores active and queued work as interrupted without starting anything; explicit resume retains ID and clears old browser consent (23.5657ms)
+✔ completed receipt survives restart and a repeated enqueue/resume never starts another process without an explicit new-download request (34.9577ms)
+✔ a failed receipt commit cannot start a downloader and leaves the prior manifest readable (11.5083ms)
+✔ future or malformed manifests are preserved and cannot be overwritten by a new operation (2.6876ms)
+✔ legacy receipt migration allowlists fields and does not expose URLs or injected credential headers (10.3477ms)
+✔ cancellation and timeout outcomes cannot be changed to complete by a late process exit (14.2025ms)
+✔ receipt history remains bounded while partial files are retained and offline URLs cannot carry embedded credentials (247.8431ms)
+✔ documented legacy file operations remain usable without claiming newer capabilities (1.4443ms)
+✔ protocol major and malformed responses fail closed; additive minor and unknown fields are ignored (0.2179ms)
+✔ native route families negotiate file, download, artwork, print, launch and creative features (0.4604ms)
+✔ one coalesced health probe gates unsupported operations before dispatch while allowed legacy reads still work (24.9017ms)
+✔ update report allowlist strips paths, identities, URLs and arbitrary nested data (2.3901ms)
+✔ baseline parser bounds future/corrupt job state and never trusts arbitrary version text (0.3573ms)
+✔ post-update differences preserve baseline and expose missing features, tools, approvals and interrupted jobs (0.4301ms)
+✔ download failures are stable categories and never return raw credentials or cookie content (0.806ms)
+✔ local media byte ranges handle seeking, suffixes and malformed/out-of-bounds requests (1.5677ms)
+✔ completed local media serves bounded ranges and HEAD, with truthful missing/invalid responses (56.5973ms)
+Test: downloading 0.00 GB with SHA-256 verification.
+Test: 0.00 / 0.00 GB
+Test: SHA-256 verified.
+Test: downloading 0.00 GB with SHA-256 verification.
+Test: 0.00 / 0.00 GB
+Test: downloading 0.00 GB with SHA-256 verification.
+✔ verified artifact transfer validates range, bytes and digest before enabling the file (37.9002ms)
+✔ YouTube progress and failure receipts contain safe descriptions instead of raw session output (14.1389ms)
+✔ YouTube accepts canonical IDs and rejects URLs, arguments, traversal and playlists (1.1787ms)
+✔ 100% progress is not completion: successful exit and a nonempty video file are required (16.2331ms)
+✔ errors and empty successful exits never report completion; stderr is bounded (17.029ms)
+✔ queue deduplicates active videos, is bounded, and cancellation waits for process exit (33.9592ms)
+✔ process launch errors, revoked roots and restarts remain truthful (15.5109ms)
+✔ browser session authentication is opt-in, enum-only, per job and yt-dlp-only (13.8466ms)
+✔ cookie and authorization header values never become UI status or persisted diagnostics (7.1432ms)
+✔ local playback resolves only completed nonempty media from the exact approved job directory (15.6769ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 455.4009

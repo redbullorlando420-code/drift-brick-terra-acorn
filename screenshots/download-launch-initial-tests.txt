@@ -1,0 +1,75 @@
+✔ failed admission retains all forty prior receipts in memory and on disk (11.2751ms)
+✔ restart restores active and queued work as interrupted without starting anything; explicit resume retains ID and clears old browser consent (31.6805ms)
+✔ completed receipt survives restart and a repeated enqueue/resume never starts another process without an explicit new-download request (41.3857ms)
+✔ a failed receipt commit cannot start a downloader and leaves the prior manifest readable (18.1743ms)
+✔ future or malformed manifests are preserved and cannot be overwritten by a new operation (3.7476ms)
+✔ legacy receipt migration allowlists fields and does not expose URLs or injected credential headers (15.2318ms)
+✔ cancellation and timeout outcomes cannot be changed to complete by a late process exit (15.4203ms)
+✔ receipt history remains bounded while partial files are retained and offline URLs cannot carry embedded credentials (560.7529ms)
+✔ approved files remain usable while unapproved and traversal paths are denied (20.5191ms)
+✔ revocation aborts held work immediately, persists across restart and leaves other roots usable (5.6366ms)
+✔ renamed/replaced root identity cannot inherit permission at the same path (4.6833ms)
+✔ a retargeted directory junction is rejected before a delayed write or read (6.9005ms)
+✔ new files check real ancestors and existing target links before committing (15.5892ms)
+✖ revoked queued and active downloads cannot dispatch or report a late completion (40.1197ms)
+✖ folder replacement inside an approved root invalidates a held downloader lease (29.614ms)
+✔ a failed policy save keeps revoked access blocked and cannot silently grant it back (5.1474ms)
+✔ held native metadata output is discarded after revocation and its process is stopped (8.0428ms)
+✔ future or malformed persisted approval policies fail closed without granting any root (4.9579ms)
+✔ approved native metadata completes normally; response overflow cannot retain native output (9.2634ms)
+✔ revocation closes a backpressured media stream without sending its pending remainder (14.7874ms)
+✔ closing the root owner rejects delayed requests and cannot create new file leases (2.4268ms)
+✔ YouTube progress and failure receipts contain safe descriptions instead of raw session output (24.6406ms)
+✔ YouTube accepts canonical IDs and rejects URLs, arguments, traversal and playlists (1.3431ms)
+✔ 100% progress is not completion: successful exit and a nonempty video file are required (23.7199ms)
+✔ errors and empty successful exits never report completion; stderr is bounded (32.4187ms)
+✔ queue deduplicates active videos, is bounded, and cancellation waits for process exit (56.5556ms)
+✔ process launch errors, revoked roots and restarts remain truthful (29.064ms)
+✔ browser session authentication is opt-in, enum-only, per job and yt-dlp-only (26.6617ms)
+✔ cookie and authorization header values never become UI status or persisted diagnostics (15.7588ms)
+✔ local playback resolves only completed nonempty media from the exact approved job directory (26.112ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 28
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 796.6067
+
+✖ failing tests:
+
+test at scripts\root-access.test.mjs:106:1
+✖ revoked queued and active downloads cannot dispatch or report a late completion (40.1197ms)
+  Error: ENOENT: no such file or directory, open 'E:\codex\drift-brick-terra-acorn\.grok\root-policy-cZIiBj\approved\BaW_jenozKc\partial.part'
+      at writeFileSync (node:fs:2482:20)
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/root-access.test.mjs:130:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: 'E:\\codex\\drift-brick-terra-acorn\\.grok\\root-policy-cZIiBj\\approved\\BaW_jenozKc\\partial.part'
+  }
+
+test at scripts\root-access.test.mjs:142:1
+✖ folder replacement inside an approved root invalidates a held downloader lease (29.614ms)
+  Error: ENOENT: no such file or directory, rename 'E:\codex\drift-brick-terra-acorn\.grok\root-policy-GKOhAv\approved\BaW_jenozKc' -> 'E:\codex\drift-brick-terra-acorn\.grok\root-policy-GKOhAv\approved\old-folder'
+      at renameSync (node:fs:1073:11)
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/root-access.test.mjs:162:3)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    errno: -4058,
+    code: 'ENOENT',
+    syscall: 'rename',
+    path: 'E:\\codex\\drift-brick-terra-acorn\\.grok\\root-policy-GKOhAv\\approved\\BaW_jenozKc',
+    dest: 'E:\\codex\\drift-brick-terra-acorn\\.grok\\root-policy-GKOhAv\\approved\\old-folder'
+  }

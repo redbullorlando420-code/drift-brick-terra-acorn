@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "revision": 74,
+  "scope": "App implementation checks use controlled local services and isolated profiles. Configuration snapshots do not prove native actions or external accounts work.",
+  "nativeSessionsVerified": false,
+  "artifacts": [
+    {
+      "path": "MILESTONE_VERIFICATION.md",
+      "scope": "Verification ledger, remaining dependencies and explicit external limitations"
+    },
+    {
+      "path": "screenshots/desktop-stop-windows.json",
+      "scope": "Disposable real Windows processes; IPC cleanup, repeat stop and unrelated-process survival"
+    },
+    {
+      "path": "screenshots/feature-readiness-production.json",
+      "scope": "Desktop and touch-mobile UI with controlled capability, error and readiness responses"
+    },
+    {
+      "path": "screenshots/model-remote-http.json",
+      "scope": "Copied Companion service; model byte integrity and scoped application remote approvals; native peer not connected"
+    }
+  ],
+  "features": {
+    "library": "Catalog metadata is not proof of current file access or playback.",
+    "downloads": "Engine and approved folder availability are not proof of authenticated download success.",
+    "a1111": "Engine/model metadata and model installation do not prove successful image generation.",
+    "qwen": "Review diffusion model, matching text encoder and VAE; actual engine generation remains unverified by the inventory.",
+    "remote": "Installation and launcher receipt do not verify native authentication, peer control or disconnection.",
+    "signal": "Manual drafts and exports are implemented. Social publishing and Twitch live detection remain unconnected.",
+    "chat": "Local batching simulator only. No connected live chat or installed game control.",
+    "watch": "App room controls are implemented; physical devices, network paths and provider embedding require their own checks."
+  },
+  "validation": {
+    "date": "2026-10-30",
+    "build": "passed",
+    "typecheck": "passed",
+    "focusedTests": 227,
+    "windowsDisposableShutdown": "passed",
+    "desktopAndTouchMobile": "development and production passed",
+    "nativeScope": "No real image engine generation, authenticated download, remote session, chat connection or installed game control is asserted."
+  }
+}

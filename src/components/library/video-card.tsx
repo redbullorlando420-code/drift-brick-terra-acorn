@@ -1,3 +1,4 @@
+import { dataSaverActive } from '@/lib/data-saver';
 import { useRecommendationExposure } from './use-recommendation-exposure';
 import { twitchContentLabel } from '@/lib/videos/twitch-content';
 import { memo, useEffect, useMemo, useRef, useState } from "react";
@@ -97,7 +98,7 @@ const CardDetails = memo(function CardDetails({ video, variant, playedAt, fav, r
             )}
           </p>
           {video.remote?.kind === 'youtube' && !playedAt && !live && <p className="mt-0.5 text-xs text-muted" title={`Publication source: ${youtubeDateSource(video)}`}>
-            {youtubePublicationTime(video) ? `Published ${calendarDateFormat.format(youtubePublicationTime(video))}` : youtubePublicationPrecision(video)==='relative' ? `Approximate: ${cleanYoutubePublishedLabel(video.remote.publishedLabel)} · exact date unknown` : 'Publication date unknown'}
+            {youtubePublicationTime(video) ? `Published ${(youtubePublicationPrecision(video)==='day'?calendarDateFormat:publishedDateFormat).format(youtubePublicationTime(video))}` : youtubePublicationPrecision(video)==='relative' ? `Approximate: ${cleanYoutubePublishedLabel(video.remote.publishedLabel)} · exact date unknown` : 'Publication date unknown'}
           </p>}
           {rating > 0 && <p className="mt-1 flex items-center gap-1 text-xs text-accent"><Star className="size-3 fill-current" /> Your rating {rating}/5</p>}
           {viewCount > 0 && <p className="mt-1 text-xs text-subtle">Watched {viewCount} time{viewCount === 1 ? "" : "s"}</p>}
@@ -286,9 +287,9 @@ export const VideoCard = memo(function VideoCard({
   }, [video.id, textFirst]);
 
   useEffect(() => {
-    if (textFirst || !artAwake || isArtworkSuppressed() || !video.remote) return;
+    if (textFirst || !artAwake || isArtworkSuppressed() || !video.remote || dataSaverActive() && !artVisible) return;
     void recallCompanion(video.id);
-  }, [textFirst, artAwake, recallCompanion, video.id, video.remote]);
+  }, [textFirst, artAwake, artVisible, recallCompanion, video.id, video.remote]);
 
   useEffect(() => {
     if (textFirst || sessionPhase !== 'active' || !artVisible || video.remote || thumb) return;

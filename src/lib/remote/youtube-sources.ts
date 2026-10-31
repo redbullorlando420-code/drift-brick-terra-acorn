@@ -78,14 +78,67 @@ export function youtubeSourceCounts(videos: LibraryVideo[], sources: Array<Pick<
 
 /** One stored card, multiple source edges. Keep its primary folder stable so
  * refreshes of overlapping playlists cannot steal a creator's whole archive. */
-export function retainYoutubeSources(previous: LibraryVideo | undefined, incoming: LibraryVideo): LibraryVideo {
-  if (previous?.remote?.kind !== "youtube" || incoming.remote?.kind !== "youtube") return incoming;
+export function retainYoutubeSources(
+  previous: LibraryVideo | undefined,
+  incoming: LibraryVideo,
+): LibraryVideo {
+  if (
+    previous?.remote?.kind !== "youtube" ||
+    incoming.remote?.kind !== "youtube"
+  )
+    return incoming;
   const oldSources = previous.remote.sourceIds ?? [previous.folderId];
-  const nextSources = new Set([...oldSources, previous.folderId, incoming.folderId, ...(incoming.remote.sourceIds ?? [])]);
-  const sourcesUnchanged = oldSources.length === nextSources.size && oldSources.every(id => nextSources.has(id));
-  if (sourcesUnchanged && incoming.folderId === previous.folderId && incoming.id === previous.id) {
-    return previous.remote.sourceIds && incoming.remote.sourceIds !== previous.remote.sourceIds
-      ? { ...incoming, remote: { ...incoming.remote, sourceIds: previous.remote.sourceIds } } : incoming;
-  }
-  return { ...incoming, id: previous.id, folderId: previous.folderId, remote: { ...incoming.remote, sourceIds: sourcesUnchanged ? previous.remote.sourceIds : [...nextSources] } };
+  const sources = [
+    ...new Set([
+      ...oldSources,
+      previous.folderId,
+      incoming.folderId,
+      ...(incoming.remote.sourceIds ?? []),
+    ]),
+  ];
+  const memberships = incoming.remote.playlistMemberships
+    ? { ...previous.remote.playlistMemberships }
+    : previous.remote.playlistMemberships;
+  for (const [id, edge] of Object.entries(
+    incoming.remote.playlistMemberships ?? {},
+  ))
+    if (memberships && (!memberships[id] || memberships[id].at <= edge.at))
+      memberships[id] = edge;
+  const oldEvent = previous.remote.youtubeEvent,
+    nextEvent = incoming.remote.youtubeEvent;
+  const event =
+    nextEvent && (!oldEvent || nextEvent.observedAt >= oldEvent.observedAt)
+      ? {
+          ...nextEvent,
+          announcedAt: oldEvent?.announcedAt ?? nextEvent.announcedAt,
+        }
+      : oldEvent;
+  return {
+    ...incoming,
+    id: previous.id,
+    folderId: previous.folderId,
+    remote: {
+      ...incoming.remote,
+      channelId:
+        incoming.remote.channelId === "playlist" &&
+        previous.remote.channelId !== "playlist"
+          ? previous.remote.channelId
+          : incoming.remote.channelId,
+      sourceIds:
+        oldSources.length === sources.length &&
+        oldSources.every((id) => sources.includes(id))
+          ? previous.remote.sourceIds
+          : sources,
+      ...(memberships ? { playlistMemberships: memberships } : {}),
+      ...(event ? { youtubeEvent: event } : {}),
+      ...(!nextEvent && oldEvent && oldEvent.state !== "completed"
+        ? {
+            youtubeType: previous.remote.youtubeType,
+            live: previous.remote.live,
+            observedAt: previous.remote.observedAt,
+            viewers: previous.remote.viewers,
+          }
+        : {}),
+    },
+  };
 }

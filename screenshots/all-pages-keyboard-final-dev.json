@@ -1,0 +1,36 @@
+{
+  "ok": false,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Searchable contextual help, modal focus trap/return, disabled shortcut conflict preference and native text keys",
+        "Recorded model revision/hash and engine parameters export; review changes nothing until explicit load; deterministic settings restored without generation",
+        "Missing models require explicit installed choice and mismatch acknowledgement; review still gates generation; export redacts unknown secrets and storage failure preserves saved recipes",
+        "Legacy recipe remains loadable and saved recipes, parameters and owner shortcut preferences survive reload"
+      ],
+      "helpScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-keyboard-final-dev-desktop-help.png",
+      "recipeScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-keyboard-final-dev-desktop-recipe.png",
+      "missingScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-keyboard-final-dev-desktop-missing-model.png",
+      "ok": false,
+      "error": "page.waitForFunction: Timeout 25000ms exceeded.\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\recipe-keyboard-batch-browser-check.mjs:39:2705"
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "Searchable contextual help, modal focus trap/return, disabled shortcut conflict preference and native text keys",
+        "Recorded model revision/hash and engine parameters export; review changes nothing until explicit load; deterministic settings restored without generation",
+        "Missing models require explicit installed choice and mismatch acknowledgement; review still gates generation; export redacts unknown secrets and storage failure preserves saved recipes",
+        "Legacy recipe remains loadable and saved recipes, parameters and owner shortcut preferences survive reload"
+      ],
+      "helpScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-keyboard-final-dev-mobile-help.png",
+      "recipeScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-keyboard-final-dev-mobile-recipe.png",
+      "missingScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-keyboard-final-dev-mobile-missing-model.png",
+      "ok": false,
+      "error": "page.waitForFunction: Timeout 25000ms exceeded.\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\recipe-keyboard-batch-browser-check.mjs:39:2705"
+    }
+  ],
+  "limitations": "Isolated Chrome desktop and mobile viewport, synthetic engine/provider responses. No real GPU generation or physical-phone/native screen-reader claim."
+}

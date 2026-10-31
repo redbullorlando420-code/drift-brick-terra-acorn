@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "output": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\root-diagnostics-dev.json",
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Folder review is explicit and cancelling consequence review changes no permission or personal record",
+        "Root diagnostic preview and download omit paths, root IDs, tokens and unexpected nested values",
+        "Revocation survives reload; stale generations fail visibly and explicit refreshed reapproval starts no jobs",
+        "Performance privacy preview matches downloaded measurements without personal library data",
+        "Deliberately private backup keeps exact personal notes and ratings and remains valid for import",
+        "Older Companion is clearly unsupported for permission changes and dispatches no root operation"
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "Folder review is explicit and cancelling consequence review changes no permission or personal record",
+        "Root diagnostic preview and download omit paths, root IDs, tokens and unexpected nested values",
+        "Revocation survives reload; stale generations fail visibly and explicit refreshed reapproval starts no jobs",
+        "Performance privacy preview matches downloaded measurements without personal library data",
+        "Deliberately private backup keeps exact personal notes and ratings and remains valid for import",
+        "Older Companion is clearly unsupported for permission changes and dispatches no root operation"
+      ]
+    }
+  ]
+}

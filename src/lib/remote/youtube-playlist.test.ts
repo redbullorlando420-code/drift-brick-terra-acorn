@@ -24,5 +24,5 @@ test("current YouTube playlist lockups provide titles, creators and artwork", ()
     { lockupViewModel: { contentId: "PLAYLIST", contentType: "LOCKUP_CONTENT_TYPE_PLAYLIST" } },
   ] };
   assert.equal(publicPlaylistTitle(root), "Road trip 2026");
-  assert.deepEqual(publicPlaylistEntries(root, 10), [{ id: "AAA", title: "First track", channelName: "Alice", thumb: "https://example.com/large.jpg" }]);
+  assert.deepEqual(publicPlaylistEntries(root, 10), [{ id: "AAA", title: "First track", channelName: "Alice", thumb: "https://example.com/large.jpg", metadata: {} }]);
 });

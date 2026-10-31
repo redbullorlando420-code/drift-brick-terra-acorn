@@ -1,3 +1,10 @@
+import {createCapabilityConsent} from './capability-consent.mjs';
+import {serveDesktopControl} from './desktop-control.mjs';
+import {platformContract,supportedCapabilities,platformActionIssue,configuredRootPaths} from './platform-contract.mjs';
+import {createPrintTransactions,createNewPrintFile} from './print-transactions.mjs';
+import {createLaunchManager} from './launch-manager.mjs';
+import {approvedProcess} from './guarded-process.mjs';
+import {createRootAuthority} from './root-authority.mjs';
 import { createStudioModels } from './studio-models.mjs';
 /**
  * Realhub Companion — opt-in, loopback-only native bridge.
@@ -12,13 +19,14 @@ import { networkInterfaces } from "node:os";
 import dgram from "node:dgram";
 import { createArtworkAudit } from "./artwork-audit.mjs";
 import { fileURLToPath } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { createDownloadManager, youtubeWatchUrl, youtubeBrowserAuth } from './download-manager.mjs';
 import { serveDownloadMedia } from './download-media.mjs';
 import { createCreativeTools } from './creative-tools.mjs';
 const artworkAudit = createArtworkAudit();
 const companionDir = fileURLToPath(new URL('.', import.meta.url));
-const studioModels = createStudioModels({ dir: companionDir });
+const permissions=createCapabilityConsent({file:join(companionDir,'.local-capability-consent.json')});
+const studioModels = createStudioModels({ dir: companionDir, permissions });
 const creativeTools = createCreativeTools({ dir: companionDir, models: studioModels });
 let youtubeConfig = {};
 try { youtubeConfig = JSON.parse(readFileSync(join(companionDir, '.local-youtube-dl.json'), 'utf8')); } catch { /* Optional operator-run setup. */ }
@@ -38,7 +46,7 @@ const allowedOrigins = new Set([
     .filter(Boolean),
   ...localNetworkOrigins,
 ]);
-const configuredRoots = (process.env.REELCASE_ALLOWED_ROOTS || "").split(";").map((value) => value.trim()).filter(Boolean);
+const configuredRoots = configuredRootPaths(process.env.REELCASE_ALLOWED_ROOTS,process.platform);
 // Desktop is the practical default on Windows, while explicit roots remain
 // available for game libraries on other drives. Every path is resolved before
 // use; this does not grant access outside the resulting allow-list.
@@ -49,12 +57,12 @@ const desktopRoots = process.platform === "win32" && process.env.USERPROFILE
       ...(process.env.OneDriveConsumer ? [resolve(process.env.OneDriveConsumer, "Desktop")] : []),
     ]
   : [];
-const allowedRoots = [...new Set([...configuredRoots, ...desktopRoots, ...(typeof youtubeConfig.downloadRoot === 'string' ? [youtubeConfig.downloadRoot] : [])])]
-  .filter((value) => existsSync(value))
-  .flatMap((value) => { try { return [realpathSync(value)]; } catch { return []; } });
+const rootAuthority = createRootAuthority([...configuredRoots,...desktopRoots,...(typeof youtubeConfig.downloadRoot === 'string' ? [youtubeConfig.downloadRoot] : [])],{policyFile:join(companionDir,'.local-root-policy.json')});
+const allowedRoots = rootAuthority.activePaths();
+rootAuthority.subscribe(()=>allowedRoots.splice(0,allowedRoots.length,...rootAuthority.activePaths()));
 const allowedExt = new Set([".exe", ".lnk", ".url", ".appref-ms"]);
 const changes = [];
-const launches = [];
+const launchManager=createLaunchManager({authority:rootAuthority,receiptFile:join(companionDir,'.local-launch-receipts.json')});
 // This deliberately stays small.  The companion is a hint/index worker, not
 // a general media server: only completed downloader jobs have a media route.
 // A bounded walk gives the web app a fast, privacy-preserving view
@@ -76,6 +84,7 @@ function refreshMediaCache() {
     const visit = (dir, depth) => {
       if (depth > 5 || next.scanned >= WARMUP_FILE_BUDGET || Date.now() - started >= WARMUP_TIME_BUDGET_MS) { if (next.scanned >= WARMUP_FILE_BUDGET || Date.now() - started >= WARMUP_TIME_BUDGET_MS) { next.truncated = true; next.stopReason = next.scanned >= WARMUP_FILE_BUDGET ? "file-budget" : "time-budget"; } return; }
       let entries = [];
+      if (!underAllowedRoot(dir)) return;
       try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
       for (const entry of entries) {
         if (next.scanned >= WARMUP_FILE_BUDGET || Date.now() - started >= WARMUP_TIME_BUDGET_MS) { next.truncated = true; next.stopReason = next.scanned >= WARMUP_FILE_BUDGET ? "file-budget" : "time-budget"; return; }
@@ -93,14 +102,12 @@ function refreshMediaCache() {
 }
 refreshMediaCache();
 setInterval(refreshMediaCache, 5 * 60_000).unref();
-for (const root of allowedRoots) {
-  try {
-    watch(root, { recursive: true }, (kind, file) => {
-      changes.unshift({ kind, path: file || "", at: Date.now() });
-      changes.splice(100);
-    });
-  } catch { /* a root may not support recursive watches */ }
+const rootWatchers=new Map();
+function syncRootWatchers(){
+ for(const [root,watcher]of rootWatchers)if(!underAllowedRoot(root)){watcher.close();rootWatchers.delete(root);}
+ for(const root of allowedRoots)if(!rootWatchers.has(root)&&underAllowedRoot(root))try{rootWatchers.set(root,watch(root,{recursive:true},(kind,file)=>{if(!underAllowedRoot(root))return;changes.unshift({kind,path:file||'',at:Date.now()});changes.splice(100);}));}catch{}
 }
+syncRootWatchers();rootAuthority.subscribe(()=>{changes.length=0;syncRootWatchers();});
 
 function reply(res, status, body) {
   res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" });
@@ -114,24 +121,8 @@ function cors(req, res) {
   res.setHeader("access-control-allow-headers", "content-type, range");
   return true;
 }
-function allowedFile(rawPath) {
-  if (typeof rawPath !== "string" || !rawPath) return null;
-  const candidate = resolve(rawPath);
-  if (!existsSync(candidate)) return null;
-  const file = realpathSync(candidate);
-  const suffix = file.slice(file.lastIndexOf(".")).toLowerCase();
-  if (!allowedExt.has(suffix)) return null;
-  return allowedRoots.some((root) => file === root || file.startsWith(`${root}${sep}`)) ? file : null;
-}
-function allowedPath(rawPath) {
-  if (typeof rawPath !== "string" || !rawPath) return null;
-  const candidate = resolve(rawPath);
-  if (!existsSync(candidate)) return null;
-  try {
-    const entry = realpathSync(candidate);
-    return allowedRoots.some((root) => entry === root || entry.startsWith(`${root}${sep}`)) ? entry : null;
-  } catch { return null; }
-}
+function allowedFile(rawPath) { const file=rootAuthority.check(rawPath);return file&&allowedExt.has(file.slice(file.lastIndexOf('.')).toLowerCase())?file:null;}
+function allowedPath(rawPath) {return rootAuthority.check(rawPath);}
 
 function whichBinary(name) {
   try {
@@ -174,29 +165,23 @@ const youtubeDlBinary = resolveYoutubeDlBinary();
 let youtubeDlVersion = null;
 if (youtubeDlBinary) try { youtubeDlVersion = execFileSync(youtubeDlBinary, ['--ignore-config', '--version'], { encoding: 'utf8', windowsHide: true, timeout: 5000 }).trim().slice(0, 80); } catch { /* Shown as unconfigured when the binary cannot run. */ }
 
-function underAllowedRoot(candidate) {
-  try {
-    const entry = realpathSync(candidate);
-    return allowedRoots.some((root) => entry === root || entry.startsWith(`${root}${sep}`)) ? entry : null;
-  } catch {
-    return null;
-  }
-}
+function underAllowedRoot(candidate) {return rootAuthority.check(candidate);}
 
-function resolveDownloadRoot() {
+function resolveDownloadRoot(create = true) {
   if (!allowedRoots.length) return null;
   const configured = typeof process.env.REELCASE_DOWNLOAD_DIR === "string" ? process.env.REELCASE_DOWNLOAD_DIR.trim() : (typeof youtubeConfig.downloadRoot === 'string' ? youtubeConfig.downloadRoot : "");
   if (configured) {
     const candidate = resolve(configured);
     // Allow creating a new folder only when an ancestor already sits under an approved root.
     if (existsSync(candidate)) return underAllowedRoot(candidate);
+    if (!create) return null;
     let cursor = candidate;
     for (let i = 0; i < 8; i += 1) {
       const parent = resolve(cursor, "..");
       if (parent === cursor) break;
       if (existsSync(parent) && underAllowedRoot(parent)) {
         try {
-          mkdirSync(candidate, { recursive: true });
+          rootAuthority.ensureDirectory(candidate);
           return underAllowedRoot(candidate);
         } catch {
           return null;
@@ -208,7 +193,7 @@ function resolveDownloadRoot() {
   }
   const fallback = resolve(allowedRoots[0], "Reelcase Offline");
   try {
-    if (!existsSync(fallback)) mkdirSync(fallback, { recursive: true });
+    if (!existsSync(fallback)) { if (!create) return null; rootAuthority.ensureDirectory(fallback); }
     return underAllowedRoot(fallback);
   } catch {
     return null;
@@ -218,7 +203,7 @@ function resolveDownloadRoot() {
 const ytDlpBinary = resolveYtDlpBinary();
 let ytDlpVersion = null;
 if (ytDlpBinary) try { ytDlpVersion = execFileSync(ytDlpBinary, ['--ignore-config', '--version'], { encoding: 'utf8', windowsHide: true, timeout: 5000 }).trim().slice(0, 80); } catch { /* Shown as unconfigured. */ }
-const downloadRoot = resolveDownloadRoot();
+let downloadRoot = resolveDownloadRoot();
 
 function embeddedMediaText(value) {
   if (typeof value !== "string") return "";
@@ -227,19 +212,12 @@ function embeddedMediaText(value) {
   return value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
 }
 
-function inspectMedia(rawPath) {
+async function inspectMedia(rawPath) {
   const path = allowedPath(rawPath);
   const ext = path?.slice(path.lastIndexOf(".")).toLowerCase();
   if (!path || !ext || (!photoExt.has(ext) && !videoExt.has(ext))) return Promise.resolve({ requested: typeof rawPath === "string" ? rawPath : "", available: false, reason: "Not an approved local media file" });
-  return new Promise((resolve) => {
-    const child = spawn("ffprobe", ["-v", "error", "-show_entries", "format=duration,size:format_tags=title,artist,album,genre,date,comment:stream=codec_type,codec_name,width,height", "-of", "json", path], { windowsHide: true, stdio: ["ignore", "pipe", "ignore"] });
-    let output = "";
-    const timer = setTimeout(() => { try { child.kill(); } catch { /* already closed */ } }, 5_000);
-    child.stdout.on("data", (chunk) => { output += String(chunk); if (output.length > 32_000) child.kill(); });
-    child.on("error", () => { clearTimeout(timer); resolve({ requested: rawPath, available: true, inspected: false, reason: "ffprobe is not available in the Companion environment" }); });
-    child.on("close", () => {
-      clearTimeout(timer);
-      try {
+  try {
+    const output=await approvedProcess(rootAuthority,path,'ffprobe',['-v','error','-show_entries','format=duration,size:format_tags=title,artist,album,genre,date,comment:stream=codec_type,codec_name,width,height','-of','json',path]);
         const data = JSON.parse(output);
         const streams = Array.isArray(data.streams) ? data.streams.slice(0, 4).map((stream) => ({ type: stream.codec_type, codec: stream.codec_name, width: stream.width, height: stream.height })) : [];
         const formatTags = Object.fromEntries(
@@ -252,10 +230,8 @@ function inspectMedia(rawPath) {
             return value ? [[key, value]] : [];
           }),
         );
-        resolve({ requested: rawPath, available: true, inspected: true, duration: Number(data.format?.duration) || 0, bytes: Number(data.format?.size) || 0, streams, ...(Object.keys(tags).length ? { tags } : {}) });
-      } catch { resolve({ requested: rawPath, available: true, inspected: false, reason: "No readable media metadata returned" }); }
-    });
-  });
+        return { requested: rawPath, available: true, inspected: true, duration: Number(data.format?.duration) || 0, bytes: Number(data.format?.size) || 0, streams, ...(Object.keys(tags).length ? { tags } : {}) };
+  }catch(error){return {requested:rawPath,available:Boolean(allowedPath(rawPath)),inspected:false,reason:error.code==='ROOT_ACCESS_DENIED'?'Folder access changed.':'No readable metadata returned or ffprobe is unavailable.'};}
 }
 
 const iconCache = new Map();
@@ -270,7 +246,7 @@ function allowedSiblingIcon(rawPath) {
     const entry = realpathSync(candidate);
     const suffix = entry.slice(entry.lastIndexOf(".")).toLowerCase();
     if (!siblingIconExt.includes(suffix)) return null;
-    return allowedRoots.some((root) => entry === root || entry.startsWith(`${root}${sep}`)) ? entry : null;
+    return underAllowedRoot(entry);
   } catch { return null; }
 }
 
@@ -292,7 +268,7 @@ function findSiblingIconPath(filePath) {
 }
 
 function dataUrlFromFile(filePath) {
-  const bytes = readFileSync(filePath);
+  const bytes = rootAuthority.read(filePath);
   if (bytes.length > 1_500_000) return null;
   const suffix = filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
   const mime = suffix === ".png" ? "image/png"
@@ -303,7 +279,7 @@ function dataUrlFromFile(filePath) {
   return `data:${mime};base64,${bytes.toString("base64")}`;
 }
 
-function extractAssociatedIconDataUrl(filePath) {
+async function extractAssociatedIconDataUrl(filePath) {
   if (process.platform !== "win32") return null;
   // PowerShell + System.Drawing extracts the shell-associated icon for .exe/.lnk.
   const script = [
@@ -318,13 +294,7 @@ function extractAssociatedIconDataUrl(filePath) {
     "[Convert]::ToBase64String($ms.ToArray())",
   ].join("; ");
   try {
-    const out = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], {
-      encoding: "utf8",
-      windowsHide: true,
-      timeout: 8_000,
-      maxBuffer: 2_000_000,
-      stdio: ["ignore", "pipe", "ignore"],
-    });
+    const out = await approvedProcess(rootAuthority,filePath,'powershell.exe',['-NoProfile','-NonInteractive','-Command',script],{timeoutMs:8000,maxBytes:2_000_000});
     const b64 = String(out).trim().replace(/\s+/g, "");
     if (!b64 || b64.length < 32 || b64.length > 1_800_000) return null;
     return `data:image/png;base64,${b64}`;
@@ -333,14 +303,15 @@ function extractAssociatedIconDataUrl(filePath) {
   }
 }
 
-function resolveShortcutIcon(rawPath) {
+async function resolveShortcutIcon(rawPath) {
   const file = allowedFile(rawPath);
   if (!file) return { ok: false, error: "Path is outside approved roots or not a shortcut/exe." };
   if (iconCache.has(file)) return { ok: true, path: file, iconData: iconCache.get(file), cached: true };
   let iconData = null;
   const sibling = findSiblingIconPath(file);
   if (sibling) iconData = dataUrlFromFile(sibling);
-  if (!iconData) iconData = extractAssociatedIconDataUrl(file);
+  if (!iconData) iconData = await extractAssociatedIconDataUrl(file);
+  if(!allowedFile(file))return {ok:false,error:"Folder access changed."};
   if (!iconData) return { ok: true, path: file, iconData: null, note: "No sibling image or extractable icon." };
   iconCache.set(file, iconData);
   if (iconCache.size > ICON_CACHE_MAX) {
@@ -355,6 +326,7 @@ function listApprovedShortcuts(limit = 250) {
   const visit = (dir, depth) => {
     if (depth > 4 || found.length >= limit) return;
     let entries = [];
+    if (!underAllowedRoot(dir)) return;
     try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
     for (const entry of entries) {
       if (found.length >= limit) return;
@@ -368,7 +340,7 @@ function listApprovedShortcuts(limit = 250) {
       let launchUrl;
       if (suffix === ".url") {
         try {
-          const match = readFileSync(path, "utf8").match(/^URL\s*=\s*((?:https?|steam|epic|com\.epicgames\.launcher|xbox):\S+)/im);
+          const match = rootAuthority.read(path, "utf8").match(/^URL\s*=\s*((?:https?|steam|epic|com\.epicgames\.launcher|xbox):\S+)/im);
           launchUrl = match?.[1];
         } catch { /* unreadable shortcut remains visible for repair */ }
       }
@@ -400,19 +372,20 @@ const offlineJobs = [];
 let trayBadge = 0;
 let trayProcess = null;
 
-function resolveDataDir(folderName, envKey) {
+function resolveDataDir(folderName, envKey, create = true) {
   if (!allowedRoots.length) return null;
   const configured = typeof process.env[envKey] === "string" ? process.env[envKey].trim() : "";
   if (configured) {
     const candidate = resolve(configured);
     if (existsSync(candidate)) return underAllowedRoot(candidate);
+    if (!create) return null;
     let cursor = candidate;
     for (let i = 0; i < 8; i += 1) {
       const parent = resolve(cursor, "..");
       if (parent === cursor) break;
       if (existsSync(parent) && underAllowedRoot(parent)) {
         try {
-          mkdirSync(candidate, { recursive: true });
+          rootAuthority.ensureDirectory(candidate);
           return underAllowedRoot(candidate);
         } catch { return null; }
       }
@@ -422,21 +395,24 @@ function resolveDataDir(folderName, envKey) {
   }
   const fallback = resolve(allowedRoots[0], folderName);
   try {
-    if (!existsSync(fallback)) mkdirSync(fallback, { recursive: true });
+    if (!existsSync(fallback)) {
+      if (!create) return null;
+      rootAuthority.ensureDirectory(fallback);
+    }
     return underAllowedRoot(fallback);
   } catch { return null; }
 }
 
-function resolveLibraryPackRoot() {
-  return resolveDataDir("Reelcase Library Pack", "REELCASE_LIBRARY_PACK_DIR");
+function resolveLibraryPackRoot(create = true) {
+  return resolveDataDir("Reelcase Library Pack", "REELCASE_LIBRARY_PACK_DIR", create);
 }
 
-function resolveThumbCacheRoot() {
-  return resolveDataDir(join("Reelcase Cache", "thumbs"), "REELCASE_THUMB_CACHE_DIR");
+function resolveThumbCacheRoot(create = true) {
+  return resolveDataDir(join("Reelcase Cache", "thumbs"), "REELCASE_THUMB_CACHE_DIR", create);
 }
 
-function resolvePrintsRoot() {
-  return resolveDataDir("Reelcase Prints", "REELCASE_PRINTS_DIR");
+function resolvePrintsRoot(create = true) {
+  return resolveDataDir("Reelcase Prints", "REELCASE_PRINTS_DIR", create);
 }
 
 function safeCacheKey(id) {
@@ -552,6 +528,7 @@ function listPrintFiles(limit = 200) {
   const visit = (dir, depth) => {
     if (depth > 5 || found.length >= limit) return;
     let entries = [];
+    if (!underAllowedRoot(dir)) return;
     try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
     for (const entry of entries) {
       if (found.length >= limit) return;
@@ -586,8 +563,8 @@ function writeLibraryPackFiles(files) {
     if (content.length > 8_000_000) continue;
     const target = resolve(root, rel);
     if (!target.startsWith(root + sep) && target !== root) continue;
-    mkdirSync(dirname(target), { recursive: true });
-    writeFileSync(target, content, "utf8");
+    rootAuthority.ensureDirectory(dirname(target));
+    rootAuthority.write(target, content, "utf8");
     written.push(rel);
   }
   return { ok: true, root, written };
@@ -596,17 +573,21 @@ function writeLibraryPackFiles(files) {
 function readLibraryPackFiles() {
   const root = resolveLibraryPackRoot();
   if (!root || !existsSync(root)) return { ok: false, error: "Library pack folder missing.", files: {} };
-  const files = {};
-  const visit = (dir, relBase) => {
+  const files = {};let totalBytes=0;
+  const visit = (dir, relBase, depth=0) => {
+    if(depth>6||Object.keys(files).length>=128||totalBytes>=32*1024*1024)return;
     let entries = [];
+    if (!underAllowedRoot(dir)) return;
     try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
     for (const entry of entries) {
       const rel = relBase ? `${relBase}/${entry.name}` : entry.name;
       const path = resolve(dir, entry.name);
-      if (entry.isDirectory()) { visit(path, rel); continue; }
+      if (entry.isDirectory()) { visit(path, rel, depth+1); continue; }
       if (!/\.(csv|json|md|txt)$/i.test(entry.name)) continue;
       try {
-        const text = readFileSync(path, "utf8");
+        if(!underAllowedRoot(path)||statSync(path).size>8_000_000)continue;
+        const text = rootAuthority.read(path, "utf8");totalBytes+=Buffer.byteLength(text);
+        if(totalBytes>32*1024*1024)break;
         if (text.length <= 8_000_000) files[rel.replace(/\\/g, "/")] = text;
       } catch { /* skip */ }
     }
@@ -627,7 +608,7 @@ function putThumbCache(id, dataUrl) {
   const ext = match[1].includes("png") ? ".png" : match[1].includes("webp") ? ".webp" : match[1].includes("gif") ? ".gif" : ".jpg";
   const target = resolve(root, `${key}${ext}`);
   if (!target.startsWith(root + sep)) return { ok: false, error: "Path rejected." };
-  writeFileSync(target, Buffer.from(match[2], "base64"));
+  rootAuthority.write(target, Buffer.from(match[2], "base64"));
   return { ok: true, path: target, id: key };
 }
 
@@ -641,7 +622,7 @@ function getThumbCache(id) {
     if (!existsSync(target)) continue;
     if (!underAllowedRoot(target)) continue;
     try {
-      const bytes = readFileSync(target);
+      const bytes = rootAuthority.read(target);
       if (bytes.length > 2_000_000) continue;
       const mime = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : ext === ".gif" ? "image/gif" : "image/jpeg";
       return { ok: true, id: key, dataUrl: `data:${mime};base64,${bytes.toString("base64")}` };
@@ -658,15 +639,18 @@ async function cacheRemoteThumb(id, url) {
   if (!key) return { ok: false, error: "Missing thumb id." };
   if (typeof url !== "string" || !/^https:\/\//i.test(url)) return { ok: false, error: "HTTPS image URL required." };
   if (url.length > 2_000) return { ok: false, error: "URL too long." };
+  const access=rootAuthority.lease(root);
   try {
     const response = await fetch(url, {
-      signal: AbortSignal.timeout(12_000),
+      signal: AbortSignal.any([AbortSignal.timeout(12_000),access.signal]),
       headers: { accept: "image/*,*/*;q=0.8", "user-agent": "RealhubCompanion/10" },
     });
     if (!response.ok) return { ok: false, error: `Upstream HTTP ${response.status}` };
     const mime = String(response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
     if (mime && !mime.startsWith("image/")) return { ok: false, error: "Not an image response." };
-    const buf = Buffer.from(await response.arrayBuffer());
+    const chunks=[];let received=0;const reader=response.body?.getReader();if(!reader)throw Error("No image body.");try{for(;;){const part=await reader.read();access.assert();if(part.done)break;received+=part.value.length;if(received>2_000_000)throw Error("Image size rejected.");chunks.push(part.value);}}finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
+    const buf = Buffer.concat(chunks);
+    access.assert();
     if (buf.length < 32 || buf.length > 2_000_000) return { ok: false, error: "Image size rejected." };
     const ext = mime.includes("png") ? ".png" : mime.includes("webp") ? ".webp" : mime.includes("gif") ? ".gif" : ".jpg";
     const target = resolve(root, `${key}${ext}`);
@@ -675,14 +659,14 @@ async function cacheRemoteThumb(id, url) {
     for (const oldExt of [".jpg", ".jpeg", ".png", ".webp", ".gif"]) {
       const old = resolve(root, `${key}${oldExt}`);
       if (old !== target && existsSync(old)) {
-        try { unlinkSync(old); } catch { /* ignore */ }
+        try { access.assert(old); unlinkSync(old); } catch { /* ignore */ }
       }
     }
-    writeFileSync(target, buf);
+    rootAuthority.write(target, buf);
     return { ok: true, path: target, id: key, bytes: buf.length };
   } catch (error) {
     return { ok: false, error: error?.message || "Thumb fetch failed." };
-  }
+  } finally {access.release();}
 }
 
 function readPrintFile(rawPath) {
@@ -693,7 +677,7 @@ function readPrintFile(rawPath) {
   let size = 0;
   try { size = statSync(path).size; } catch { return { ok: false, error: "Unreadable file." }; }
   if (size <= 0 || size > 48 * 1024 * 1024) return { ok: false, error: "Print file too large (48MB cap)." };
-  const bytes = readFileSync(path);
+  const bytes = rootAuthority.read(path);
   return {
     ok: true,
     name: basename(path),
@@ -727,7 +711,7 @@ function savePrintFile(rawName, dataBase64, rawDir) {
   const buf = Buffer.from(dataBase64, "base64");
   if (buf.length > 48 * 1024 * 1024) return { ok: false, error: "Print file too large." };
   mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, buf);
+  createNewPrintFile(rootAuthority,target,buf);
   return { ok: true, path: target, name, size: buf.length };
 }
 
@@ -787,13 +771,22 @@ function rememberJob(job) {
   }
 }
 
-const downloads = createDownloadManager({ root: downloadRoot, approveRoot: underAllowedRoot, onSettled: rememberJob });
-for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, async () => { studioModels.shutdown(); downloads.shutdown(); server.close(); await Promise.race([creativeTools.shutdown(),new Promise(resolve=>setTimeout(resolve,5500))]); process.exit(0); });
+const printTransactions=createPrintTransactions({authority:rootAuthority,receiptFile:join(companionDir,'.local-print-transactions.json'),defaultDirectory:()=>resolvePrintsRoot(false)});
+let downloads = createDownloadManager({ root: downloadRoot, approveRoot: underAllowedRoot, rootAuthority, authorizeSession:()=>permissions.acquire('provider-session'), onSettled: rememberJob });
+rootAuthority.subscribe(()=>{if(!downloadRoot){const candidate=resolveDownloadRoot(false);if(candidate){downloadRoot=candidate;downloads=createDownloadManager({root:downloadRoot,approveRoot:underAllowedRoot,rootAuthority,authorizeSession:()=>permissions.acquire('provider-session'),onSettled:rememberJob});}}});
+let stoppingDesktop = false;
+async function shutdownDesktop() {
+ if (stoppingDesktop) return;
+ stoppingDesktop = true;
+ permissions.close(); studioModels.shutdown(); downloads.shutdown(); launchManager.shutdown(); printTransactions.shutdown(); rootAuthority.close(); server.close();
+ await Promise.race([creativeTools.shutdown(),new Promise(resolve=>setTimeout(resolve,5500))]); process.exit(0);
+}
+for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, shutdownDesktop);
 function youtubeDownloadState() {
   const folderReady = Boolean(downloadRoot && underAllowedRoot(downloadRoot));
   return { ok: true, configured: Boolean((ytDlpVersion || youtubeDlVersion) && folderReady),
     engine: ytDlpVersion ? 'yt-dlp' : 'youtube-dl', version: ytDlpVersion || youtubeDlVersion,
-    browserAuth: Boolean(ytDlpVersion && folderReady), localPlayback: true,
+    browserAuth: Boolean(ytDlpVersion && folderReady), localPlayback: true, taskRecovery:true, diskPreflight:true, downloadBudget:downloads.budget(), recovery:downloads.recovery(),
     path: downloadRoot, jobs: downloads.list().filter(job => job.source === 'youtube'),
     needs: [!ytDlpVersion && 'Run Setup-YouTube-Downloads.cmd and restart Companion to enable yt-dlp browser sign-in.', !downloadRoot && 'Choose an approved download folder in Companion.'].filter(Boolean) };
 }
@@ -801,45 +794,73 @@ function youtubeDownloadState() {
 const server = createServer(async (req, res) => {
   if (req.method === "OPTIONS") { cors(req, res); res.writeHead(204); res.end(); return; }
   if (!cors(req, res)) { reply(res, 403, { ok: false, error: "Untrusted origin" }); return; }
+  try {
+  const localBodyLimit=req.url==='/prints/save'?72*1024*1024:req.url==='/library-pack/export'?32*1024*1024:4*1024*1024;
+  const requestGeneration=rootAuthority.generation();
+  const permissionRevision=permissions.snapshot().revision;
+  const ensureRequestAccess=()=>rootAuthority.assertGeneration(requestGeneration);
+  const platformIssue=platformActionIssue(req.url||'',process.platform);if(platformIssue){reply(res,501,{ok:false,error:platformIssue,code:'UNSUPPORTED_PLATFORM'});return;}
+  if (req.method === 'GET' && req.url==='/permissions') { reply(res,200,{ok:true,...permissions.snapshot()});return; }
+  if(req.method==='POST'&&req.url==='/permissions/change'){let text='';for await(const chunk of req){text+=chunk;if(text.length>2048)throw Error('Permission request too large.');}const body=JSON.parse(text);reply(res,200,{ok:true,...permissions.change(body.scope,body.revision,body.allowed)});return;}
   if (req.method === 'POST' && req.url?.startsWith('/studio/models/upload?')) { await studioModels.upload(req, res); return; }
   if (req.url?.startsWith('/studio/') || req.url?.startsWith('/remote/')) {
     try {
       let text = ''; if (req.method === 'POST') req.setEncoding('utf8'); if (req.method === 'POST') for await (const chunk of req) { text += chunk; if (text.length > 12000) throw new Error('Request too large.'); }
+      if(req.url==='/studio/models/install'||/^\/studio\/models\/transfers\/.+\/(resume|fresh)$/.test(req.url??''))permissions.assertRevision(permissionRevision);
       const result = await creativeTools(req.url, req.method, text ? JSON.parse(text) : {}, req.headers.origin);
       reply(res, result ? 200 : 404, result || { ok: false, error: 'Action not found.' });
     } catch (cause) { reply(res, 400, { ok: false, error: cause.message || 'Local service failed.' }); }
     return;
   }
   if (req.method === "GET" && req.url === "/health") {
-    reply(res, 200, { ok: true, service: "reelcase-companion", version: 12, roots: allowedRoots.length, desktopEnabled: desktopRoots.some((root) => { try { return allowedRoots.includes(realpathSync(root)); } catch { return false; } }), youtubeDl: Boolean(youtubeDlVersion), ytDlp: Boolean(ytDlpBinary), downloadRoot: downloadRoot || null, libraryPackRoot: resolveLibraryPackRoot(), thumbCacheRoot: resolveThumbCacheRoot(), printsRoot: resolvePrintsRoot(), trayBadge, capabilities: ["studio-models", "qwen-image-2.1", "launch", "shortcut-catalog", "shortcut-icons", "file-health", "batch-verify", "folder-watch", "watch-status", "cache-status", "cache-warmup", "media-inspection", "roku-ssdp-discovery", "offline-save", "youtube-downloads", "steam-epic-catalog", "library-pack-disk", "thumb-disk-cache", "thumb-cache-url", "prints-bridge", "tray-autostart", "job-badge"] });
+    const rootState=rootAuthority.snapshot();
+    reply(res, 200, { ok: true, service: "reelcase-companion", version: 19, permissions:permissions.snapshot(), platform:platformContract(process.platform),protocol:{major:1,minor:0}, inspection:{schema:1,configurationRef:createHash('sha256').update(JSON.stringify({roots:allowedRoots,downloads:downloadRoot,artwork:process.env.REELCASE_THUMB_CACHE_DIR||null,prints:process.env.REELCASE_PRINTS_DIR||null,libraryPack:process.env.REELCASE_LIBRARY_PACK_DIR||null})).digest('hex'),tools:{ytDlp:ytDlpVersion,youtubeDl:youtubeDlVersion},destinations:{downloads:Boolean(downloadRoot&&underAllowedRoot(downloadRoot)),artwork:Boolean(resolveThumbCacheRoot(false)),prints:Boolean(resolvePrintsRoot(false)),libraryPack:Boolean(resolveLibraryPackRoot(false))}}, roots: allowedRoots.length, desktopEnabled: desktopRoots.some((root) => { try { return allowedRoots.includes(realpathSync(root)); } catch { return false; } }), youtubeDl: Boolean(youtubeDlVersion), ytDlp: Boolean(ytDlpBinary), downloadRoot: downloadRoot || null, libraryPackRoot: resolveLibraryPackRoot(false), thumbCacheRoot: resolveThumbCacheRoot(false), printsRoot: resolvePrintsRoot(false), trayBadge, rootAccess:{generation:rootState.generation,active:rootState.active}, capabilities: supportedCapabilities(["model-transfer-recovery", "remote-launch-safeguards", "capability-consent", "print-save-transaction", "platform-contract", "tray-notifications", "download-preflight", "launch-receipts", "root-access", "task-receipts", "artwork-audit", "studio-models", "qwen-image-2.1", "launch", "shortcut-catalog", "shortcut-icons", "file-health", "batch-verify", "folder-watch", "watch-status", "cache-status", "cache-warmup", "media-inspection", "roku-ssdp-discovery", "offline-save", "youtube-downloads", "steam-epic-catalog", "library-pack-disk", "thumb-disk-cache", "thumb-cache-url", "prints-bridge", "tray-autostart", "job-badge"],process.platform) });
     return;
+  }
+  if(req.method==='GET'&&req.url==='/prints/save-folders'){reply(res,200,{ok:true,folders:printTransactions.folders()});return;}
+  if(req.method==='POST'&&req.url==='/prints/transactions/review'){let text='';for await(const chunk of req){text+=chunk;if(text.length>8192)throw Error('Print review is too large.');}ensureRequestAccess();reply(res,200,{ok:true,receipt:printTransactions.prepare(JSON.parse(text))});return;}
+  const printAction=req.url?.match(/^\/prints\/transactions\/([a-f0-9-]{36})(?:\/(commit|cancel))?$/);
+  if(printAction){const [,id,action]=printAction;if(req.method==='GET'&&!action){reply(res,200,{ok:true,receipt:await printTransactions.status(id)});return;}if(req.method==='POST'&&action==='commit'){ensureRequestAccess();const receipt=await printTransactions.commit(id,req);reply(res,200,{ok:true,receipt});return;}if(req.method==='POST'&&action==='cancel'){ensureRequestAccess();reply(res,200,{ok:true,receipt:printTransactions.cancel(id)});return;}reply(res,405,{ok:false,error:'Unsupported print save action.'});return;}
+  if (req.method === 'GET' && req.url === '/tasks') { reply(res,200,{ok:true,jobs:downloads.list(),recovery:downloads.recovery()});return; }
+  if (req.method === 'POST' && /^\/tasks\/[\w-]+\/(cancel|resume)$/.test(req.url??'')) {
+    try { const [, , id, action]=req.url.split('/');const saved=downloads.list().find(job=>job.id===id);if(!saved)throw Error('Job receipt not found.');
+      if(action==='cancel'){reply(res,200,{ok:true,job:downloads.cancel(id)});return;}
+      const binary=saved.source==='youtube'?(ytDlpVersion?ytDlpBinary:youtubeDlBinary):ytDlpBinary;if(!binary)throw Error('Configure the appropriate downloader before resuming.');
+      reply(res,200,{ok:true,job:downloads.resume(id,{binary,engine:saved.source==='youtube'&&!ytDlpVersion?'youtube-dl':'yt-dlp',browser:'none'})});
+    }catch(error){reply(res,400,{ok:false,error:error.message||'Job recovery failed.'});}return;
   }
   if (req.method === 'GET' && req.url === '/youtube/downloads') { reply(res, 200, youtubeDownloadState()); return; }
   if ((req.method === 'GET' || req.method === 'HEAD') && /^\/youtube\/downloads\/[\w-]+\/media$/.test(req.url ?? '')) {
-    serveDownloadMedia(req, res, downloads.media(req.url.split('/')[3])); return;
+    serveDownloadMedia(req, res, downloads.media(req.url.split('/')[3]),{authority:rootAuthority}); return;
   }
   if (req.method === 'POST' && req.url?.startsWith('/youtube/downloads')) {
     try {
       const cancel = req.url.match(/^\/youtube\/downloads\/([\w-]+)\/cancel$/);
+      const resume = req.url.match(/^\/youtube\/downloads\/([\w-]+)\/resume$/);
       if (cancel) { reply(res, 200, { ok: true, job: downloads.cancel(cancel[1]) }); return; }
-      if (req.url !== '/youtube/downloads') { reply(res, 404, { ok: false, error: 'Download action not found.' }); return; }
+      if (req.url !== '/youtube/downloads' && !resume) { reply(res, 404, { ok: false, error: 'Download action not found.' }); return; }
       let textBody = '';
       for await (const chunk of req) { textBody += chunk; if (textBody.length > 8192) { reply(res, 413, { ok: false, error: 'Download request is too large.' }); return; } }
-      const body = JSON.parse(textBody), url = youtubeWatchUrl(body.videoId);
-      const browser = youtubeBrowserAuth(body), state = youtubeDownloadState();
+      ensureRequestAccess();const body = JSON.parse(textBody), url = youtubeWatchUrl(body.videoId);
+      const browser = youtubeBrowserAuth(body), state = youtubeDownloadState();if(browser!=='none')permissions.assertRevision(permissionRevision);
       if (!state.configured || browser !== 'none' && !state.browserAuth) { reply(res, 503, { ...state, ok: false, error: browser !== 'none' ? 'Browser sign-in needs yt-dlp and an approved download folder. Run Setup-YouTube-Downloads.cmd, then restart Companion.' : 'A YouTube downloader is not configured on this computer.' }); return; }
-      const job = downloads.enqueue({ key: body.videoId, url, title: body.title,
-        binary: ytDlpVersion ? ytDlpBinary : youtubeDlBinary, engine: state.engine, browser });
+      if(resume){const saved=downloads.list().find(job=>job.id===resume[1]&&job.source==='youtube'&&job.key===body.videoId);if(!saved)throw Error('Download receipt does not match this video.');reply(res,202,{ok:true,job:downloads.resume(resume[1],{binary:ytDlpVersion?ytDlpBinary:youtubeDlBinary,engine:state.engine,browser})});return;}
+      const job = downloads.enqueue({ key: body.videoId, url, title: body.title, forceNew:body.forceNew===true,
+        binary: ytDlpVersion ? ytDlpBinary : youtubeDlBinary, engine: state.engine, browser, estimatedBytes:body.estimatedBytes });
       reply(res, 202, { ok: true, job });
     } catch (error) { reply(res, 400, { ok: false, error: error.message || 'Invalid download request.' }); }
     return;
   }
+  if(req.method==='GET'&&req.url==='/roots/status'){reply(res,200,{ok:true,...rootAuthority.snapshot()});return;}
+  if(req.method==='POST'&&req.url==='/roots/change'){let text='';for await(const chunk of req){text+=chunk;if(text.length>4096)throw Error('Request too large.');}const body=JSON.parse(text);const snapshot=rootAuthority.change(body.id,body.revision,body.enabled);reply(res,200,{ok:true,...snapshot});return;}
   if (req.method === "GET" && req.url === "/source-health") {
+    rootAuthority.snapshot();
     reply(res, 200, { ok: true, roots: allowedRoots.map((path) => ({ path, available: existsSync(path) })), recentChanges: changes });
     return;
   }
   if (req.method === "GET" && req.url === "/watch-status") {
-    reply(res, 200, { ok: true, watching: allowedRoots.map((path) => ({ path, active: existsSync(path) })), recentChanges: changes.slice(0, 30) });
+    rootAuthority.snapshot();
+    reply(res, 200, { ok: true, watching: allowedRoots.map((path) => ({ path, active: rootWatchers.has(path) && Boolean(underAllowedRoot(path)) })), recentChanges: changes.slice(0, 30) });
     return;
   }
   if (req.method === "GET" && req.url === "/cache-status") {
@@ -851,25 +872,26 @@ const server = createServer(async (req, res) => {
     reply(res, 202, { ok: true, worker: cacheWorker, note: "A bounded metadata and thumbnail-hint pass has started. Media bytes remain local." });
     return;
   }
-  if (req.method === "GET" && req.url === "/launch-history") {
-    reply(res, 200, { ok: true, launches });
+  if (req.method === "GET" && (req.url === "/launch-history" || req.url==="/launch-receipts")) {
+    reply(res, 200, { ok: true, ...launchManager.history(), launches:launchManager.history().receipts });
     return;
   }
   if (req.method === "GET" && req.url?.startsWith("/shortcut-icon")) {
     const rawPath = new URL(req.url, "http://127.0.0.1").searchParams.get("path") ?? "";
-    const result = resolveShortcutIcon(rawPath);
+    const result = await resolveShortcutIcon(rawPath);
     reply(res, result.ok ? 200 : 400, result);
     return;
   }
   if (req.method === "POST" && req.url === "/shortcut-icons") {
     let textBody = "";
-    for await (const chunk of req) textBody += chunk;
+    for await (const chunk of req) {textBody += chunk;if(textBody.length>localBodyLimit){reply(res,413,{ok:false,error:"Request exceeds the local transfer budget."});return;}}
+    ensureRequestAccess();
     let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
     const paths = Array.isArray(body.paths) ? body.paths.slice(0, 40) : [];
-    const icons = paths.map((rawPath) => {
-      const result = resolveShortcutIcon(String(rawPath ?? ""));
-      return { path: String(rawPath ?? ""), ok: Boolean(result.ok), iconData: result.iconData ?? null, note: result.note, error: result.error };
-    });
+    const icons=[];for(const rawPath of paths){
+      const result = await resolveShortcutIcon(String(rawPath ?? ""));
+      icons.push({ path: String(rawPath ?? ""), ok: Boolean(result.ok), iconData: result.iconData ?? null, note: result.note, error: result.error });
+    }
     reply(res, 200, { ok: true, icons });
     return;
   }
@@ -887,15 +909,17 @@ const server = createServer(async (req, res) => {
   }
   if (req.method === "POST" && req.url === "/validate-shortcuts") {
     let text = "";
-    for await (const chunk of req) text += chunk;
-    let body; try { body = JSON.parse(text); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
+    for await (const chunk of req) {text += chunk;if(text.length>localBodyLimit){reply(res,413,{ok:false,error:"Request exceeds the local transfer budget."});return;}}
+    ensureRequestAccess();
+    ensureRequestAccess();let body; try { body = JSON.parse(text); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
     const paths = Array.isArray(body.paths) ? body.paths.slice(0, 100) : [];
     reply(res, 200, { ok: true, shortcuts: paths.map((rawPath) => ({ requested: String(rawPath ?? ""), approved: Boolean(allowedFile(rawPath)) })) });
     return;
   }
   if (req.method === "POST" && req.url === "/verify") {
     let text = "";
-    for await (const chunk of req) text += chunk;
+    for await (const chunk of req) {text += chunk;if(text.length>localBodyLimit){reply(res,413,{ok:false,error:"Request exceeds the local transfer budget."});return;}}
+    ensureRequestAccess();
     let body; try { body = JSON.parse(text); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
     const paths = Array.isArray(body.paths) ? body.paths.slice(0, 100) : [];
     const entries = paths.map((rawPath) => {
@@ -907,7 +931,8 @@ const server = createServer(async (req, res) => {
   }
   if (req.method === "POST" && req.url === "/inspect-media") {
     let text = "";
-    for await (const chunk of req) text += chunk;
+    for await (const chunk of req) {text += chunk;if(text.length>localBodyLimit){reply(res,413,{ok:false,error:"Request exceeds the local transfer budget."});return;}}
+    ensureRequestAccess();
     let body; try { body = JSON.parse(text); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
     const paths = Array.isArray(body.paths) ? body.paths.slice(0, 12) : [];
     const entries = await Promise.all(paths.map(inspectMedia));
@@ -920,25 +945,17 @@ const server = createServer(async (req, res) => {
   }
   if (req.method === "POST" && req.url === "/launch") {
     let text = "";
-    for await (const chunk of req) text += chunk;
+    for await (const chunk of req) {text += chunk;if(text.length>localBodyLimit){reply(res,413,{ok:false,error:"Request exceeds the local transfer budget."});return;}}
+    ensureRequestAccess();
     let body; try { body = JSON.parse(text); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
-    const file = allowedFile(body.path);
-    if (!file) { reply(res, 400, { ok: false, error: "File is missing, unsupported, or outside an allowed root" }); return; }
-    try {
-      // Windows does not consistently execute .lnk and .url targets through a
-      // direct child-process spawn. `start` delegates to the registered shell
-      // handler while allowedFile has already constrained the exact path.
-      const child = process.platform === "win32"
-        ? spawn("cmd.exe", ["/d", "/s", "/c", "start", "", file], { detached: true, stdio: "ignore", windowsHide: true })
-        : spawn(file, [], { detached: true, stdio: "ignore" });
-      child.unref(); launches.unshift({ path: file, at: Date.now() }); launches.splice(50); reply(res, 200, { ok: true, path: file });
-    }
-    catch { reply(res, 500, { ok: false, error: "The launcher could not be started" }); }
+    try {const receipt=await launchManager.launch(body.path);reply(res,receipt.status==='failed'?400:200,{ok:receipt.status==='accepted',receipt,error:receipt.status==='accepted'?undefined:receipt.detail});}
+    catch(error){reply(res,400,{ok:false,error:error.message});}
     return;
   }
   if (req.method === "POST" && req.url === "/offline/save") {
     let text = "";
-    for await (const chunk of req) text += chunk;
+    for await (const chunk of req) {text += chunk;if(text.length>localBodyLimit){reply(res,413,{ok:false,error:"Request exceeds the local transfer budget."});return;}}
+    ensureRequestAccess();
     let body; try { body = JSON.parse(text); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
     const url = typeof body.url === "string" ? body.url.trim() : "";
     if (!/^https:\/\//i.test(url)) { reply(res, 400, { ok: false, error: "A https embed/watch URL is required" }); return; }
@@ -962,7 +979,7 @@ const server = createServer(async (req, res) => {
       return;
     }
     try {
-      const job = downloads.enqueue({ key: randomUUID(), url, title: 'Offline video', binary, source: 'offline', engine: 'yt-dlp' });
+      const job = downloads.enqueue({ key: createHash('sha256').update(url).digest('hex').slice(0,64), url, title: 'Offline video', binary, source: 'offline', engine: 'yt-dlp' });
       rememberJob(job);
       reply(res, 202, {
         ok: true,
@@ -990,7 +1007,8 @@ const server = createServer(async (req, res) => {
   }
   if (req.method === "POST" && req.url === "/library-pack/export") {
     let textBody = "";
-    for await (const chunk of req) textBody += chunk;
+    for await (const chunk of req) {textBody += chunk;if(textBody.length>localBodyLimit){reply(res,413,{ok:false,error:"Request exceeds the local transfer budget."});return;}}
+    ensureRequestAccess();
     let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
     const result = writeLibraryPackFiles(body.files);
     reply(res, result.ok ? 200 : 400, result);
@@ -1002,14 +1020,16 @@ const server = createServer(async (req, res) => {
   }
   if (req.method === "POST" && req.url === "/thumbs/put") {
     let textBody = "";
-    for await (const chunk of req) textBody += chunk;
+    for await (const chunk of req) {textBody += chunk;if(textBody.length>localBodyLimit){reply(res,413,{ok:false,error:"Request exceeds the local transfer budget."});return;}}
+    ensureRequestAccess();
     let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
     reply(res, 200, putThumbCache(body.id, body.dataUrl));
     return;
   }
   if (req.method === "POST" && req.url === "/thumbs/cache-url") {
     let textBody = "";
-    for await (const chunk of req) textBody += chunk;
+    for await (const chunk of req) {textBody += chunk;if(textBody.length>localBodyLimit){reply(res,413,{ok:false,error:"Request exceeds the local transfer budget."});return;}}
+    ensureRequestAccess();
     let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
     reply(res, 200, await cacheRemoteThumb(body.id, body.url));
     return;
@@ -1017,7 +1037,7 @@ const server = createServer(async (req, res) => {
   if (req.method === "GET" && req.url === "/thumbs/audit") {
     const root = resolveThumbCacheRoot();
     if (!root) { reply(res, 200, { ok: false, error: "No approved thumb cache folder." }); return; }
-    try { reply(res, 200, await artworkAudit.scan(root)); }
+    try { reply(res, 200, await artworkAudit.scan(root,{authority:rootAuthority})); }
     catch { reply(res, 200, { ok: false, error: "Artwork cache could not be inspected." }); }
     return;
   }
@@ -1043,7 +1063,8 @@ const server = createServer(async (req, res) => {
   }
   if (req.method === "POST" && req.url === "/prints/save") {
     let textBody = "";
-    for await (const chunk of req) textBody += chunk;
+    for await (const chunk of req) {textBody += chunk;if(textBody.length>localBodyLimit){reply(res,413,{ok:false,error:"Request exceeds the local transfer budget."});return;}}
+    ensureRequestAccess();
     let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
     const result = savePrintFile(body.name, body.dataBase64, body.dir);
     reply(res, result.ok ? 200 : 400, result);
@@ -1060,20 +1081,23 @@ const server = createServer(async (req, res) => {
   }
   if (req.method === "POST" && req.url === "/tray/autostart") {
     let textBody = "";
-    for await (const chunk of req) textBody += chunk;
+    for await (const chunk of req) {textBody += chunk;if(textBody.length>localBodyLimit){reply(res,413,{ok:false,error:"Request exceeds the local transfer budget."});return;}}
+    ensureRequestAccess();
     let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
     reply(res, 200, setAutostart(Boolean(body.enabled)));
     return;
   }
   if (req.method === "POST" && req.url === "/tray/notify") {
     let textBody = "";
-    for await (const chunk of req) textBody += chunk;
+    for await (const chunk of req) {textBody += chunk;if(textBody.length>localBodyLimit){reply(res,413,{ok:false,error:"Request exceeds the local transfer budget."});return;}}
+    ensureRequestAccess();
     let body; try { body = JSON.parse(textBody); } catch { reply(res, 400, { ok: false, error: "Invalid request" }); return; }
     const sent = notifyTray(body.title, body.body);
     reply(res, 200, { ok: sent, platform: process.platform });
     return;
   }
   reply(res, 404, { ok: false, error: "Not found" });
+  } catch(error) {if(!res.headersSent)reply(res,error?.code==='ROOT_ACCESS_DENIED'?403:error?.code==='ROOT_POLICY_SAVE'?503:400,{ok:false,error:['ROOT_ACCESS_DENIED','ROOT_POLICY_SAVE'].includes(error?.code)?error.message:'Local operation failed. Check folder access and retry.'});else res.destroy();}
 });
 server.on("error", async (error) => {
   if (error?.code === "EADDRINUSE") {
@@ -1096,4 +1120,7 @@ server.on("error", async (error) => {
   console.error("Realhub Companion could not start:", error?.message || error);
   process.exit(1);
 });
-server.listen(port, "127.0.0.1", () => console.log(`Realhub Companion listening on http://127.0.0.1:${port}`));
+server.listen(port, "127.0.0.1", () => {
+ console.log(`Realhub Companion listening on http://127.0.0.1:${port}`);
+ if(process.platform==='win32' && port===43123) void serveDesktopControl({root:resolve(companionDir,'..'),stop:shutdownDesktop}).catch(error=>console.error('Desktop stop control unavailable:',error.message));
+});

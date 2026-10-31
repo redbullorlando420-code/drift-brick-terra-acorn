@@ -1,3 +1,6 @@
+import { reconcilePlaylistWalks } from './youtube-playlist-walk';
+import { youtubeEventNotices } from './youtube-events';
+import { videoIsPrivate } from './public-visibility.ts';
 import {retainAdultRefreshEvidence} from '../remote/adult-quality.ts';
 import { prepareYoutubeTagReview,type YoutubeReviewBase } from './youtube-tag-review';
 import { hydrateTopicAliases } from '../topic-alias-store';
@@ -78,6 +81,7 @@ import { patchActivityRecord, recoverActivityCounts, recoverResumeRecords } from
 import { createDeferredEvents } from '../deferred-events';
 import { enrichmentCursor, metadataEnrichmentStep, type MetadataTailResult } from './metadata-enrichment';
 import { youtubeVideoKey } from "../remote/youtube-sources";
+import { catalogIdentityKeys, catalogIdentityKey, lookupCatalogIdentity } from "./catalog-identity.ts";
 import { youtubeCoverageCounts, youtubeCoverageIndexAsync } from '../remote/youtube-coverage';
 import { measureInteraction, scheduleBackgroundWork } from "@/lib/interaction-budget";
 import { exportFeedback, hydrateDurableFeedback, getFeedbackRevision, warmLegacyRatings, verifyCleanupFeedback } from "@/lib/media-feedback";
@@ -89,6 +93,7 @@ import {
   loadActivityJournal,
   loadActivitySnapshot,
   loadRemoteSnapshot,
+  withCatalogRead,
   removeRemoteSnapshotVideos,
   saveRemoteSnapshot,
   saveYoutubeCleanup,
@@ -114,9 +119,13 @@ import {
   saveDurableShelves,
   saveSavedShelfEdit,
   saveDurableLinks,
-  saveTagEdit,
+  saveCatalogMetadataEdit,
+  restoreCatalogMetadata,
+  recoverCatalogMutations,
+  waitForDurableWrites,
+  waitForPrefsWrites,
+  waitForFollowsWrites,
   restoreTagEdits,
-  saveMetadataEdit,
   restoreMetadataEdits,
   saveEnrichmentRows,
   saveCreatorCoverageRows,
@@ -321,7 +330,7 @@ export type LibraryState = {
   repairArtworkSource: (folderId: string) => Promise<boolean>;
   refreshSourcePhotos: (folderId: string) => Promise<number>;
   removeFolder: (folderId: string) => Promise<void>;
-  followRemoteQuery: (query: string, kind?: "auto" | "youtube" | "twitch", opts?: { freshTwitchClips?: boolean; clipLimit?: number; twitchVodLimit?: number; twitchClipMode?: "recent" | "archive"; correctFollowId?: string }) => Promise<void>;
+  followRemoteQuery: (query: string, kind?: "auto" | "youtube" | "twitch", opts?: { restartPlaylist?: boolean; freshTwitchClips?: boolean; clipLimit?: number; twitchVodLimit?: number; twitchClipMode?: "recent" | "archive"; correctFollowId?: string }) => Promise<void>;
   importBatch: (
     items: { query: string; kind: "youtube" | "twitch" }[],
   ) => Promise<{ ok: number; failed: number; failedQueries: string[]; failedReasons: Record<string, string> }>;
@@ -331,7 +340,7 @@ export type LibraryState = {
   setTwitchPullPolicy: (id: string, policy: TwitchPullPolicy) => void;
   updateFollowProfiles: (profiles: Array<{ id: string; thumb?: string; description?: string }>) => void;
   retainLiveRoom: (video: LibraryVideo) => Promise<boolean>;
-  refreshFollows: (kind?: "twitch" | "youtube", options?: { catalog?: boolean; force?: boolean; scheduled?: boolean; youtubeLiveOnly?: boolean; twitchLiveOnly?: boolean; liveSweep?: boolean; liveDemand?: boolean; twitchRoutine?: boolean; twitchContinueArchive?: boolean; channelIds?: string[] }) => Promise<RefreshFollowsResult>;
+  refreshFollows: (kind?: "twitch" | "youtube", options?: { youtubeFeedRepair?: boolean; catalog?: boolean; force?: boolean; scheduled?: boolean; youtubeLiveOnly?: boolean; twitchLiveOnly?: boolean; liveSweep?: boolean; liveDemand?: boolean; twitchRoutine?: boolean; twitchContinueArchive?: boolean; channelIds?: string[] }) => Promise<RefreshFollowsResult>;
   pushNotice: (n: Omit<AppNotice, "id" | "at" | "read">) => void;
   markNoticesRead: () => void;
   setNotifyPush: (on: boolean) => void;
@@ -339,8 +348,14 @@ export type LibraryState = {
 };
 
 let preferencesRestored = false;
+let restoreCompletion:Promise<void>|undefined;
+let personalRestoreCompletion:Promise<void>=Promise.resolve();
 let savedShelfRevision = 0;
 const durableSliceWriter = new SliceWriter();
+function journalManualMetadata(id:string,field:"tags"|"category",get:()=>LibraryState,set:(patch:Partial<LibraryState>)=>void){
+  const state=get(),saved=saveCatalogMetadataEdit({id,field,tags:state.tags[id]??[],provenance:state.metadataProvenance[id]??{tags:{}},category:state.categories[id]});
+  if(saved?.provenance)set({metadataProvenance:patchSparseRecord(state.metadataProvenance,[[id,saved.provenance]])});
+}
 function persistNow(get: () => LibraryState) {
   if (!preferencesRestored) return;
   const s = get();
@@ -534,9 +549,85 @@ function mergeVideos(existing: LibraryVideo[], incoming: LibraryVideo[]) {
     const video = existing[index];
     positions.set(video.id, index);
     const key = youtubeVideoKey(video);
-    if (key && !positions.has(key)) positions.set(key, index);
+    for(const alias of catalogIdentityKeys(video)) if(!positions.has(alias)) positions.set(alias,index);
   }
   return mergeRemoteCatalog(existing, incoming.map(catalogCard), positions, []);
+}
+
+function youtubeGoLiveAlerts() {
+  try {
+    return (
+      JSON.parse(localStorage.getItem("reelcase.settings.v2") ?? "{}")[
+        "alerts-go-live-alerts"
+      ] === true
+    );
+  } catch {
+    return false;
+  }
+}
+async function reconcilePlaylistCommit(
+  get: () => LibraryState,
+  set: (patch: Partial<LibraryState>) => void,
+  channels: FollowedChannel[],
+) {
+  if (
+    !channels.some(
+      (c) =>
+        c.playlistWalk?.completed &&
+        c.playlistWalk.membership === "provisional",
+    )
+  )
+    return;
+  for (;;) {
+    const snapshot = get();
+    const eligible = channels.filter((c) =>
+      snapshot.follows.some(
+        (f) =>
+          f.id === c.id &&
+          f.playlistWalk?.id === c.playlistWalk?.id &&
+          f.playlistWalk?.at === c.playlistWalk?.at,
+      ),
+    );
+    const result = await reconcilePlaylistWalks(snapshot.videos, eligible);
+    if (get().videos !== snapshot.videos || get().folders !== snapshot.folders)
+      continue;
+    const observed = new Map(result.channels.map((c) => [c.id, c]));
+    const folders = snapshot.folders.map((f) =>
+      result.folderDeltas?.has(f.id)
+        ? {
+            ...f,
+            videoCount: Math.max(
+              0,
+              (f.videoCount ?? 0) + (result.folderDeltas.get(f.id) ?? 0),
+            ),
+          }
+        : f,
+    );
+    if (
+      result.folderDeltas?.has("youtube:retained") &&
+      !folders.some((f) => f.id === "youtube:retained")
+    )
+      folders.push({
+        id: "youtube:retained",
+        name: "Retained YouTube videos",
+        kind: "youtube",
+        videoCount: result.folderDeltas.get("youtube:retained") ?? 0,
+      });
+    set({
+      videos: result.videos,
+      folders,
+      follows: get().follows.map((c) => {
+        const next = observed.get(c.id);
+        return next &&
+          next.playlistWalk?.id === c.playlistWalk?.id &&
+          next.playlistWalk?.at === c.playlistWalk?.at
+          ? { ...c, playlistWalk: next.playlistWalk }
+          : c;
+      }),
+    });
+    if (result.changed.length) await cacheRemotes(get, result.changed, true);
+    return;
+  }
 }
 
 async function cacheRemotes(get: () => LibraryState, changedVideos?: LibraryVideo[], alreadyMerged = false) {
@@ -547,11 +638,12 @@ async function cacheRemotes(get: () => LibraryState, changedVideos?: LibraryVide
     // refresh must not erase previously fetched comments or repaired tags.
     videos: changedVideos ? changedVideos.flatMap(video => {
       if (alreadyMerged) return [video];
-      const card = index!.get(video.id) ?? index!.get(youtubeVideoKey(video) ?? video.id);
+      const card = lookupCatalogIdentity(index!,video);
       return card ? [alreadyMerged ? video : withCatalogDetails(card, video)] : [];
     }) : s.videos.filter(video => video.remote && !video.isSample),
     folders: s.folders.filter((f) => f.kind === "youtube" || f.kind === "twitch"),
     checkedAt: s.remoteCheckedAt,
+    metadata: {tags:s.tags,metadataProvenance:s.metadataProvenance},
   }, !changedVideos).catch(() => undefined);
 }
 
@@ -1077,7 +1169,7 @@ function adultIdSet(folders: Folder[]) {
 }
 
 export function isAdultVideo(video: LibraryVideo, folders: Folder[]) {
-  return adultIdSet(folders).has(video.folderId);
+  return videoIsPrivate(adultIdSet(folders),video);
 }
 
 /** A provider can surface the same remote media through more than one route
@@ -1317,7 +1409,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     if(date&&!full.remote?.live&&full.remote?.youtubeType!=='upcoming')updated=withYoutubePublication(updated,metadata.id,date);
     const evidence = youtubeTextTags(updated);
     updated.remote = { ...updated.remote!, youtubeTagSummary: compactYoutubeTagEvidence(evidence) };
-    await saveRemoteSnapshot({ videos: [updated], folders: get().folders.filter(folder => folder.kind === 'youtube' || folder.kind === 'twitch'), checkedAt: get().remoteCheckedAt });
+    const beforeSave=get(),pairedMetadata=enrichRemoteTags(beforeSave.tags,beforeSave.metadataProvenance,[updated]);
+    await saveRemoteSnapshot({ videos: [updated], metadata:pairedMetadata, folders: get().folders.filter(folder => folder.kind === 'youtube' || folder.kind === 'twitch'), checkedAt: get().remoteCheckedAt });
     const state = get(), position = state.videos.findIndex(video => video.id === id);
     if (position < 0) throw new Error('The video was removed while saving its metadata.');
     // Re-evaluate against the latest manual edits after asynchronous disk work.
@@ -1334,7 +1427,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const current=get(),prepared=prepareYoutubeTagReview(lookupVideo(current.videos,id),current.tags[id],current.metadataProvenance[id],base,selected);
     if(!prepared.reviewed)return 0;
     set({tags:patchSparseRecord(current.tags,[[id,prepared.tags]]),metadataProvenance:patchSparseRecord(current.metadataProvenance,[[id,prepared.provenance]])});
-    saveTagEdit(id,prepared.tags);saveMetadataEdit(id,prepared.provenance);persistSoon(get);return prepared.reviewed;
+    journalManualMetadata(id,"tags",get,set);persistSoon(get);return prepared.reviewed;
   },
   setLocalVideoDuration: async (id, duration) => {
     if (!Number.isFinite(duration) || duration <= 0 || duration > 31_536_000) throw new Error('The file did not expose a valid runtime.');
@@ -1361,8 +1454,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         { ...s.metadataProvenance[id], youtubeReviews:undefined, tags: Object.fromEntries(manualTags.map((tag) => [tag, "manual"] as const)), lockedFields: [...new Set([...(s.metadataProvenance[id]?.lockedFields ?? []), "tags"])] as Array<"tags" | "category">, updatedAt: Date.now() }]]),
     }));
     const state = get();
-    saveTagEdit(id, state.tags[id] ?? []);
-    saveMetadataEdit(id, state.metadataProvenance[id] ?? { tags: {}, lockedFields: ["tags"] });
+    journalManualMetadata(id,"tags",get,set);
     // Keep the small per-title journal synchronous for recovery, then defer
     // the broad preference snapshot so rapid tag edits never block input.
     persistSoon(get);
@@ -1385,8 +1477,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const state = get();
     // The person explicitly confirmed this preview, so journal the accepted
     // result alongside the source attribution for crash-safe recovery.
-    saveTagEdit(id, state.tags[id] ?? []);
-    saveMetadataEdit(id, state.metadataProvenance[id] ?? { tags: {} });
+    journalManualMetadata(id,"tags",get,set);
     persistNow(get);
     return added;
   },
@@ -1416,12 +1507,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   })),
   setVideoCategory: (id, category) => {
     set((s) => ({
-      categories: { ...s.categories, [id]: category.trim().slice(0, 40) },
+      categories: patchSparseRecord(s.categories, [[id, category.trim().slice(0, 40)]]),
       metadataProvenance: patchSparseRecord(s.metadataProvenance, [[id, { ...s.metadataProvenance[id], tags: s.metadataProvenance[id]?.tags ?? {}, category: "manual", lockedFields: [...new Set([...(s.metadataProvenance[id]?.lockedFields ?? []), "category"])] as Array<"tags" | "category">, updatedAt: Date.now() }]]),
     }));
     const state = get();
-    saveTagEdit(id, state.tags[id] ?? []);
-    saveMetadataEdit(id, state.metadataProvenance[id] ?? { tags: {}, lockedFields: ["category"] });
+    journalManualMetadata(id,"category",get,set);
     persistNow(get);
   },
   markProgress: (id, t, d) => {
@@ -1941,11 +2031,15 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     flushPersist(get);
     if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
   },
-  restoreFolders: async () => {
-    if (get().hydrated || restoring) return;
-    restoring = true;
+  restoreFolders: () => {
+    if(get().hydrated || restoring)return restoreCompletion??Promise.resolve();
+    restoring=true;
+    restoreCompletion=(async()=>{try{
+
+
     beginStartupPhase('preferences');
     set({ pullHistory: loadPullHistory() });
+    await recoverCatalogMutations().catch(() => undefined);
     await restoreDurablePrefs().catch(() => undefined);
     void hydrateDurableFeedback().catch(() => undefined);
     void hydrateTopicAliases();
@@ -1954,6 +2048,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     Object.assign(prefsState, await restoreEnrichmentRows({ tags: prefsState.tags ?? {}, metadataProvenance: prefsState.metadataProvenance ?? {} }).catch(() => ({ tags: prefsState.tags ?? {}, metadataProvenance: prefsState.metadataProvenance ?? {} })));
     prefsState.tags = restoreTagEdits(prefsState.tags ?? {});
     prefsState.metadataProvenance = restoreMetadataEdits(prefsState.metadataProvenance ?? {});
+    Object.assign(prefsState,await restoreCatalogMetadata({tags:prefsState.tags??{},metadataProvenance:prefsState.metadataProvenance??{},categories:prefsState.categories??{}}).catch(()=>({})));
     // Dedicated store is source of truth; prefs.follows is a legacy mirror for older builds.
     const prefsFollows = Array.isArray(prefsState.follows) ? prefsState.follows : [];
     const migratedFollows = dedupeFollows([...dedicatedFollows, ...prefsFollows]);
@@ -1974,7 +2069,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     // merges after first paint, so a massive tag payload cannot wipe history
     // or block startup recovery.
     const restoringShelfRevision = savedShelfRevision;
-    void Promise.all([
+    personalRestoreCompletion = Promise.all([
       loadActivitySnapshot(),
       loadActivityJournal(),
       restoreDurableHistory(),
@@ -2100,7 +2195,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           const saved = importSessions[kind].saved as unknown;
           if (!Array.isArray(saved) || !saved.length) return;
           const original = saved.filter((value): value is string => typeof value === "string" && Boolean(value.trim()));
-          const repaired = kind === 'youtube' ? repairYoutubeImport(original, importSessions.youtube.draft) : null;
+          const repaired = kind === 'youtube' && !importSessions.youtube.review ? repairYoutubeImport(original, importSessions.youtube.draft) : null;
           const handles = repaired?.queries ?? original;
           if (repaired?.fragments.size) {
             try { localStorage.setItem('reelcase.import-history.youtube', JSON.stringify(handles)); } catch { /* A full mirror must not block durable follow recovery. */ }
@@ -2119,6 +2214,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           // Startup recovery must never monopolize the first screen when a user
           // has hundreds of subscriptions. The complete saved list stays intact;
           // each refresh resumes a bounded, provider-friendly batch.
+          // Reviewed drafts contain held/excluded identities. Only a new explicit
+          // review action may resume those batches; legacy recovery stays intact.
+          if (importSessions[kind].review) return [];
           const failures = new Map(get().follows.filter(channel => channel.kind === kind && channel.lastProviderFailure).map(channel => [canonicalFollowHandle(kind, channel.importQuery ?? channel.handle), channel.lastProviderFailure!]));
           return pendingHandles.filter(query => {
             const failure = failures.get(canonicalFollowHandle(kind, query));
@@ -2294,6 +2392,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         }));
       }
     }
+
+    }finally{await personalRestoreCompletion;}
+    })();
+    return restoreCompletion;
   },
   restoreOne: async (folderId) => {
     const handle = getDirHandle(folderId);
@@ -2452,7 +2554,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         if (retryAt > Date.now()) throw new Error("Clip retry available after " + new Date(retryAt).toLocaleString());
       }
       requested = true;
-      const fetched = await followRemote({ data: { query, kind, ...(opts?.freshTwitchClips ? {freshTwitchClips:true} : {}), ...(opts?.twitchClipMode ? { twitchClipMode: opts.twitchClipMode } : {}), ...(opts?.clipLimit !== undefined ? { clipLimit: opts.clipLimit } : {}), ...(opts?.twitchVodLimit ? { twitchVodLimit: opts.twitchVodLimit } : {}), ...(knownYoutube && knownYoutube.catalogCursor ? { catalogCursor: knownYoutube.catalogCursor } : {}), ...(knownTwitch?.twitchArchiveCursor ? { twitchArchiveCursor: knownTwitch.twitchArchiveCursor } : {}), ...(knownTwitch?.twitchClipCursor ? { twitchClipCursor: knownTwitch.twitchClipCursor } : {}) } });
+      const fetched = await followRemote({ data: { query, kind, ...(opts?.freshTwitchClips ? {freshTwitchClips:true} : {}), ...(opts?.twitchClipMode ? { twitchClipMode: opts.twitchClipMode } : {}), ...(opts?.clipLimit !== undefined ? { clipLimit: opts.clipLimit } : {}), ...(opts?.twitchVodLimit ? { twitchVodLimit: opts.twitchVodLimit } : {}), ...(knownYoutube && !opts?.restartPlaylist ? { catalogCursor: knownYoutube.catalogCursor, playlistWalk: knownYoutube.playlistWalk } : {}), ...(knownTwitch?.twitchArchiveCursor ? { twitchArchiveCursor: knownTwitch.twitchArchiveCursor } : {}), ...(knownTwitch?.twitchClipCursor ? { twitchClipCursor: knownTwitch.twitchClipCursor } : {}) } });
       const result = correction ? bindYoutubeCorrection(fetched, correction, query) : fetched;
       const received = result.videos.length;
       if (clipsOnly && !received) {
@@ -2495,9 +2597,10 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           videos: merged,
           tags: enriched.tags,
           metadataProvenance: enriched.metadataProvenance,
-          remoteBusy: false,
         };
       });
+      await reconcilePlaylistCommit(get,set,[result.channel]);
+      set({remoteBusy:false});
       persistNow(get);
       if (!clipsOnly || prepared.merged !== prepared.base.videos) void cacheRemotes(get, result.videos);
       const added = prepared.admission.added;
@@ -2656,6 +2759,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         });
         // A completed batch is useful even if the next provider call is slow or
         // unavailable. Queue its metadata for local persistence immediately.
+        await reconcilePlaylistCommit(get,set,result.ok.map(row=>row.channel));
         persistSoon(get);
         void cacheRemotes(get, prepared.admission.videos);
         if (result.providerRetryAt) {
@@ -2732,12 +2836,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const folder = ADULT_FOLDER_BY_PROVIDER[video.remote.kind as 'chaturbate' | 'myfreecams'];
     set({ videos: prepared.merged, tags: prepared.enriched.tags, metadataProvenance: prepared.enriched.metadataProvenance,
       folders: [...prepared.base.folders.filter(row => row.id !== folder.id), { ...folder, videoCount: prepared.folderCounts.get(folder.id) ?? 1 }] });
-    await appendCatalogVideos(prepared.admission.videos.map(catalogCard));
+    await appendCatalogVideos(prepared.admission.videos.map(catalogCard),prepared.enriched);
     persistNow(get); return true;
   },
   refreshFollows: async (kind, options) => {
     const liveOnly = Boolean(options?.youtubeLiveOnly || options?.twitchLiveOnly);
-    const recentQueue = !liveOnly && !options?.catalog && !options?.twitchContinueArchive;
+    const feedRepair = kind === 'youtube' && options?.youtubeFeedRepair === true;
+    const recentQueue = !liveOnly && !options?.catalog && !options?.twitchContinueArchive && !feedRepair;
     if (!liveOnly && options?.scheduled && !automaticPullAvailable(kind)) return { wentLive: [], newVideos: [], skipped: 'busy' };
     if (liveOnly && options?.scheduled && !options.liveDemand && pullsPaused()) return { wentLive: [], newVideos: [], skipped: 'paused' };
     const liveRetryAt = kind === 'twitch' && options?.twitchLiveOnly ? get().twitchLiveProgress?.retryAt : options?.youtubeLiveOnly ? Math.max(get().youtubeLiveProgress?.retryAt ?? 0, youtubeLiveCooldown(get().follows)?.retryAt ?? 0) || undefined : undefined;
@@ -2746,7 +2851,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     let forceNextRequest = forceYoutube;
     let recoveredCooldown = false;
     const holdYoutube = () => !forceYoutube && (get().youtubeRefreshStatus?.retryAt ?? 0) > Date.now()
-      && (get().youtubeRefreshStatus?.cooldownScope === 'all' || !get().youtubeRefreshStatus?.cooldownScope || options?.catalog === true);
+      && (get().youtubeRefreshStatus?.cooldownScope === 'all' || !get().youtubeRefreshStatus?.cooldownScope || (options?.catalog === true || feedRepair));
     if (kind === 'youtube' && holdYoutube()) return { wentLive: [], newVideos: [], skipped: 'cooldown', retryAt: get().youtubeRefreshStatus!.retryAt };
     // Live owners gate new automatic turns. Finish an accepted metadata read
     // instead of holding provider ownership behind a later archive pause.
@@ -2822,8 +2927,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const startedAt = Date.now();
     const pullId = makePullId();
     const provider = kind ?? (current.some((channel) => channel.kind === "youtube") && current.some((channel) => channel.kind === "twitch") ? "multi" : current[0].kind);
-    const action = liveOnly && !kind ? "Twitch & YouTube live check" : options?.youtubeLiveOnly ? "YouTube live check" : twitchLiveOnly ? "Twitch live check" : backgroundTwitchRefresh ? options?.scheduled ? "Scheduled Twitch content pull" : "Twitch content pull" : options?.scheduled ? "Scheduled YouTube archive sweep" : options?.catalog ? "YouTube archive pull" : "Channel refresh";
+    const action = feedRepair ? "YouTube feed gap repair" : liveOnly && !kind ? "Twitch & YouTube live check" : options?.youtubeLiveOnly ? "YouTube live check" : twitchLiveOnly ? "Twitch live check" : backgroundTwitchRefresh ? options?.scheduled ? "Scheduled Twitch content pull" : "Twitch content pull" : options?.scheduled ? "Scheduled YouTube archive sweep" : options?.catalog ? "YouTube archive pull" : "Channel refresh";
     if (!overlappingLive) get().beginPull({ id: pullId, provider, action, startedAt, targets: current.map((channel) => channel.title || channel.handle), done: 0, total: current.length, received: 0, added: 0, failed: 0 });
+    const noticesBeforeRefresh=get().notices;
     const beforeLiveChannels = new Set(get().follows.filter((channel) => channel.live).map((channel) => channel.id));
     const catalogQueue = kind === "youtube" && options?.catalog === true;
     let received = 0;
@@ -2873,17 +2979,19 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         const newer = latest.get(channel.id);
         if (newer) channel = retainNewerTwitchClipFollow(newer,channel);
         if (newer && (liveOnly || (newer.recentPull?.attemptedAt ?? 0) > (channel.recentPull?.attemptedAt ?? 0))) channel = { ...channel, recentPull: newer.recentPull };
-        if (newer && liveOnly) channel = { ...channel, catalogCursor: newer.catalogCursor, catalogCheckedAt: newer.catalogCheckedAt, catalogExhaustedAt: newer.catalogExhaustedAt, twitchArchiveCursor: newer.twitchArchiveCursor, twitchArchiveCheckedAt: newer.twitchArchiveCheckedAt, twitchArchiveExhaustedAt: newer.twitchArchiveExhaustedAt, twitchArchiveDiagnostics: newer.twitchArchiveDiagnostics, twitchArchiveRetry: newer.twitchArchiveRetry, lastProviderFailure: newer.lastProviderFailure };
+        if (newer && liveOnly) channel = { ...channel, playlistWalk:newer.playlistWalk, catalogCursor: newer.catalogCursor, catalogCheckedAt: newer.catalogCheckedAt, catalogExhaustedAt: newer.catalogExhaustedAt, twitchArchiveCursor: newer.twitchArchiveCursor, twitchArchiveCheckedAt: newer.twitchArchiveCheckedAt, twitchArchiveExhaustedAt: newer.twitchArchiveExhaustedAt, twitchArchiveDiagnostics: newer.twitchArchiveDiagnostics, twitchArchiveRetry: newer.twitchArchiveRetry, lastProviderFailure: newer.lastProviderFailure };
         return newer && Math.max(newer.liveCheckedAt ?? 0, newer.lastLiveFailure?.at ?? 0, newer.youtubeLiveEvidence?.at ?? 0) > Math.max(channel.liveCheckedAt ?? 0, channel.lastLiveFailure?.at ?? 0, channel.youtubeLiveEvidence?.at ?? 0)
-          ? { ...channel, live: newer.live, liveCheckedAt: newer.liveCheckedAt, lastLiveFailure: newer.lastLiveFailure, lastLiveWarning:newer.lastLiveWarning, youtubeLiveEvidence:newer.youtubeLiveEvidence, youtubeLiveVideoIds:newer.youtubeLiveVideoIds, youtubeLiveKnownOverflow:newer.youtubeLiveKnownOverflow, liveOfflineSince: newer.liveOfflineSince, twitchLiveRetry: newer.twitchLiveRetry } : channel;
+          ? { ...channel, live: newer.live, liveCheckedAt: newer.liveCheckedAt, lastLiveFailure: newer.lastLiveFailure, lastLiveWarning:newer.lastLiveWarning, youtubeLiveEvidence:newer.youtubeLiveEvidence, youtubeLiveVideoIds:newer.youtubeLiveVideoIds, youtubeLiveKnownOverflow:newer.youtubeLiveKnownOverflow, youtubeEvents:newer.youtubeEvents, liveOfflineSince: newer.liveOfflineSince, twitchLiveRetry: newer.twitchLiveRetry } : channel;
       }), ...existing]);
     };
-    const youtubeThroughput = options?.youtubeLiveOnly ? createYoutubeLiveThroughput(current.filter(c=>c.kind==='youtube').map(c=>c.id),startedAt) : null;
+    const youtubeThroughput = options?.youtubeLiveOnly ? createYoutubeLiveThroughput(get().follows.filter(c=>c.kind==='youtube').map(c=>c.id),startedAt) : null;
+    let liveAllocation: YoutubeLiveProgress['allocation'];
+    const reportLiveAllocation = (value: NonNullable<YoutubeLiveProgress['allocation']>) => { liveAllocation = value; };
     let yieldedLiveTurn = false;
     const liveProgress = (status: YoutubeLiveProgress['status'] = 'running') => {
       if (!liveOnly) return;
       const common = { startedAt, at: Date.now(), status, automatic: options?.scheduled === true };
-      set({ ...(options?.youtubeLiveOnly ? { youtubeLiveProgress: { ...common, checked: youtubeChecked, total: yieldedLiveTurn ? youtubeChecked : current.filter(row => row.kind === 'youtube').length, refreshed: youtubeRefreshed, failed: youtubeChecked - youtubeRefreshed, broadcasts: youtubeReceived, throughput:youtubeThroughput?.snapshot(), retryAt: liveRetry, error: liveError } } : {}),
+      set({ ...(options?.youtubeLiveOnly ? { youtubeLiveProgress: { ...common, checked: youtubeChecked, total: yieldedLiveTurn ? youtubeChecked : current.filter(row => row.kind === 'youtube').length, refreshed: youtubeRefreshed, failed: youtubeChecked - youtubeRefreshed, broadcasts: youtubeReceived, throughput:youtubeThroughput?.snapshot(), allocation: liveAllocation, retryAt: liveRetry, error: liveError } } : {}),
         ...(twitchLiveOnly ? { twitchLiveProgress: { ...common, checked: twitchChecked, total: yieldedLiveTurn ? twitchChecked : current.filter(row => row.kind === 'twitch').length, refreshed: twitchRefreshed, failed: twitchChecked - twitchRefreshed, broadcasts: twitchReceived, retryAt: twitchRetry, error: twitchError } } : {}) });
     };
     const recordLiveBatch = (batch: FollowedChannel[], ids: string[] = []) => {
@@ -2905,7 +3013,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         await forEachCatalogSlice(snapshot, (video, index) => {
           catalogPositions.set(video.id, index);
           const key = youtubeVideoKey(video);
-          if (key && !catalogPositions.has(key)) catalogPositions.set(key, index);
+          for(const alias of catalogIdentityKeys(video)) if(!catalogPositions.has(alias)) catalogPositions.set(alias,index);
           catalogFolderCounts.set(video.folderId, (catalogFolderCounts.get(video.folderId) ?? 0) + 1);
         }, waitForCatalogTurn);
         catalogIndexedVideos = snapshot;
@@ -2913,6 +3021,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     };
     const adaptiveLive = liveOnly && options?.scheduled && !requestedIds && Boolean(kind);
     const attemptedLive = new Set<string>();
+    const selectAdaptiveLive = (count: number) => kind === 'youtube'
+      ? selectYoutubeQuickLiveChannels(get().follows, count, true, Date.now(), reportLiveAllocation, attemptedLive)
+      : selectTwitchQuickLiveChannels(get().follows.filter(channel => !attemptedLive.has(channel.id)), count, true);
     const liveMetadataBase = liveOnly || recentQueue ? { tags: get().tags, provenance: get().metadataProvenance } : null;
     let dispatchedLive = 0;
     const livePipeline = kind && liveOnly ? createCompletionQueue<{channels:FollowedChannel[];attemptAt:number},RefreshResult>({
@@ -2922,7 +3033,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         if (adaptiveLive && dispatchedLive > 0 && (Date.now() - startedAt >= 20_000 || !options?.liveDemand && pullsPaused())) { yieldedLiveTurn = true; return; }
         const count = Math.min(kind === 'youtube' ? YOUTUBE_QUICK_LIVE.pipelineChannels : 12, current.length - dispatchedLive);
         const channels = adaptiveLive
-          ? (kind === 'youtube' ? selectYoutubeQuickLiveChannels : selectTwitchQuickLiveChannels)(get().follows.filter(channel => !attemptedLive.has(channel.id)), count, true)
+          ? selectAdaptiveLive(count)
           : current.slice(dispatchedLive, dispatchedLive + count);
         if (!channels.length) { yieldedLiveTurn = Boolean(adaptiveLive); return; }
         for (const channel of channels) attemptedLive.add(channel.id);
@@ -2938,13 +3049,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         return response;
       },
     }) : null;
+    const recentBatchSize = current.length <= 4 ? 2 : 4;
     let dispatchedRecent = 0, recentRetryAt = 0;
     const recentPipeline = recentQueue && kind ? createCompletionQueue<{ channels: FollowedChannel[]; attemptAt: number }, RefreshResult>({
       concurrency: 2,
       take: () => {
         if (dispatchedRecent >= current.length || getPullCancellationRevision() !== cancellation || recentRetryAt > Date.now()) return;
         if (options?.scheduled && (!automaticPullAvailable(kind) || Date.now() - startedAt >= 20_000)) { yieldedLiveTurn = true; return; }
-        const channels = current.slice(dispatchedRecent, dispatchedRecent + 2); dispatchedRecent += channels.length;
+        const channels = current.slice(dispatchedRecent, dispatchedRecent + recentBatchSize); dispatchedRecent += channels.length;
         return { channels, attemptAt: Date.now() };
       },
       request: async (item, signal) => {
@@ -2966,19 +3078,18 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       }
       // An empty cache needs the first page, even if an old saved cursor or
       // feed watermark says it was already consumed before catalog recovery.
-      const remainingLive = adaptiveLive ? get().follows.filter(channel => !attemptedLive.has(channel.id)) : [];
       let completedResponse = livePipeline ? await livePipeline.next() : recentPipeline ? await recentPipeline.next() : undefined;
       if ((livePipeline || recentPipeline) && !completedResponse) break;
-      if (livePipeline && completedResponse?.ok) {
+      if ((livePipeline || recentPipeline) && completedResponse?.ok) {
         for (;;) {
-          const ready = livePipeline.takeReady(result => result.ok);
+          const ready = (livePipeline ?? recentPipeline)!.takeReady(result => result.ok);
           if (!ready?.ok) break;
           completedResponse = { ok: true, item: { channels: [...completedResponse.item.channels, ...ready.item.channels], attemptAt: Math.min(completedResponse.item.attemptAt, ready.item.attemptAt) },
             value: mergeYoutubeLiveResults(completedResponse.value, ready.value) };
         }
       }
       const selectedBatch = completedResponse ? completedResponse.item.channels : adaptiveLive
-        ? (kind === 'youtube' ? selectYoutubeQuickLiveChannels : selectTwitchQuickLiveChannels)(remainingLive, Math.min(batchSize, current.length - offset), true)
+        ? selectAdaptiveLive(Math.min(batchSize, current.length - offset))
         : current.slice(offset, offset + batchSize);
       if (!selectedBatch.length) { yieldedLiveTurn = Boolean(adaptiveLive); break; }
       batchSize = selectedBatch.length;
@@ -2996,7 +3107,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         if (completedResponse) {
           if (!completedResponse.ok) throw completedResponse.error;
           result = completedResponse.value;
-        } else result = await refreshRemotes({ data: { forceYoutube: forceYoutubeRequest, youtubeVideoLimit: getPullSettings().youtubeBatchVideos, channels: batch, youtubeCatalog: catalogQueue, youtubeBackground: options?.scheduled === true, liveDemand: options?.liveDemand === true, youtubeLiveOnly: options?.youtubeLiveOnly === true, twitchLiveOnly: options?.twitchLiveOnly === true, twitchRoutine: options?.twitchRoutine === true, twitchContinueArchive: options?.twitchContinueArchive === true, twitchApplyPolicy: applyTwitchPolicy } });
+        } else result = await refreshRemotes({ data: { youtubeFeedRepair: feedRepair, forceYoutube: forceYoutubeRequest, youtubeVideoLimit: getPullSettings().youtubeBatchVideos, channels: batch, youtubeCatalog: catalogQueue, youtubeBackground: options?.scheduled === true, liveDemand: options?.liveDemand === true, youtubeLiveOnly: options?.youtubeLiveOnly === true, twitchLiveOnly: options?.twitchLiveOnly === true, twitchRoutine: options?.twitchRoutine === true, twitchContinueArchive: options?.twitchContinueArchive === true, twitchApplyPolicy: applyTwitchPolicy } });
       } catch (error) {
         if (getPullCancellationRevision() !== cancellation) break;
         if (error instanceof Error && error.name === 'PullPriorityDeferredError') { yieldedLiveTurn = true; break; }
@@ -3040,7 +3151,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         });
         result.liveCheckedIds = [...checkedIds]; result.refreshedIds = [...successfulIds];
       }
-      if (recentQueue) {
+      if (recentQueue || feedRepair) {
         const previous = new Map(get().follows.map(channel => [channel.id, channel]));
         const successes = new Set(result.refreshedIds);
         result.channels = result.channels.map(channel => {
@@ -3140,7 +3251,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             const position = livePositions.get(video.id)!, previous = snapshot[position];
             if ((video.remote!.observedAt ?? 0) < (previous.remote!.observedAt ?? 0)) continue;
             const updated = { ...previous, poster: video.poster || previous.poster, remote: { ...previous.remote!,
-              live: true, viewers: video.remote!.viewers, observedAt: video.remote!.observedAt, liveOfflineSince: undefined } };
+              live: true, viewers: video.remote!.viewers, observedAt: video.remote!.observedAt, youtubeEvent:video.remote!.youtubeEvent??previous.remote!.youtubeEvent, liveOfflineSince: undefined } };
             next[position] = updated; rows.push(updated);
           }
           if (get().videos !== snapshot) continue;
@@ -3152,6 +3263,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           if (!(twitchLiveOnly && kind === 'twitch')) twitchReceived += result.videos.filter(video => video.remote?.kind === 'twitch').length;
           for (const channel of result.channels) if (channel.live && !beforeLiveChannels.has(channel.id)) wentLive.push(channel);
           set(state => ({ videos: patched!, follows: mergeFollowResults(state.follows, result.channels),
+            notices:youtubeEventNotices(v=>state.videos[livePositions.get(v.id)!],result.videos,state.notices,youtubeGoLiveAlerts()),
             ...(!overlappingLive ? { remoteRefreshStatus: { at: Date.now(), checked, refreshed, failed: checked - refreshed, youtube: youtubeReceived, twitch: twitchReceived, action } } : {}) }));
           liveSourceSnapshot = patched; // positions and source memberships did not change
           liveProgress();
@@ -3218,7 +3330,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       result.channels = holdEntryLimitCursors(get().follows, result.channels, prepared.admission.skippedSources);
       if (prepared.admission.skipped && errors.length < 12) errors.push(ENTRY_LIMIT_MESSAGE);
       const knownVideoIndex = catalogPositions ?? existingIndex!;
-      const isNewVideo = (video: LibraryVideo) => !knownVideoIndex.has(video.id) && !knownVideoIndex.has(youtubeVideoKey(video) ?? video.id);
+      const isNewVideo = (video: LibraryVideo) => lookupCatalogIdentity<number|LibraryVideo>(knownVideoIndex,video) === undefined;
       const newVideoIds = new Set(result.videos.filter(isNewVideo).map((video) => video.id));
       const newCount = newVideoIds.size;
       received += providerReceived;
@@ -3279,6 +3391,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           })),
         ],
         videos: mergedVideos,
+        notices:youtubeEventNotices(v=>existingIndex?.get(v.id)??existingIndex?.get(youtubeVideoKey(v)??v.id),result.videos,s.notices,youtubeGoLiveAlerts()),
         progress: reconcileResumeForVideos(result.videos, s.progress, s.resumeProgress),
         tags: enriched.tags,
         metadataProvenance: enriched.metadataProvenance,
@@ -3287,10 +3400,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         ...(!overlappingLive && !options?.youtubeLiveOnly ? { remoteRetryAt: result.retryAt } : {}),
       };
       });
-      if (catalogPositions) catalogIndexedVideos = get().videos;
+      await reconcilePlaylistCommit(get,set,result.channels);
+      // A membership move changes folder counts; let the next slice rebuild its index.
+      if (catalogPositions && !result.channels.some(c=>c.playlistWalk?.completed)) catalogIndexedVideos = get().videos;
       if (catalogQueue) {
         const changed = new Map(mergedIncoming.map(video => [video.id, video]));
-        await cacheRemotes(get, result.videos.filter(video => changed.has(video.id)).map(video => ({ ...video, folderId: changed.get(video.id)!.folderId, remote: { ...video.remote!, sourceIds: changed.get(video.id)!.remote?.sourceIds } })), true);
+        await cacheRemotes(get, [...changed.values()]);
         // Save the resumable cursor every few sources without repeatedly
         // cloning the entire tag/preference ledger during a long crawl.
         if ((offset + batch.length) % 4 === 0) saveFollows(get().follows);
@@ -3315,7 +3430,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       }
       // Offline/status-only turns have their own durable follow checkpoint.
       // Do not clone the large preference/tag ledger just to update timestamps.
-      if (liveMetadataBase && get().tags === liveMetadataBase.tags && get().metadataProvenance === liveMetadataBase.provenance) saveFollows(get().follows);
+      if (liveMetadataBase && get().notices===noticesBeforeRefresh && get().tags === liveMetadataBase.tags && get().metadataProvenance === liveMetadataBase.provenance) saveFollows(get().follows);
       else persistNow(get);
       if (!yieldedLiveTurn && checked < current.length) errors.push('Check stopped early. Confirmed observations are saved; unchecked channels keep their previous state.');
       const failed = checked - refreshed;
@@ -3436,7 +3551,7 @@ function computePublicList(state: LibraryState): LibraryVideo[] {
   const knownFolders = new Set(state.folders.map((folder) => folder.id));
   // Cached catalog entries can outlive a removed source. Keep their metadata in storage,
   // but never promote an orphaned entry into Home or search results.
-  let list = state.videos.filter((v) => !state.unavailable[v.id] && !state.hiddenVideos[v.id] && !adult.has(v.folderId) && (knownFolders.has(v.folderId) || Boolean(v.remote) || v.isSample));
+  let list = state.videos.filter((v) => !state.unavailable[v.id] && !state.hiddenVideos[v.id] && !videoIsPrivate(adult,v) && (knownFolders.has(v.folderId) || Boolean(v.remote) || v.isSample));
   if (state.hideDemo) list = list.filter((v) => !v.isSample);
   memo.public = list;
   return list;
@@ -3454,7 +3569,7 @@ function computeAdultList(state: LibraryState): LibraryVideo[] {
     !state.unavailable[v.id]
     && !isRemovedRedditVideo(v)
     && !state.hiddenVideos[v.id]
-    && adult.has(v.folderId)
+    && videoIsPrivate(adult,v)
     && !RETIRED_ADULT_SOURCE_IDS.includes((v.remote?.kind ?? v.folderId.split(":")[0]) as "camsoda")
     && (state.showHiddenAdult || !(state.tags[v.id] ?? []).includes("hidden")),
   ));
@@ -3572,7 +3687,7 @@ function computeSelectContinue(state: LibraryState, adult = false): LibraryVideo
   ).filter(video =>
     !(state.hideDemo && video.isSample)
     && !state.hiddenVideos[video.id]
-    && adult === adultIds.has(video.folderId),
+    && adult === videoIsPrivate(adultIds,video),
   );
   for (const video of watched) recordMark(video.id, resumeForVideo(state, video));
   // History keeps URL/title snapshots even after a provider refresh evicts a
@@ -3617,7 +3732,7 @@ function historyResolver(state: LibraryState, adult: boolean, byId: ReadonlyMap<
     const matches = byId.get(key);
     for (let index = (matches?.length ?? 0) - 1; index >= 0; index--) {
       const video = matches![index]!;
-      if (!(state.hideDemo && video.isSample) && !state.hiddenVideos[video.id] && adult === adultIds.has(video.folderId)) return video;
+      if (!(state.hideDemo && video.isSample) && !state.hiddenVideos[video.id] && adult === videoIsPrivate(adultIds,video)) return video;
     }
   };
   const seen = new Set<string>();
@@ -3630,7 +3745,7 @@ function historyResolver(state: LibraryState, adult: boolean, byId: ReadonlyMap<
       const live = byId.get(h.id)?.[0];
       if (live) {
         if (state.hiddenVideos[live.id] || state.hideDemo && live.isSample) return null;
-        const isAdult = adultIds.has(live.folderId);
+        const isAdult = videoIsPrivate(adultIds,live);
         if (adult === isAdult) return live;
         if (!adult && isAdult) return null;
       }
@@ -3743,10 +3858,10 @@ function computeSelectYoutube(state: LibraryState): LibraryVideo[] {
   if (sameVisibility && previous.videos === state.videos) return previous.result;
   const updated = sameVisibility ? updateYoutubeShelf(previous.videos, state.videos, previous.result, video =>
     !state.unavailable[video.id] && !state.hiddenVideos[video.id]
-    && !privateFolders.has(video.folderId) && !(state.hideDemo && video.isSample)) : undefined;
+    && !videoIsPrivate(privateFolders,video) && !(state.hideDemo && video.isSample)) : undefined;
   result = updated ?? state.videos.filter(video => video.remote?.kind === "youtube"
     && !state.unavailable[video.id] && !state.hiddenVideos[video.id]
-    && !privateFolders.has(video.folderId) && !(state.hideDemo && video.isSample))
+    && !videoIsPrivate(privateFolders,video) && !(state.hideDemo && video.isSample))
     .sort(compareYoutubePublication);
   memo.youtube = result;
   youtubeSelectorSnapshot = {
@@ -3850,7 +3965,7 @@ export async function prepareContinueSelection(state: LibraryState, signal: Abor
     const previous = marks.get(id);
     if (!previous || mark.at > previous.at) marks.set(id, mark);
   };
-  const visible = (video: LibraryVideo) => !(state.hideDemo && video.isSample) && !state.hiddenVideos[video.id] && adult === privateFolders.has(video.folderId);
+  const visible = (video: LibraryVideo) => !(state.hideDemo && video.isSample) && !state.hiddenVideos[video.id] && adult === videoIsPrivate(privateFolders,video);
   await forEachCatalogSlice(watched, video => { if (visible(video)) recordMark(video.id, resumeForVideo(state, video)); }, turn);
   await forEachCatalogSlice(state.history, entry => {
     if (!state.hiddenVideos[entry.id] && entry.position && entry.duration && entry.position >= 2 && entry.position / entry.duration < 0.992)
@@ -3909,7 +4024,7 @@ export async function preparePrivateSelection(state: LibraryState, signal: Abort
     const folders = adultIdSet(state.folders), rows: LibraryVideo[] = [], identities = new Map<string, number>();
     await forEachCatalogSlice(state.videos, video => {
       if (state.unavailable[video.id] || isRemovedRedditVideo(video) || state.hiddenVideos[video.id]
-        || !folders.has(video.folderId)
+        || !videoIsPrivate(folders,video)
         || RETIRED_ADULT_SOURCE_IDS.includes((video.remote?.kind ?? video.folderId.split(':')[0]) as 'camsoda')
         || !state.showHiddenAdult && (state.tags[video.id] ?? []).includes('hidden')) return;
       const key = adultMediaIdentity(video), previous = key ? identities.get(key) : undefined;
@@ -3937,7 +4052,7 @@ export async function prepareYoutubeSelection(state: LibraryState, signal: Abort
   const sameVisibility = previous && previous.privateFolders === privateFolders
     && previous.unavailable === state.unavailable && previous.hiddenVideos === state.hiddenVideos && previous.hideDemo === state.hideDemo;
   const updated = sameVisibility ? await updateYoutubeShelfAsync(previous.videos, state.videos, previous.result, video =>
-    !state.unavailable[video.id] && !state.hiddenVideos[video.id] && !privateFolders.has(video.folderId)
+    !state.unavailable[video.id] && !state.hiddenVideos[video.id] && !videoIsPrivate(privateFolders,video)
     && !(state.hideDemo && video.isSample), signal, yieldTask) : undefined;
   const result = updated ?? await youtubeCatalogSelection({ videos: state.videos, privateFolders,
     unavailable: state.unavailable, hiddenVideos: state.hiddenVideos, hideDemo: state.hideDemo }, signal, yieldTask);
@@ -4007,3 +4122,42 @@ const stopEnrichmentViewer = useLibrary.subscribe((state, previous) => {
     setEnrichmentViewerOpen(Boolean(state.activeId || state.previewId), Boolean(state.query.trim()));
 });
 import.meta.hot?.dispose(stopEnrichmentViewer);
+
+/** User-initiated retry; never flush an unhydrated empty snapshot over saved state. */
+export async function retryLibraryPersistence(){
+  if(restoreCompletion)await restoreCompletion;
+  if(!preferencesRestored || !useLibrary.getState().hydrated)throw new Error("Wait for the saved library to finish loading before retrying.");
+  await recoverCatalogMutations();
+  durableSliceWriter.reset();persistNow(useLibrary.getState);
+  await Promise.all([waitForDurableWrites(),waitForPrefsWrites(),waitForFollowsWrites()]);
+  const state=useLibrary.getState();
+  await saveRemoteSnapshot({videos:state.videos.filter(video=>video.remote&&!video.isSample),metadata:{tags:state.tags,metadataProvenance:state.metadataProvenance},folders:[],checkedAt:0},false,true);
+}
+
+
+/** Rebase compact cross-tab invalidations through existing paged disk readers.
+ * No provider opens and no preference/follow snapshot is written here. */
+export async function rebaseSharedCatalog(){
+ if(restoreCompletion)await restoreCompletion;
+ if(!useLibrary.getState().hydrated)throw Error('Wait for library recovery before refreshing another tab’s changes.');
+ if(useLibrary.getState().scanning)throw Error('Wait for this tab’s local import to finish before refreshing shared catalog changes.');
+ return withCatalogRead(async()=>{
+  await recoverCatalogMutations();
+  for(let attempt=0;attempt<3;attempt++){
+   const base=useLibrary.getState();
+   const [local,snapshot,dirs]=await Promise.all([loadCatalogVideos(),loadRemoteSnapshot(),loadDirHandles()]);
+   const disk=await mergeRemoteCatalogAsync(local,snapshot?.videos??[]),ids=new Set<string>(),cards:LibraryVideo[]=[],counts=new Map<string,number>(),knownIds=new Set<string>();let deferredLocal=false;
+   await forEachCatalogSlice(base.videos,row=>{knownIds.add(row.id);},yieldCatalogTask);
+   await forEachCatalogSlice(disk,row=>{if(!row.remote&&!knownIds.has(row.id)){deferredLocal=true;return;}ids.add(row.id);cards.push(catalogCard(row));counts.set(row.folderId,(counts.get(row.folderId)??0)+1);},yieldCatalogTask);
+   const retained:LibraryVideo[]=[];await forEachCatalogSlice(base.videos,row=>{if(row.isSample||ids.has(row.id))retained.push(row);},yieldCatalogTask);
+   const videos=await mergeRemoteCatalogAsync(retained,cards);
+   const metadata=await restoreCatalogMetadata({tags:base.tags,metadataProvenance:base.metadataProvenance,categories:base.categories});
+   const current=useLibrary.getState();if(current.videos!==base.videos||current.tags!==base.tags||current.metadataProvenance!==base.metadataProvenance||current.categories!==base.categories)continue;
+   const directoryIds=new Set(dirs.map(row=>row.id));const folders=base.folders.filter(folder=>folder.kind!=="directory"||directoryIds.has(folder.id)||counts.has(folder.id)).map(folder=>folder.kind==="demo"?folder:{...folder,videoCount:counts.get(folder.id)??0});
+   useLibrary.setState({...metadata,videos,youtubeCleanup:snapshot?.youtubeCleanup??base.youtubeCleanup,remoteCheckedAt:Math.max(base.remoteCheckedAt,snapshot?.checkedAt??0),
+    folders:snapshot?[...folders.filter(folder=>folder.kind!=='youtube'&&folder.kind!=='twitch'),...snapshot.folders]:folders});
+   return {deferredLocal};
+  }
+  throw Error('This tab is still changing. Retry the cross-tab refresh after current work settles.');
+ });
+}

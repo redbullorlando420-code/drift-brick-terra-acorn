@@ -1,0 +1,78 @@
+{
+  "verifiedAt": "2026-10-28T15:22:21.737Z",
+  "missionRevision": 59,
+  "newlyVerified": [
+    "next-042",
+    "next-048"
+  ],
+  "completeDefaultMilestones": 253,
+  "totalDefaultMilestones": 306,
+  "nextLevelComplete": 51,
+  "nextLevelPlanned": 49,
+  "build": {
+    "passed": true,
+    "log": "screenshots/room-delivery-build.txt"
+  },
+  "typecheck": {
+    "passed": true,
+    "log": ".grok/room-delivery-typecheck.log"
+  },
+  "regressionTests": 180,
+  "regressionLog": "screenshots/room-delivery-regressions.txt",
+  "browser": [
+    {
+      "file": "screenshots/room-reconnect-dev.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/room-reconnect-production.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/room-delivery-roles-dev.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/room-delivery-roles-production.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/room-delivery-privacy-dev.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/room-delivery-privacy-production.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/room-delivery-mission-dev.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/room-delivery-mission-production.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/room-delivery-controls-production.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/room-delivery-home-dev.json",
+      "ok": true
+    },
+    {
+      "file": "screenshots/room-delivery-home-production.json",
+      "ok": true
+    }
+  ],
+  "visuallyReviewed": [
+    "Home dev desktop/mobile",
+    "Delivery production desktop/mobile"
+  ],
+  "limits": [
+    "Controlled bufferedAmount pressure demonstrates scheduling, not measured real-network throughput.",
+    "External player documents are fixtures; physical-phone media policies and cross-network TURN/soak are not verified.",
+    "Already admitted SCTP bytes cannot be preempted.",
+    "Pending receipt state is session-only and is not replayed after a full tab reload."
+  ]
+}

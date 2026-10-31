@@ -1,0 +1,62 @@
+✖ 1,588-creator automatic rotation updates existing broadcasts across a 215,452-entry catalog without rewriting tags (30014.2358ms)
+✔ automatic provider detection still permits a focused Twitch URL during a YouTube cooldown (2.2208ms)
+✔ manual force ignores the old timer, stops on a new rejection, and leaves automatic work waiting (18.7462ms)
+✖ automatic Adult replacement stays at its catalog target while manual pulls can use the larger source cap (231.4707ms)
+✖ automatic live batches re-evaluate creators becoming due during responses and yield without false partial failures (2.0033ms)
+✖ pausing during an automatic live response saves that observation, releases ownership, and allows the Live page to continue (0.5402ms)
+✔ Twitch automatic policies persist only effective edits, skip content without deleting history, and cannot suppress explicit or live actions (27.8573ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 3
+ℹ fail 3
+ℹ cancelled 1
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30728.1222
+
+✖ failing tests:
+
+test at scripts\pull-entry-limits.test.mjs:46:1
+✖ 1,588-creator automatic rotation updates existing broadcasts across a 215,452-entry catalog without rewriting tags (30014.2358ms)
+  'test timed out after 30000ms'
+
+test at scripts\pull-entry-limits.test.mjs:632:1
+✖ automatic Adult replacement stays at its catalog target while manual pulls can use the larger source cap (231.4707ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 2
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/pull-entry-limits.test.mjs:637:65)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 2,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\pull-entry-limits.test.mjs:790:1
+✖ automatic live batches re-evaluate creators becoming due during responses and yield without false partial failures (2.0033ms)
+  TypeError [Error]: Cannot read properties of undefined (reading 'channels')
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/pull-entry-limits.test.mjs:798:28)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at scripts\pull-entry-limits.test.mjs:815:1
+✖ pausing during an automatic live response saves that observation, releases ownership, and allows the Live page to continue (0.5402ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 3
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/pull-entry-limits.test.mjs:819:129)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

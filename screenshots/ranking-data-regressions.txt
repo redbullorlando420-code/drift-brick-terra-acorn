@@ -1,0 +1,46 @@
+✔ rapid revisions avoid worker/feedback starts and only the final revision publishes (262.1121ms)
+✔ running cancellation stops reads and cannot publish an obsolete ranking (0.7404ms)
+✔ slices honor time and row ceilings and diagnostics retain no catalog references (1.2375ms)
+✔ 100k Twitch ranking keeps exact ordering and references with cooperative preparation (815.8445ms)
+✔ accounting separates measured browser transfers from hidden iframe/media and native totals (0.4817ms)
+✔ fixed accounting storage stays bounded across 100k resource records (82.5463ms)
+✔ Save Data pauses nearby artwork and code prefetch, preserves visible admission and resumes without a poll (21.1143ms)
+✔ legacy creator favorites survive migration, and separate likes and favorites can be toggled independently (32.9039ms)
+✔ concurrent ranking snapshots coalesce, then feedback changes invalidate the cached snapshot (63.1591ms)
+✔ watch-time evidence is bounded and included in worker snapshots without per-tick reranking events (108.9062ms)
+✔ feedback updates during a yielded snapshot never publish stale mixed evidence (94.9219ms)
+✔ scoped rejections round-trip through exported feedback; old packs preserve choices and an empty backup restores Undo (48.6191ms)
+✔ feedback save failure remains visible and retry saves current choices without changing rank inputs (29.6848ms)
+✔ topic hearts normalize aliases for protection without changing legacy raw tag heart semantics (0.5139ms)
+✔ unsupported or malformed rejection imports cannot clear the current choices (1.651ms)
+✔ YouTube runtime labels survive legacy/modern imports, watch metadata and sparse refreshes (2.2648ms)
+✔ movie shelves recover connected folder/year evidence and observed runtimes while separating unknowns and exclusions (4.8188ms)
+✔ unknown movie previews stay bounded while all eligible candidates are counted (32.755ms)
+✔ Twitch recommendations learn creator/game/title taste, prefer unwatched related VODs and reject one-star or live placeholders (5.9821ms)
+✔ ranked creator rotation retains the best matching creators even with thousands of followed archives (12.1998ms)
+✔ Twitch coverage uses provider identities rather than renamed or colliding display names (0.9474ms)
+✔ Twitch archive priority survives reload and ignores a frequently refreshed live clock (0.553ms)
+✔ actual Twitch continuation requests resume older pages, skip clips, retain checkpoints on failure and cap first at 100 (173ms)
+✔ local metadata-only runtime probe releases the element on success and abort without playing media (5.583ms)
+✔ description-only words teach less than creator tags while explicit hearts keep their full effect (1.8544ms)
+✔ recent creator viewing raises unseen older uploads from that creator (0.2332ms)
+✔ liked tags and explicit creator favorites influence ranking (0.1929ms)
+✔ a deliberately unliked tag is a negative recommendation signal (0.1759ms)
+✔ recommendations interleave creators and de-prioritize already watched videos (0.1468ms)
+✔ a single prolific archive can still fill the requested shelf with its best-ranked uploads (2.2213ms)
+✔ feedback lookups scale with unique creators and tags, and exclude other providers (8.5054ms)
+✔ cached catalog follows immutable replacements and rejects invalid limits (0.2622ms)
+✔ filtered recommendations still learn from watched videos outside the filter (0.2344ms)
+✔ reshuffling reuses scored evidence instead of reading feedback again (5.2641ms)
+✔ ratings improve candidate order even when watched discovery evidence is negative (0.2578ms)
+✔ repeating tags or adding many hearted tags cannot create unlimited ranking bonuses (0.2454ms)
+✔ video likes, favorites, creator favorites, time and private marks each improve discovery priority (0.2364ms)
+✔ 60k-title scoring reads per-title signals once and reuses them across mixes (151.4985ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1379.3963

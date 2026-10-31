@@ -1,0 +1,36 @@
+✔ documented legacy file operations remain usable without claiming newer capabilities (1.009ms)
+✔ protocol major and malformed responses fail closed; additive minor and unknown fields are ignored (0.164ms)
+✔ native route families negotiate file, download, artwork, print, launch and creative features (0.1309ms)
+✔ one coalesced health probe gates unsupported operations before dispatch while allowed legacy reads still work (16.3988ms)
+✔ native permission grants persist; stale request generations and revoked leases never revive after regrant (8.6813ms)
+✔ corrupt/future native policy and failed saves grant nothing, preserve unrelated content, and bound leases (2.6801ms)
+✔ browser permissions default off, persist only choices, discard stale results across tabs, and isolate scopes (0.816ms)
+✔ browser future, corrupt and oversized permission data never grants access (0.2516ms)
+✔ setup readiness is derived from real counts, keeps unknown integrations unverified and persists reviewed choices without actions (1.0096ms)
+✔ revocation while model metadata is held prevents any transfer, including after immediate regrant (20.6803ms)
+✔ revocation during bounded model range fetch prevents publishing and preserves existing models (24.0075ms)
+✔ revoking browser-session permission stops queued and running credential jobs but ordinary downloads remain usable (22.0916ms)
+✔ low space pauses before creating an output folder or native process, and reload preserves the pause (46.6134ms)
+✔ verified partial files survive a low-space pause and resume with the same receipt and no-overwrite flags (83.4089ms)
+✔ altered partials and legacy unowned files cannot be adopted; a fresh copy uses a separate destination (94.4832ms)
+✔ queued work rechecks disk space at dispatch instead of trusting its admission time (59.7645ms)
+✔ unknown sizes and unavailable disk measurements stay explicit; invalid estimates cannot shrink the allowance (61.2076ms)
+✔ destination identity replacement and revoked roots cannot resume a pending download (49.4556ms)
+✔ active progress checks stop at the disk margin with bounded timing and preserve partials (44.6867ms)
+✔ Hugging Face links allow only credential-free public model/file pages (1.5758ms)
+✔ safetensors rejects webpage/pickle/pointer, tensor overflow and non-checkpoint components (7.8981ms)
+✔ remote downloads pin revisions, check digests, preserve existing weights and retain bounded jobs (17.6815ms)
+✔ wrong remote checksum never enables a file and cleans its temporary data (19.633ms)
+✔ an incompatible large model is refused after its small header, before downloading weights (10.7202ms)
+✔ local binary upload streams a checkpoint and refuses overwrites or traversal (164.8521ms)
+✔ Qwen graph uses built-in fixed nodes, model family settings and no caller workflow (0.4738ms)
+✔ Qwen generation checks the native queue, returns PNG and frees owned history/model memory (1006.3516ms)
+✔ Qwen lifecycle is loopback-only with custom/cloud nodes and pinned memory disabled (5.6492ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1530.7712

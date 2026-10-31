@@ -2,9 +2,40 @@ import { createRequire } from "module";
 //#region node_modules/fflate/esm/index.mjs
 var require = createRequire("/");
 var _a;
+var Worker;
+var isMarkedAsUntransferable;
+var workerAdd = ";var __w=require('worker_threads');__w.parentPort.on('message',function(m){onmessage({data:m})}),postMessage=function(m,t){__w.parentPort.postMessage(m,t)},close=process.exit;self=global";
 try {
-	_a = require("worker_threads"), _a.Worker, _a.isMarkedAsUntransferable;
+	_a = require("worker_threads"), Worker = _a.Worker, isMarkedAsUntransferable = _a.isMarkedAsUntransferable;
 } catch (e) {}
+var wk = Worker ? function(c, _, msg, transfer, cb) {
+	var done = false;
+	var w = new Worker(c + workerAdd, { eval: true }).on("error", function(e) {
+		return cb(e, null);
+	}).on("message", function(m) {
+		return cb(null, m);
+	}).on("exit", function(c) {
+		if (c && !done) cb(/* @__PURE__ */ new Error("exited with code " + c), null);
+	});
+	if (isMarkedAsUntransferable) transfer = transfer.filter(function(t) {
+		return !isMarkedAsUntransferable(t);
+	});
+	w.postMessage(msg, transfer);
+	w.terminate = function() {
+		done = true;
+		return Worker.prototype.terminate.call(w);
+	};
+	return w;
+} : function(_, __, ___, ____, cb) {
+	setImmediate(function() {
+		return cb(/* @__PURE__ */ new Error("async operations unsupported - update to Node 12+ (or Node 10-11 with the --experimental-worker CLI flag)"), null);
+	});
+	var NOP = function() {};
+	return {
+		terminate: NOP,
+		postMessage: NOP
+	};
+};
 var u8 = Uint8Array;
 var u16 = Uint16Array;
 var i32 = Int32Array;
@@ -657,6 +688,92 @@ var mrg = function(a, b) {
 	for (var k in b) o[k] = b[k];
 	return o;
 };
+var wcln = function(fn, fnStr, td) {
+	var dt = fn();
+	var st = fn.toString();
+	var ks = st.slice(st.indexOf("[") + 1, st.lastIndexOf("]")).replace(/\s+/g, "").split(",");
+	for (var i = 0; i < dt.length; ++i) {
+		var v = dt[i], k = ks[i];
+		if (typeof v == "function") {
+			fnStr += ";" + k + "=";
+			var st_1 = v.toString();
+			if (v.prototype) {
+				if (st_1.indexOf("[native code]") != -1) {
+					var spInd = st_1.indexOf(" ", 8) + 1;
+					fnStr += st_1.slice(spInd, st_1.indexOf("(", spInd));
+				} else {
+					fnStr += st_1;
+					for (var t in v.prototype) fnStr += ";" + k + ".prototype." + t + "=" + v.prototype[t].toString();
+				}
+			} else fnStr += st_1;
+		} else td[k] = v;
+	}
+	return fnStr;
+};
+var ch = [];
+var cbfs = function(v) {
+	var tl = [];
+	for (var k in v) if (v[k].buffer) tl.push((v[k] = new v[k].constructor(v[k])).buffer);
+	return tl;
+};
+var wrkr = function(fns, init, id, cb) {
+	if (!ch[id]) {
+		var fnStr = "", td_1 = {}, m = fns.length - 1;
+		for (var i = 0; i < m; ++i) fnStr = wcln(fns[i], fnStr, td_1);
+		ch[id] = {
+			c: wcln(fns[m], fnStr, td_1),
+			e: td_1
+		};
+	}
+	var td = mrg({}, ch[id].e);
+	return wk(ch[id].c + ";onmessage=function(e){for(var k in e.data)self[k]=e.data[k];onmessage=" + init.toString() + "}", id, td, cbfs(td), cb);
+};
+var bInflt = function() {
+	return [
+		u8,
+		u16,
+		i32,
+		fleb,
+		fdeb,
+		clim,
+		fl,
+		fd,
+		flrm,
+		fdrm,
+		rev,
+		ec,
+		hMap,
+		max,
+		bits,
+		bits16,
+		shft,
+		slc,
+		err,
+		inflt,
+		inflateSync,
+		pbf,
+		gopt
+	];
+};
+var pbf = function(msg) {
+	return postMessage(msg, [msg.buffer]);
+};
+var gopt = function(o) {
+	return o && {
+		out: o.size && new u8(o.size),
+		dictionary: o.dictionary
+	};
+};
+var cbify = function(dat, opts, fns, init, id, cb) {
+	var w = wrkr(fns, init, id, function(err, dat) {
+		w.terminate();
+		cb(err, dat);
+	});
+	w.postMessage([dat, opts], opts.consume ? [dat.buffer] : []);
+	return function() {
+		w.terminate();
+	};
+};
 var b2 = function(d, b) {
 	return d[b] | d[b + 1] << 8;
 };
@@ -677,6 +794,13 @@ var wbytes = function(d, b, v) {
 */
 function deflateSync(data, opts) {
 	return dopt(data, opts || {}, 0, 0);
+}
+function inflate(data, opts, cb) {
+	if (!cb) cb = opts, opts = {};
+	if (typeof cb != "function") err(7);
+	return cbify(data, opts, [bInflt], function(ev) {
+		return pbf(inflateSync(ev.data[0], gopt(ev.data[1])));
+	}, 1, cb);
 }
 function inflateSync(data, opts) {
 	return inflt(data, { i: 2 }, opts && opts.out, opts && opts.dictionary);
@@ -896,45 +1020,77 @@ function zipSync(data, opts) {
 	wzf(out, o, files.length, cdl, oe);
 	return out;
 }
-/**
-* Synchronously decompresses a ZIP archive. Prefer using `unzip` for better
-* performance with more than one file.
-* @param data The raw compressed ZIP file
-* @param opts The ZIP extraction options
-* @returns The decompressed files
-*/
-function unzipSync(data, opts) {
+var mt = typeof queueMicrotask == "function" ? queueMicrotask : typeof setTimeout == "function" ? setTimeout : function(fn) {
+	fn();
+};
+function unzip(data, opts, cb) {
+	if (!cb) cb = opts, opts = {};
+	if (typeof cb != "function") err(7);
+	var term = [];
+	var tAll = function() {
+		for (var i = 0; i < term.length; ++i) term[i]();
+	};
 	var files = {};
+	var cbd = function(a, b) {
+		mt(function() {
+			cb(a, b);
+		});
+	};
+	mt(function() {
+		cbd = cb;
+	});
 	var e = data.length - 22;
-	for (; b4(data, e) != 101010256; --e) if (!e || data.length - e > 65558) err(13);
-	var c = b2(data, e + 8);
-	if (!c) return {};
-	var o = b4(data, e + 16);
-	var z = b4(data, e - 20) == 117853008;
-	if (z) {
-		var ze = b4(data, e - 12);
-		z = b4(data, ze) == 101075792;
+	for (; b4(data, e) != 101010256; --e) if (!e || data.length - e > 65558) {
+		cbd(err(13, 0, 1), null);
+		return tAll;
+	}
+	var lft = b2(data, e + 8);
+	if (lft) {
+		var c = lft;
+		var o = b4(data, e + 16);
+		var z = b4(data, e - 20) == 117853008;
 		if (z) {
-			c = b4(data, ze + 32);
-			o = b4(data, ze + 48);
+			var ze = b4(data, e - 12);
+			z = b4(data, ze) == 101075792;
+			if (z) {
+				c = lft = b4(data, ze + 32);
+				o = b4(data, ze + 48);
+			}
 		}
-	}
-	var fltr = opts && opts.filter;
-	for (var i = 0; i < c; ++i) {
-		var _a = zh(data, o, z), c_2 = _a[0], sc = _a[1], su = _a[2], fn = _a[3], no = _a[4], off = _a[5], b = slzh(data, off);
-		o = no;
-		if (!fltr || fltr({
-			name: fn,
-			size: sc,
-			originalSize: su,
-			compression: c_2
-		})) {
-			if (!c_2) files[fn] = slc(data, b, b + sc);
-			else if (c_2 == 8) files[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
-			else err(14, "unknown compression type " + c_2);
-		}
-	}
-	return files;
+		var fltr = opts && opts.filter;
+		var _loop_3 = function(i) {
+			var _a = zh(data, o, z), c_1 = _a[0], sc = _a[1], su = _a[2], fn = _a[3], no = _a[4], off = _a[5], b = slzh(data, off);
+			o = no;
+			var cbl = function(e, d) {
+				if (e) {
+					tAll();
+					cbd(e, null);
+				} else {
+					if (d) files[fn] = d;
+					if (!--lft) cbd(null, files);
+				}
+			};
+			if (!fltr || fltr({
+				name: fn,
+				size: sc,
+				originalSize: su,
+				compression: c_1
+			})) {
+				if (!c_1) cbl(null, slc(data, b, b + sc));
+				else if (c_1 == 8) {
+					var infl = data.subarray(b, b + sc);
+					if (su < 524288 || sc > .8 * su) try {
+						cbl(null, inflateSync(infl, { out: new u8(su) }));
+					} catch (e) {
+						cbl(e, null);
+					}
+					else term.push(inflate(infl, { size: su }, cbl));
+				} else cbl(err(14, "unknown compression type " + c_1, 1), null);
+			} else cbl(null, null);
+		};
+		for (var i = 0; i < c; ++i) _loop_3(i);
+	} else cbd(null, {});
+	return tAll;
 }
 //#endregion
-export { zipSync as i, strToU8 as n, unzipSync as r, strFromU8 as t };
+export { zipSync as i, strToU8 as n, unzip as r, strFromU8 as t };

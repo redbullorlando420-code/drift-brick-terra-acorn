@@ -1,0 +1,14 @@
+[
+  {
+    "Name": "Realhub.lnk",
+    "Target": "C:\\Program Files\\nodejs\\node.exe",
+    "Arguments": "\"E:\\codex\\drift-brick-terra-acorn\\scripts\\start-desktop.mjs\"",
+    "Directory": "E:\\codex\\drift-brick-terra-acorn"
+  },
+  {
+    "Name": "Stop Realhub.lnk",
+    "Target": "C:\\Program Files\\nodejs\\node.exe",
+    "Arguments": "\"E:\\codex\\drift-brick-terra-acorn\\scripts\\stop-desktop.mjs\"",
+    "Directory": "E:\\codex\\drift-brick-terra-acorn"
+  }
+]

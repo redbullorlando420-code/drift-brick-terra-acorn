@@ -1023,3 +1023,12 @@ Desktop/mobile browser checks pass with 80,000 persisted entries in development 
 Evidence: screenshots/youtube-refresh-speed-benchmark.json; screenshots/speed-session-{baseline,dev,built}.json and populated desktop/mobile images; screenshots/speed-session-smoke-{dev,built}.json (no runtime, hydration, branding or baseline errors); .grok/speed-session-{tests,types,build}.log. Synthetic provider media is explicit and no private account/browser library was modified.
 
 The owned production QA server is stopped. All 254 pre-existing generated output files/links are restored and SHA-256 verified; development remains running.
+
+
+## Explicit Twitch metadata canary
+
+Use the opt-in bounded production-path runner in [docs/TWITCH_CHAPTERS_AND_CANARY.md](docs/TWITCH_CHAPTERS_AND_CANARY.md). It accepts one to three public creator logins, records status/header timing and paging stop reasons, and resumes unfinished checks while honoring provider cooldowns. It is not part of startup or default CI, and an incomplete real-network run is not a pass.
+
+Recommendation settling and Save Data accounting: see [contracts and repeatable checks](docs/RECOMMENDATION_AND_DATA_BUDGETS.md). The browser check includes an isolated 100k-row preparation heartbeat gate; it does not substitute for full-library heap, provider-throughput or physical-phone measurements.
+
+Large import review and parsed provider allocations: see [contracts and deterministic baselines](docs/IMPORT_REVIEW_AND_PROVIDER_ALLOCATIONS.md). Run the allocation benchmark with optional GC and use the bounded two-file regression runner. Scratch accounting is not an exact process heap limit.

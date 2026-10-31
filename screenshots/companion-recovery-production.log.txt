@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Older Companion keeps advertised file/shortcut operations usable while newer job controls remain unavailable",
+        "An incompatible protocol fails closed with actionable guidance and preserves existing browser metadata",
+        "Explicit resume retains a receipt and increments its attempt without reusing browser consent; cancellation stays distinct from completion",
+        "Saved history mounts ten rows per page and performs no idle polling or automatic recovery",
+        "Reload reads the saved server outcome without re-enqueueing cancelled or completed work"
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Older Companion keeps advertised file/shortcut operations usable while newer job controls remain unavailable",
+        "An incompatible protocol fails closed with actionable guidance and preserves existing browser metadata",
+        "Explicit resume retains a receipt and increments its attempt without reusing browser consent; cancellation stays distinct from completion",
+        "Saved history mounts ten rows per page and performs no idle polling or automatic recovery",
+        "Reload reads the saved server outcome without re-enqueueing cancelled or completed work"
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ],
+  "limitation": "Isolated browser profiles and controlled Companion responses. No real native app launch, media download, model install, browser-cookie read or external session was triggered."
+}

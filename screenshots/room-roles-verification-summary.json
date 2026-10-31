@@ -1,0 +1,34 @@
+{
+  "revision": 57,
+  "completed": [
+    "next-041",
+    "next-046"
+  ],
+  "defaultComplete": 249,
+  "defaultTotal": 306,
+  "nextLevelComplete": 47,
+  "tests": {
+    "script": 69,
+    "native": 95,
+    "failed": 0,
+    "log": "room-roles-regression-tests.txt"
+  },
+  "browser": [
+    "room-roles-dev.json",
+    "room-roles-production.json",
+    "room-roles-existing-controls-dev.json",
+    "room-roles-existing-controls-production.json",
+    "room-roles-mission-dev.json",
+    "room-roles-mission-production.json"
+  ],
+  "smoke": {
+    "baselineDiverged": false,
+    "consoleErrors": [],
+    "mobileOverflow": false
+  },
+  "limits": [
+    "Controlled provider documents and injected failures; real WebRTC between isolated Chrome contexts.",
+    "Physical phones, cross-network TURN and real-provider authentication/autoplay are not verified.",
+    "Full host-restart queue intent reconciliation remains separate."
+  ]
+}

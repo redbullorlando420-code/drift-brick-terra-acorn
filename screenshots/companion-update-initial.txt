@@ -1,0 +1,24 @@
+✔ failed admission retains all forty prior receipts in memory and on disk (11.2574ms)
+✔ restart restores active and queued work as interrupted without starting anything; explicit resume retains ID and clears old browser consent (39.5575ms)
+✔ completed receipt survives restart and a repeated enqueue/resume never starts another process without an explicit new-download request (54.2073ms)
+✔ a failed receipt commit cannot start a downloader and leaves the prior manifest readable (17.7993ms)
+✔ future or malformed manifests are preserved and cannot be overwritten by a new operation (5.0777ms)
+✔ legacy receipt migration allowlists fields and does not expose URLs or injected credential headers (17.1501ms)
+✔ cancellation and timeout outcomes cannot be changed to complete by a late process exit (17.3874ms)
+✔ receipt history remains bounded while partial files are retained and offline URLs cannot carry embedded credentials (582.3142ms)
+✔ YouTube accepts canonical IDs and rejects URLs, arguments, traversal and playlists (1.862ms)
+✔ 100% progress is not completion: successful exit and a nonempty video file are required (35.3095ms)
+✔ errors and empty successful exits never report completion; stderr is bounded (31.4062ms)
+✔ queue deduplicates active videos, is bounded, and cancellation waits for process exit (73.4059ms)
+✔ process launch errors, revoked roots and restarts remain truthful (33.4385ms)
+✔ browser session authentication is opt-in, enum-only, per job and yt-dlp-only (30.0537ms)
+✔ cookie and authorization header values never become UI status or persisted diagnostics (16.6037ms)
+✔ local playback resolves only completed nonempty media from the exact approved job directory (32.4884ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 838.0241

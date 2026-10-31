@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Unknown-size allowance and margin are clear; paused resume is explicit and fresh copies are separate; closed dialogs do not poll.",
+        "Double clicks send one request, accepted launches stay unverified, another game is independent, history survives reload without launching, and denied shortcuts show recovery guidance."
+      ],
+      "diskScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\consent-setup-download-production-disk-desktop.png",
+      "gamesScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\consent-setup-download-production-games-desktop.png",
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "Unknown-size allowance and margin are clear; paused resume is explicit and fresh copies are separate; closed dialogs do not poll.",
+        "Double clicks send one request, accepted launches stay unverified, another game is independent, history survives reload without launching, and denied shortcuts show recovery guidance."
+      ],
+      "diskScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\consent-setup-download-production-disk-mobile.png",
+      "gamesScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\consent-setup-download-production-games-mobile.png",
+      "ok": true
+    }
+  ]
+}

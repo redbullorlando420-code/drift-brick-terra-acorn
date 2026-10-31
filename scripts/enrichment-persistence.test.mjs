@@ -35,14 +35,14 @@ test('actual sparse persistence batches restore in 256-row pages without reading
     Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:key=>local.get(key)??null,setItem:(key,value)=>local.set(key,value)}});
     const sparseTags=patchSparseRecord(result.tags,[['id:0002',['manual-later']]]);
     const sparseMetadata=patchSparseRecord(result.metadataProvenance,[['id:0002',{tags:{'manual-later':'manual'},lockedFields:['tags'],updatedAt:4}]]);
-    savePrefs({favorites:['saved'],likes:[],tags:sparseTags,metadataProvenance:sparseMetadata,view:'grid',sort:'added',sourceId:'home',viewCounts:{},categories:{},progress:{},resumeProgress:{},history:[]});
+    savePrefs({favorites:['saved'],likes:[],tags:sparseTags,metadataProvenance:sparseMetadata,view:'grid',sort:'added',sourceId:'home',viewCounts:{},categories:patchSparseRecord({keep:"Existing"},[["id:0002","Racing"]]),progress:{},resumeProgress:{},history:[]});
     await waitForPrefsWrites();assert.equal(disk.get('preferences').sparseMetadataRecords.tags.__reelcaseSparseRecord,1,'IndexedDB receives cloneable data, never a Proxy');
     assert.equal(disk.get('preferences').tags.__reelcaseSparseRecord,undefined,'legacy readers retain their ordinary tag dictionary');
     assert.deepEqual(disk.get('preferences').tags.unrelated,['keep']);
     assert.equal(disk.get('preferences').tags,disk.get('preferences').sparseMetadataRecords.tags.snapshot.base,'structured clone keeps one shared baseline');
     await restoreDurablePrefs();const prefs=loadPrefs();
     assert.deepEqual(prefs.tags['id:0002'],['manual-later']);assert.deepEqual(prefs.tags['id:0699'],['science']);assert.deepEqual(prefs.favorites,['saved']);
-    assert.deepEqual(prefs.metadataProvenance['id:0002'].lockedFields,['tags']);
+    assert.deepEqual(prefs.metadataProvenance['id:0002'].lockedFields,['tags']);assert.equal(prefs.categories['id:0002'],'Racing');assert.equal(prefs.categories.keep,'Existing');
     const recovered=await restoreEnrichmentRows(prefs);assert.deepEqual(recovered.tags['id:0002'],['manual-later']);
     local.set('reelcase.tag-edits.v1',JSON.stringify({'id:0003':['journal']}));
     local.set('reelcase.tag-provenance-edits.v1',JSON.stringify({'id:0003':{tags:{journal:'manual'},lockedFields:['tags']}}));

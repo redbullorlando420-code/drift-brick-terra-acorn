@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "checks": [
+    "v19 origin/capability checks",
+    "real checkpoint file survives process restart with no replay",
+    "bounded resume yields checksum-identical full model",
+    "expired and replayed approvals start no native process",
+    "unattended fields rejected and exact password-free literal argv observed",
+    "launcher stop/exit never marked a verified remote session"
+  ],
+  "limitations": "Disposable copied Companion on actual Windows filesystem/HTTP. Hugging Face responses and native processes are controlled fixtures. No real weights, RustDesk executable, remote peer, account or installed service was invoked."
+}

@@ -1,3 +1,4 @@
+import { YoutubeUpcoming } from './youtube-upcoming';
 import { forEachCatalogSlice, yieldCatalogTask } from '@/lib/catalog-work';
 import { useLiveRoomPage } from './use-live-room-page';
 import { rememberVideo } from '@/lib/videos/video-lookup';
@@ -169,6 +170,7 @@ export function LiveDesk({ videos, adultLiveVideos = [], staleYoutubeVideos = []
         </> : <LivePageGrid key={s.id + ':' + filter + ':' + search + ':' + sort} items={items} label={s.label} grid={grid} />}
       </section>;
     })}
+    {(source==='all'||source==='youtube')&&<YoutubeUpcoming/>}
     {recentlyLiveYoutube.length > 0 && (source === "all" || source === "youtube") && <section className="mb-8" aria-label="Recently live YouTube streams awaiting confirmation">
       <div className="mb-3"><h2 className="font-display text-2xl text-fg">Recently live on YouTube <span className="text-base text-muted">{recentlyLiveYoutube.length.toLocaleString()} awaiting confirmation</span></h2><p className="mt-1 text-sm text-muted">These broadcasts were live at the last successful check. They are kept visible here without being counted as currently live until YouTube confirms them again.</p></div>
       <LivePageGrid key={filter + search + sort} items={recentlyLiveYoutube} label="Unconfirmed YouTube" grid={grid} />

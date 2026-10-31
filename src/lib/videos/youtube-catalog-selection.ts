@@ -1,3 +1,4 @@
+import { videoIsPrivate } from './public-visibility.ts';
 import { forEachCatalogSlice, sortCatalogRows, yieldCatalogTask } from '../catalog-work.ts';
 import type { LibraryVideo } from './types';
 import { youtubePublicationTime, youtubePublicationIdentityOrder } from './youtube-metadata.ts';
@@ -13,7 +14,7 @@ export async function youtubeCatalogSelection(input: {
   let dayOverrides: WeakMap<LibraryVideo,number> | undefined;
   await forEachCatalogSlice(input.videos, video => {
     if (video.remote?.kind === 'youtube' && !input.unavailable[video.id] && !input.hiddenVideos[video.id]
-      && !input.privateFolders.has(video.folderId) && !(input.hideDemo && video.isSample)) {
+      && !videoIsPrivate(input.privateFolders,video) && !(input.hideDemo && video.isSample)) {
       const published=youtubePublicationTime(video);
       if(published && published!==video.addedAt){dayOverrides??=new WeakMap();dayOverrides.set(video,published);}
       (published ? dated : undated).push(video);

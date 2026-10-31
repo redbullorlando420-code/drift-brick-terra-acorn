@@ -1,0 +1,60 @@
+desktop: seed
+desktop: preview/player
+mobile: seed
+mobile: preview/player
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "clipBytes": 2509,
+    "readyScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\companion-download-dev-ready-desktop.png",
+    "completeScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\companion-download-dev-complete-desktop.png",
+    "playerScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\companion-download-dev-player-desktop.png",
+    "setupScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\companion-download-dev-setup-desktop.png",
+    "authScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\companion-download-dev-auth-desktop.png",
+    "localScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\companion-download-dev-local-desktop.png",
+    "interruptedResume": true,
+    "resumes": 1,
+    "browserAuthOptIn": true,
+    "browserRetry": true,
+    "localVideoDecodedAndSeeked": true,
+    "consentReset": true,
+    "starts": 5,
+    "cancels": 1,
+    "reads": 23,
+    "cardsDoNotPoll": true,
+    "closeStopsPolling": true,
+    "reloadRestoresStatus": true,
+    "previewAndPlayer": true,
+    "setupAndErrors": true,
+    "liveExcluded": true,
+    "ok": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "clipBytes": 2513,
+    "readyScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\companion-download-dev-ready-mobile.png",
+    "completeScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\companion-download-dev-complete-mobile.png",
+    "playerScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\companion-download-dev-player-mobile.png",
+    "setupScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\companion-download-dev-setup-mobile.png",
+    "authScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\companion-download-dev-auth-mobile.png",
+    "localScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\companion-download-dev-local-mobile.png",
+    "interruptedResume": true,
+    "resumes": 1,
+    "browserAuthOptIn": true,
+    "browserRetry": true,
+    "localVideoDecodedAndSeeked": true,
+    "consentReset": true,
+    "starts": 5,
+    "cancels": 1,
+    "reads": 23,
+    "cardsDoNotPoll": true,
+    "closeStopsPolling": true,
+    "reloadRestoresStatus": true,
+    "previewAndPlayer": true,
+    "setupAndErrors": true,
+    "liveExcluded": true,
+    "ok": true
+  }
+]

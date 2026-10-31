@@ -1,6 +1,12 @@
+import { markPlaylistWalk, normalizePlaylistWalk, type PlaylistWalk } from '../videos/youtube-playlist-walk';
+import { advanceYoutubeEvents } from '../videos/youtube-events';
+import { projectTwitchArchiveUser } from './provider-projection';
+import { readProviderJson } from './provider-json';
+import {createTwitchChapterReader,TWITCH_CHAPTER_QUERY} from './twitch-chapters';
+import { detectYoutubeFeedGap, advanceYoutubeFeedGap, normalizeYoutubeFeedGap } from '../videos/youtube-feed-gap';
 import { twitchPullPolicy, twitchPolicyAllows } from '../videos/twitch-pull-policy';
 import { completeKnownYoutubeEvidence, YoutubeLiveEvidenceError, youtubeHtmlLiveEvidence, type YoutubeLiveRead } from './youtube-live-evidence';
-import { validateYoutubeFeed } from './youtube-contract';
+import { validateYoutubeFeed, validateYoutubeItems } from './youtube-contract';
 import { walkTwitchClips, type TwitchClipNode } from './twitch-clips';
 import { recentPullSuccess, recentPullFailure, recentPullReady } from '../videos/recent-pull';
 import { liveRoomRequest, type LiveRoomPage } from './live-rooms';
@@ -52,8 +58,8 @@ import { advanceTwitchClipCursor, decodeTwitchClipCursor, encodeTwitchClipCursor
 
 import { twitchContentEvidence } from '../videos/twitch-content';
 
-type FollowInput = { freshTwitchClips?: boolean; twitchClipMode?: "recent" | "archive"; query: string; kind: "auto" | FollowKind; clipLimit?: number; twitchVodLimit?: number; catalogCursor?: string; twitchArchiveCursor?: string; twitchClipCursor?: string };
-type RefreshInput = { twitchApplyPolicy?: boolean; channels: FollowedChannel[]; youtubeCatalog: boolean; youtubeBackground: boolean; youtubeLiveOnly: boolean; twitchLiveOnly: boolean; twitchRoutine: boolean; twitchContinueArchive?: boolean; forceYoutube?: boolean; youtubeVideoLimit?: number };
+type FollowInput = { freshTwitchClips?: boolean; twitchClipMode?: "recent" | "archive"; query: string; kind: "auto" | FollowKind; clipLimit?: number; twitchVodLimit?: number; catalogCursor?: string; playlistWalk?: PlaylistWalk; twitchArchiveCursor?: string; twitchClipCursor?: string };
+type RefreshInput = { youtubeFeedRepair?: boolean; twitchApplyPolicy?: boolean; channels: FollowedChannel[]; youtubeCatalog: boolean; youtubeBackground: boolean; youtubeLiveOnly: boolean; twitchLiveOnly: boolean; twitchRoutine: boolean; twitchContinueArchive?: boolean; forceYoutube?: boolean; youtubeVideoLimit?: number };
 
 export type FollowResult = {
   channel: FollowedChannel;
@@ -170,7 +176,7 @@ function parseFollow(data: unknown): FollowInput {
   const twitchArchiveCursor = typeof rec.twitchArchiveCursor === "string" && rec.twitchArchiveCursor.length <= 16_384 ? rec.twitchArchiveCursor : undefined;
   const twitchClipCursor = typeof rec.twitchClipCursor === "string" && rec.twitchClipCursor.length <= 8_192 ? rec.twitchClipCursor : undefined;
   const twitchVodLimit = typeof rec.twitchVodLimit === 'number' && Number.isFinite(rec.twitchVodLimit) ? Math.max(100, Math.min(TWITCH_FOCUSED_VOD_LIMIT, Math.floor(rec.twitchVodLimit))) : undefined;
-  return { query, kind, ...(freshTwitchClips ? {freshTwitchClips:true} : {}), ...(twitchClipMode ? { twitchClipMode } : {}), ...(clipLimit !== undefined ? { clipLimit } : {}), ...(twitchVodLimit ? { twitchVodLimit } : {}), ...(catalogCursor ? { catalogCursor } : {}), ...(twitchArchiveCursor ? { twitchArchiveCursor } : {}), ...(twitchClipCursor ? { twitchClipCursor } : {}) };
+  return { query, kind, playlistWalk: normalizePlaylistWalk(rec.playlistWalk), ...(freshTwitchClips ? {freshTwitchClips:true} : {}), ...(twitchClipMode ? { twitchClipMode } : {}), ...(clipLimit !== undefined ? { clipLimit } : {}), ...(twitchVodLimit ? { twitchVodLimit } : {}), ...(catalogCursor ? { catalogCursor } : {}), ...(twitchArchiveCursor ? { twitchArchiveCursor } : {}), ...(twitchClipCursor ? { twitchClipCursor } : {}) };
 }
 
 function parseRefresh(data: unknown): RefreshInput {
@@ -180,7 +186,7 @@ function parseRefresh(data: unknown): RefreshInput {
   // Keep a sizeable saved list live after restore; the refresh worker remains
   // concurrency-limited below so this does not flood providers.
   const limit = Number(rec.youtubeVideoLimit);
-  return { twitchApplyPolicy: rec.twitchApplyPolicy===true, channels: channels.slice(0, rec.twitchLiveOnly === true && channels.every(channel => channel.kind === 'twitch') ? 100 : 80), youtubeCatalog: rec.youtubeCatalog === true, youtubeBackground: rec.youtubeBackground === true, youtubeLiveOnly: rec.youtubeLiveOnly === true, twitchLiveOnly: rec.twitchLiveOnly === true, twitchRoutine: rec.twitchRoutine === true, twitchContinueArchive: rec.twitchContinueArchive === true && rec.youtubeLiveOnly !== true && rec.twitchLiveOnly !== true, forceYoutube: rec.forceYoutube === true && rec.youtubeCatalog === true && rec.youtubeBackground !== true && rec.youtubeLiveOnly !== true && rec.twitchLiveOnly !== true && rec.twitchRoutine !== true, youtubeVideoLimit: Number.isFinite(limit) ? Math.max(30, Math.min(500, Math.floor(limit))) : 100 };
+  return { youtubeFeedRepair: rec.youtubeFeedRepair===true && rec.youtubeBackground!==true && rec.youtubeLiveOnly!==true && rec.youtubeCatalog!==true, twitchApplyPolicy: rec.twitchApplyPolicy===true, channels: channels.slice(0, rec.twitchLiveOnly === true && channels.every(channel => channel.kind === 'twitch') ? 100 : 80), youtubeCatalog: rec.youtubeCatalog === true, youtubeBackground: rec.youtubeBackground === true, youtubeLiveOnly: rec.youtubeLiveOnly === true, twitchLiveOnly: rec.twitchLiveOnly === true, twitchRoutine: rec.twitchRoutine === true, twitchContinueArchive: rec.twitchContinueArchive === true && rec.youtubeLiveOnly !== true && rec.twitchLiveOnly !== true, forceYoutube: rec.forceYoutube === true && rec.youtubeCatalog === true && rec.youtubeBackground !== true && rec.youtubeLiveOnly !== true && rec.twitchLiveOnly !== true && rec.twitchRoutine !== true, youtubeVideoLimit: Number.isFinite(limit) ? Math.max(30, Math.min(500, Math.floor(limit))) : 100 };
 }
 
 function guessKind(query: string): FollowKind {
@@ -459,7 +465,7 @@ async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, 
         timeoutMs: 10_000, manualRetry,
       });
       if (response.ok) {
-        const pageData = await response.json() as unknown;
+        const pageData = await readProviderJson(response) as unknown;
         addPageVideos(pageData);
         continuation = youtubeCatalogContinuation(pageData);
         // A few channel layouts still expose renderer-shaped rows but not a
@@ -482,7 +488,7 @@ async function youtubeContinuationBackfill(html: string, knownIds: Set<string>, 
         body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion: config.clientVersion } }, continuation }),
         timeoutMs: 10_000, manualRetry,
       });
-      const pageData = await response.json() as unknown;
+      const pageData = await readProviderJson(response) as unknown;
       addPageVideos(pageData);
       const next = youtubeCatalogContinuation(pageData);
       if (next && next !== continuation) continuation = next;
@@ -541,7 +547,7 @@ async function youtubeFromVideo(id: string, short = false): Promise<FollowResult
     { timeoutMs: 12000 },
   );
   if (!oembed.ok) throw new Error("That YouTube video could not be found.");
-  const meta = (await oembed.json()) as {
+  const meta = (await readProviderJson(oembed,'youtube')) as {
     title?: string;
     author_name?: string;
     author_url?: string;
@@ -585,27 +591,131 @@ async function youtubeFromVideo(id: string, short = false): Promise<FollowResult
 
 const YT_INBOX = "youtube:inbox";
 
-async function youtubeLiveForFollow(channel: FollowedChannel): Promise<{ channel: FollowedChannel; videos: LibraryVideo[]; complete: boolean }> {
-  let channelId = channel.channelId ?? channel.id.match(/^yt:(UC[A-Za-z0-9_-]{20,})$/)?.[1] ?? '';
+async function youtubeLiveForFollow(
+  channel: FollowedChannel,
+): Promise<{
+  channel: FollowedChannel;
+  videos: LibraryVideo[];
+  complete: boolean;
+}> {
+  let channelId =
+    channel.channelId ??
+    channel.id.match(/^yt:(UC[A-Za-z0-9_-]{20,})$/)?.[1] ??
+    "";
   if (!channelId) channelId = await resolveYoutubeCreator(channel.handle);
   let result: YoutubeLiveRead;
-  try { result = await browseYoutubeLives.inspect(channelId); }
-  catch (error) {
+  try {
+    result = await browseYoutubeLives.inspect(channelId);
+  } catch (error) {
     if (!canRecoverYoutubeLiveLayout(error)) throw error;
-    result = youtubeHtmlLiveEvidence(await fetchText('https://www.youtube.com/channel/' + encodeURIComponent(channelId) + '/streams'), channelId);
+    result = youtubeHtmlLiveEvidence(
+      await fetchText(
+        "https://www.youtube.com/channel/" +
+          encodeURIComponent(channelId) +
+          "/streams",
+      ),
+      channelId,
+    );
   }
-  result = await completeKnownYoutubeEvidence(result, channel.youtubeLiveKnownOverflow ? [] : channel.youtubeLiveVideoIds ?? [], channelId,
-    id => fetchText('https://www.youtube.com/watch?v=' + encodeURIComponent(id), undefined, 'live'));
-  if (!result.observations.length && !result.evidence.complete) throw new YoutubeLiveEvidenceError(result.evidence);
+  result = await completeKnownYoutubeEvidence(
+    result,
+    channel.youtubeLiveKnownOverflow ? [] : (channel.youtubeLiveVideoIds ?? []),
+    channelId,
+    (id) =>
+      fetchText(
+        "https://www.youtube.com/watch?v=" + encodeURIComponent(id),
+        undefined,
+        "live",
+      ),
+  );
+  if (
+    !result.observations.length &&
+    !result.evidence.complete &&
+    !result.upcoming?.length
+  )
+    throw new YoutubeLiveEvidenceError(result.evidence);
   const checkedAt = result.evidence.at;
-  const videos = result.observations.map(observed => {
-    const video = ytVideo({id:observed.id,title:observed.title || channel.title + ' live',published:'',thumb:'https://i.ytimg.com/vi/' + observed.id + '/hqdefault.jpg',desc:channel.title + ' is live on YouTube.',channelId,channelName:channel.title,live:true});
-    if (video.remote) { video.remote.viewers = observed.viewers; video.remote.observedAt = checkedAt; }
-    video.tagline = channel.title + ' is live now'; return video;
+  const events = advanceYoutubeEvents(
+    channel.youtubeEvents ?? [],
+    result.upcoming ?? [],
+    result.observations,
+    result.evidence.complete,
+    checkedAt,
+  );
+  const videos = result.observations.map((observed) => {
+    const video = ytVideo({
+      id: observed.id,
+      title: observed.title || channel.title + " live",
+      published: "",
+      thumb: "https://i.ytimg.com/vi/" + observed.id + "/hqdefault.jpg",
+      desc: channel.title + " is live on YouTube.",
+      channelId,
+      channelName: channel.title,
+      live: true,
+    });
+    if (video.remote) {
+      video.remote.viewers = observed.viewers;
+      video.remote.observedAt = checkedAt;
+      video.remote.youtubeEvent = events.find((e) => e.id === observed.id);
+    }
+    video.tagline = channel.title + " is live now";
+    return video;
   });
-  const ids = result.observations.map(row => row.id);
-  return {complete:result.evidence.complete, channel:{...channel,channelId,live:ids.length > 0,liveCheckedAt:checkedAt,lastLiveFailure:undefined,youtubeLiveEvidence:result.evidence,youtubeLiveKnownOverflow:result.evidence.complete ? undefined : channel.youtubeLiveKnownOverflow,
-    youtubeLiveVideoIds:result.evidence.complete ? ids : [...new Set([...(channel.youtubeLiveVideoIds ?? []),...ids])].slice(0,64)}, videos};
+  for (const event of events.filter(
+    (e) =>
+      (!e.wasLiveAt && result.upcoming?.some((row) => row.id === e.id)) ||
+      (e.state === "uncertain" &&
+        !e.wasLiveAt &&
+        channel.youtubeEvents?.find((old) => old.id === e.id)?.state !==
+          "uncertain") ||
+      (e.state === "completed" &&
+        channel.youtubeEvents?.find((old) => old.id === e.id)?.state !==
+          "completed"),
+  )) {
+    const video = ytVideo({
+      id: event.id,
+      title: event.title,
+      published: "",
+      thumb: "https://i.ytimg.com/vi/" + event.id + "/hqdefault.jpg",
+      desc:
+        event.state === "completed"
+          ? "Previously observed broadcast has ended."
+          : "Scheduled broadcast. Start time alone does not confirm live.",
+      channelId,
+      channelName: channel.title,
+    });
+    video.remote = {
+      ...video.remote!,
+      live: false,
+      youtubeType: event.state === "completed" ? "replay" : "upcoming",
+      youtubeEvent: event,
+      observedAt: checkedAt,
+    };
+    videos.push(video);
+  }
+  const ids = result.observations.map((row) => row.id);
+  return {
+    complete: result.evidence.complete,
+    channel: {
+      ...channel,
+      channelId,
+      youtubeEvents: events,
+      live: ids.length ? true : result.evidence.complete ? false : channel.live,
+      liveCheckedAt: checkedAt,
+      lastLiveFailure: undefined,
+      youtubeLiveEvidence: result.evidence,
+      youtubeLiveKnownOverflow: result.evidence.complete
+        ? undefined
+        : channel.youtubeLiveKnownOverflow,
+      youtubeLiveVideoIds: result.evidence.complete
+        ? ids
+        : [...new Set([...(channel.youtubeLiveVideoIds ?? []), ...ids])].slice(
+            0,
+            64,
+          ),
+    },
+    videos,
+  };
 }
 
 function boundedFollowResult(result: FollowResult, limit: number): FollowResult {
@@ -623,7 +733,8 @@ function routineYoutubeFeedDelta(result: FollowResult, limit: number, newestKnow
   const entries = catalog.map((video) => ({ videoId: video.remote?.videoId, video }));
   const delta = selectYoutubeFeedDelta(entries, newestKnownVideoId, limit).map((entry) => entry.video);
   const videos = [...live, ...delta];
-  return { ...result, channel: { ...result.channel, lastResponseCount: videos.length }, videos };
+  const gap = detectYoutubeFeedGap(entries.map(row=>row.videoId??''),newestKnownVideoId);
+  return { ...result, channel: { ...result.channel, lastResponseCount: videos.length, ...(gap?{recentPull:{attemptedAt:Date.now(),failures:0,gap}}:{}) }, videos };
 }
 
 function youtubeResultForRequest(result: FollowResult, limit: number, deepCatalog: boolean, newestKnownVideoId?: string) {
@@ -824,10 +935,10 @@ function youtubeFromChannel(query: string, limit: number = LIBRARY_LIMITS.youtub
   return providerRequest("youtube", `${query}:${deepCatalog ? "catalog" : "feed"}:${limit}:${resumeCursor ?? "start"}:${newestKnownVideoId ?? "none"}:${manualRetry ? `manual-${manualRetry.revision}` : 'normal'}`, focused, () => youtubeFromChannelUncoalesced(query, limit, deepCatalog, newestKnownVideoId, resumeCursor, manualRetry, titleHint));
 }
 
-async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?: string, requestedLimit?: number, manualRetry?: YoutubeManualRetry, titleHint?: string): Promise<FollowResult> {
+async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?: string, requestedLimit?: number, manualRetry?: YoutubeManualRetry, titleHint?: string, previousWalk?: PlaylistWalk): Promise<FollowResult> {
   const playlistId = youtubePlaylistId(input);
   if (!playlistId) throw new Error("Enter a public YouTube playlist URL.");
-  return providerRequest("youtube", `playlist:${playlistId}:${resumeCursor ?? "start"}:${focused ? "catalog" : "feed"}:${requestedLimit ?? "default"}:${manualRetry ? `manual-${manualRetry.revision}` : 'normal'}`, focused, async () => {
+  return providerRequest("youtube", `playlist:${playlistId}:${previousWalk?.id??"new"}:${resumeCursor ?? "start"}:${focused ? "catalog" : "feed"}:${requestedLimit ?? "default"}:${manualRetry ? `manual-${manualRetry.revision}` : 'normal'}`, focused, async () => {
     const direct = await youtubeBrowseArchive(playlistId, requestedLimit ?? (focused ? LIBRARY_LIMITS.youtubePlaylistVideosPerPull : 80), resumeCursor, manualRetry);
     if (direct) {
       const folderId = `ytpl:${playlistId}`;
@@ -837,12 +948,12 @@ async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?:
           desc: 'Public YouTube playlist', channelId: 'playlist', channelName: rendererText(entry.shortBylineText) || 'YouTube' });
         video.id = `${folderId}:${entry.videoId}`; video.folderId = folderId; return video;
       });
-      return { channel: { id: folderId, kind: 'youtube', handle: `https://www.youtube.com/playlist?list=${playlistId}`,
+      return markPlaylistWalk({ id: folderId, kind: 'youtube', handle: `https://www.youtube.com/playlist?list=${playlistId}`,
         title: direct.title || titleHint || `YouTube playlist ${playlistId.slice(0, 8)}`, thumb: videos[0]?.poster, lastCheckedAt: Date.now(), lastResponseCount: videos.length,
         ...(!resumeCursor ? { newestVideoId: direct.rows[0]?.videoId } : {}),
         ...(direct.failure ? { lastProviderFailure: classifyProviderFailure('youtube', direct.failure) } : {}),
         ...(focused ? { catalogCursor: direct.cursor ?? undefined, catalogCheckedAt: Date.now(), catalogExhaustedAt: direct.completed ? Date.now() : undefined } : {}),
-      }, videos };
+      }, videos, direct.cursor ?? undefined, direct.completed && !direct.failure, previousWalk, resumeCursor);
     }
     const html = await fetchText(`https://www.youtube.com/playlist?list=${encodeURIComponent(playlistId)}`, manualRetry);
     const root = youtubeInitialData(html);
@@ -860,11 +971,13 @@ async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?:
           body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion } }, browseId: `VL${playlistId}` }), timeoutMs: 10_000, manualRetry,
         });
         if (response.ok) {
-          browseRoot = await response.json() as unknown;
+          browseRoot = await readProviderJson(response) as unknown;
           for (const entry of publicPlaylistEntries(browseRoot, Math.max(limit, 100))) if (!seen.has(entry.id)) { seen.add(entry.id); found.push(entry); }
         }
       } catch { /* A public playlist can still be unavailable to this server. */ }
     }
+    let proven = !!youtubeCatalogItems(browseRoot);
+    if(proven){try{validateYoutubeItems(youtubeCatalogItems(browseRoot)!);}catch{proven=false;}}
     let continuation = resumeCursor ?? youtubeCatalogContinuation(browseRoot) ?? youtubeContinuation(browseRoot);
     let completed = !continuation && found.length > 0;
     for (let page = 0; continuation && apiKey && page < (focused ? LIBRARY_LIMITS.youtubePlaylistPagesPerPull : 1) && found.length < limit; page++) {
@@ -874,7 +987,10 @@ async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?:
           body: JSON.stringify({ context: { client: { clientName: "WEB", clientVersion } }, continuation }), timeoutMs: 10_000, manualRetry,
         });
         if (!response.ok) break;
-        const pageData = await response.json() as unknown;
+        const pageData = await readProviderJson(response) as unknown;
+        const pageItems=youtubeCatalogItems(pageData);
+        if(!pageItems){proven=false;break;}
+        validateYoutubeItems(pageItems);
         // Keep the whole provider page: the next continuation starts after it.
         for (const entry of publicPlaylistEntries(pageData, Math.max(100, limit - found.length))) if (!seen.has(entry.id)) { seen.add(entry.id); found.push(entry); }
         const next = youtubeCatalogContinuation(pageData) ?? youtubeContinuation(pageData);
@@ -892,7 +1008,7 @@ async function youtubeFromPlaylist(input: string, focused = true, resumeCursor?:
       video.folderId = folderId;
       return video;
     });
-    return { channel: { id: folderId, kind: "youtube", handle: `https://www.youtube.com/playlist?list=${playlistId}`, title, thumb: videos[0]?.poster, lastCheckedAt: Date.now(), newestVideoId: found[0]?.id, lastResponseCount: videos.length, ...(focused ? { catalogCursor: continuation ?? undefined, catalogCheckedAt: Date.now(), catalogExhaustedAt: completed ? Date.now() : undefined } : {}) }, videos };
+    return markPlaylistWalk({ id: folderId, kind: "youtube", handle: `https://www.youtube.com/playlist?list=${playlistId}`, title, thumb: videos[0]?.poster, lastCheckedAt: Date.now(), newestVideoId: found[0]?.id, lastResponseCount: videos.length, ...(focused ? { catalogCursor: continuation ?? undefined, catalogCheckedAt: Date.now(), catalogExhaustedAt: completed ? Date.now() : undefined } : {}) }, videos, continuation ?? undefined, completed && proven, previousWalk, resumeCursor);
   });
 }
 
@@ -977,7 +1093,7 @@ async function twitchGqlJson(query: string, variables: Record<string, unknown>) 
     body: JSON.stringify({ query, variables }),
   });
   if (!res.ok) throw new Error(`Twitch request failed: HTTP ${res.status}`);
-  return (await res.json()) as {
+  return (await readProviderJson(res,'twitch')) as {
     data?: { user?: GqlUser | null };
     errors?: Array<{ message?: string; path?:Array<string|number> }>;
   };
@@ -1000,7 +1116,8 @@ async function twitchUser(
   if (user && json.errors?.length) {
     return { ...user, videos: { providerError: json.errors.map(error => error.message ?? 'Provider error').join('; ').slice(0, 240), edges: [] } };
   }
-  return user;
+  if(user?.videos?.edges && user.videos.edges.length>100) throw new ProviderBudgetError('graph','Twitch returned more archive rows than its page contract permits; the page was not accepted.');
+  return user ? projectTwitchArchiveUser(user) : null;
 }
 
 /** A live check must not inherit the three-minute archive cache or walk VOD
@@ -1129,13 +1246,14 @@ function twitchVideos(
       mime: "video/twitch",
       size: 0,
       duration,
-      addedAt: Date.parse(node.publishedAt ?? "") || Date.now(),
+      addedAt: (()=>{const at=Date.parse(node.publishedAt??"");return Number.isFinite(at)&&at>0&&at<=observedAt?at:0;})(),
       genre: node.game?.name,
       poster: node.previewThumbnailURL,
       tagline: node.description?.slice(0, 180),
       description: node.description?.slice(0, 800),
       remote: {
         kind: "twitch",
+        ...(Number.isFinite(Date.parse(node.publishedAt??''))&&Date.parse(node.publishedAt!)>0&&Date.parse(node.publishedAt!)<=observedAt?{publishedSource:'provider' as const,publishedPrecision:'instant' as const}:{publishedPrecision:'unknown' as const}),
         ...(edge.broadcastType ? {twitchContent:twitchContentEvidence(edge.broadcastType,node.id,edge.observedAt ?? observedAt)} : {}),
         videoId: node.id,
         channelId: user.id,
@@ -1149,7 +1267,7 @@ function twitchVideos(
     });
   }
   for (const clip of clips) {
-    const slug = clip.slug || clip.id;
+    const slug = clip.slug;
     if (!slug) continue;
     const views = Number.isFinite(clip.viewCount) && clip.viewCount! >= 0 ? clip.viewCount : undefined;
     const rawDuration = Number(clip.durationSeconds);
@@ -1170,6 +1288,8 @@ function twitchVideos(
       remote: {
         kind: "twitch",
         twitchContent:twitchContentEvidence('CLIPS',slug,observedAt),
+        twitchClipIdentity:{version:1,slug,...(clip.id && /^\d{1,40}$/.test(clip.id)?{id:clip.id}:{})},
+        ...(Number.isFinite(Date.parse(clip.createdAt??''))&&Date.parse(clip.createdAt!)>0&&Date.parse(clip.createdAt!)<=observedAt?{publishedSource:'provider' as const,publishedPrecision:'instant' as const}:{publishedPrecision:'unknown' as const}),
         videoId: slug,
         channelId: user.id,
         channelName: title,
@@ -1294,7 +1414,7 @@ export async function runFollowRemote(dataRaw: unknown): Promise<FollowResult> {
     if (data.freshTwitchClips && kind !== "twitch") throw new Error("Fresh clip reads are only available for Twitch clips.");
     if (kind === "twitch" && data.twitchClipMode) return followTwitchClips(data.query, data.twitchClipMode, data.clipLimit ?? 50, data.twitchClipCursor, data.freshTwitchClips);
     if (kind === "twitch") return followTwitch(data.query, false, data.clipLimit, data.twitchArchiveCursor, data.twitchClipCursor, data.twitchVodLimit);
-    if (youtubePlaylistId(data.query)) return youtubeFromPlaylist(data.query, true, data.catalogCursor, LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel);
+    if (youtubePlaylistId(data.query)) return youtubeFromPlaylist(data.query, true, data.catalogCursor, LIBRARY_LIMITS.youtubeManualRefreshVideosPerChannel, undefined, undefined, data.playlistWalk);
     const videoId = ytVideoId(data.query);
     if (videoId) return youtubeFromVideo(videoId, /^https?:\/\/(?:www\.|m\.)?youtube\.com\/shorts\//i.test(data.query.trim()));
     // A new follow should paint promptly; the timed cursor sweep fills its
@@ -1347,6 +1467,23 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
           channels.push({ ...ch, ...next.channel, id: ch.id });
           videos.push(...next.videos.map((video) => ({ ...video, folderId: ch.id })));
         } else {
+          if (data.youtubeFeedRepair && !ch.id.startsWith("ytpl:")) {
+            const gap=normalizeYoutubeFeedGap(ch.recentPull?.gap);
+            if(!gap||gap.status==='resolved') { channels.push(ch); return; }
+            const channelId=ch.channelId??ch.id.slice(3);
+            if(!/^UC[\w-]{20,}$/.test(channelId))throw Error('Verify this creator channel before repairing its feed.');
+            const page=await youtubeUploadsArchive(channelId,100,gap.cursor,undefined,{stopAtId:gap.anchor,maxPages:2});
+            if(!page)throw Error('YouTube returned an unreadable gap repair page. The saved positions were kept.');
+            const ids=page.rows.map(row=>row.videoId!).filter(Boolean),at=ids.indexOf(gap.anchor);
+            const accepted=at<0?page.rows:page.rows.slice(0,at+1);
+            const rawError=page.failure?classifyProviderFailure('youtube',page.failure):undefined;
+            const error=rawError?{...rawError,cooldownScope:rawError.cooldownScope??'catalog' as const,retryAt:rawError.retryAt??Date.now()+15000}:undefined;
+            const nextGap=advanceYoutubeFeedGap(gap,ids,page.cursor,page.completed,error?.message);
+            channels.push({...ch,recentPull:{...ch.recentPull!,attemptedAt:Date.now(),gap:nextGap,...(error?{failure:error,retryAt:error.retryAt}: {})}});
+            videos.push(...accepted.map(row=>ytVideo({id:row.videoId!,title:rendererText(row.title)||row.videoId!,published:'',metadata:youtubeRendererMetadata(row),thumb:row.thumbnail?.thumbnails?.at(-1)?.url||'https://i.ytimg.com/vi/'+row.videoId+'/hqdefault.jpg',desc:rendererText(row.descriptionSnippet),channelId,channelName:ch.title})).map(video=>({...video,folderId:ch.id})));
+            if(!error)refreshedIds.push(ch.id);
+            return;
+          }
           if (!data.youtubeCatalog && !recentPullReady(ch)) { channels.push(ch); return; }
           const id = ch.channelId ?? ch.id.match(/^yt:(UC[\w-]{20,})$/)?.[1];
           const q = id ? `https://www.youtube.com/channel/${id}` : ch.handle;
@@ -1355,7 +1492,7 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
           // it at the last durable upload identity. Explicit and scheduled
           // archive sweeps resume the separate Videos-grid continuation.
           const next = ch.id.startsWith("ytpl:")
-            ? await youtubeFromPlaylist(ch.handle, data.youtubeCatalog, data.youtubeCatalog ? ch.catalogCursor : undefined, data.youtubeVideoLimit, manualRetry, ch.title)
+            ? await youtubeFromPlaylist(ch.handle, data.youtubeCatalog, data.youtubeCatalog ? ch.catalogCursor : undefined, data.youtubeVideoLimit, manualRetry, ch.title, data.youtubeCatalog ? ch.playlistWalk : undefined)
             : data.youtubeCatalog
               ? await youtubeFromChannel(q, data.youtubeVideoLimit ?? 100, true, true, undefined, ch.catalogCursor, manualRetry, ch.title)
               : await youtubeFromChannel(q, LIBRARY_LIMITS.youtubeRoutineVideosPerChannel, false, false, ch.recentPull?.newestVideoId ?? ch.newestVideoId);
@@ -1370,6 +1507,7 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
             ...(!data.twitchLiveOnly ? { twitchArchiveCheckedAt: Date.now() } : {}), ...twitchRetryPatch(ch, data.twitchLiveOnly ? 'live' : 'archive', classifyTwitchFailure(error)) });
           return;
         }
+        if(data.youtubeFeedRepair && ch.recentPull?.gap){const rawFailure=classifyProviderFailure('youtube',error);const failure={...rawFailure,cooldownScope:rawFailure.cooldownScope??'catalog' as const,retryAt:rawFailure.retryAt??Date.now()+15000};channels.push({...ch,recentPull:{...ch.recentPull,attemptedAt:Date.now(),gap:{...ch.recentPull.gap,status:'partial',error:failure.message},failure,retryAt:failure.retryAt}});return;}
         if (!data.youtubeLiveOnly && !data.youtubeCatalog) { channels.push({ ...ch, recentPull: recentPullFailure(ch, classifyProviderFailure(ch.kind, error)) }); return; }
         // A failed archive attempt still consumes this creator's turn. Moving
         // its cursor timestamp prevents one offline channel from pinning every
@@ -1384,10 +1522,10 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
       }
     });
     const retryAt = Object.fromEntries(data.channels.flatMap((channel) => {
-      const retry = channel.kind === "youtube" ? youtubeRetryAt(Date.now(), data.youtubeLiveOnly ? 'live' : data.youtubeCatalog ? 'catalog' : 'feed') ?? (!data.youtubeLiveOnly && !data.youtubeCatalog ? channels.find(row => row.id === channel.id)?.recentPull?.retryAt : channels.find(row => row.id === channel.id)?.[data.youtubeLiveOnly ? 'lastLiveFailure' : 'lastProviderFailure']?.retryAt) ?? (!data.youtubeLiveOnly ? retryAtFor(channel.kind, channel.handle) : undefined) : (!data.twitchLiveOnly && !data.twitchContinueArchive ? channels.find(row => row.id === channel.id)?.recentPull?.retryAt : channels.find(row => row.id === channel.id)?.[data.twitchLiveOnly ? 'twitchLiveRetry' : 'twitchArchiveRetry']?.retryAt);
+      const retry = channel.kind === "youtube" ? youtubeRetryAt(Date.now(), data.youtubeLiveOnly ? 'live' : data.youtubeCatalog || data.youtubeFeedRepair ? 'catalog' : 'feed') ?? (!data.youtubeLiveOnly && !data.youtubeCatalog ? channels.find(row => row.id === channel.id)?.recentPull?.retryAt : channels.find(row => row.id === channel.id)?.[data.youtubeLiveOnly ? 'lastLiveFailure' : 'lastProviderFailure']?.retryAt) ?? (!data.youtubeLiveOnly ? retryAtFor(channel.kind, channel.handle) : undefined) : (!data.twitchLiveOnly && !data.twitchContinueArchive ? channels.find(row => row.id === channel.id)?.recentPull?.retryAt : channels.find(row => row.id === channel.id)?.[data.twitchLiveOnly ? 'twitchLiveRetry' : 'twitchArchiveRetry']?.retryAt);
       return retry ? [[channel.id, retry]] : [];
     }));
-    const scope = data.youtubeLiveOnly ? 'live' : data.youtubeCatalog ? 'catalog' : 'feed';
+    const scope = data.youtubeLiveOnly ? 'live' : data.youtubeCatalog || data.youtubeFeedRepair ? 'catalog' : 'feed';
     const deadline = youtubeRetryAt(Date.now(), scope);
     return { videos, channels, refreshedIds, liveCheckedIds, retryAt, ...(data.channels.some(channel => channel.kind === "youtube") && deadline ? { providerRetryAt: deadline, providerCooldownScope: youtubeCooldownScope(Date.now(), scope) } : {}) };
 }
@@ -1511,7 +1649,7 @@ async function twitchGql(query: string, variables: Record<string, string>) {
     body: JSON.stringify({ query, variables }),
   });
   if (!res.ok) return null;
-  return (await res.json()) as Record<string, unknown>;
+  return (await readProviderJson(res,'twitch')) as Record<string, unknown>;
 }
 
 export async function runFetchTwitchFollowing(dataRaw: unknown): Promise<{ channels: FollowList[]; privateList: boolean }> {
@@ -1736,7 +1874,7 @@ async function fetchEpornerPageOnce(query: string, order: string, page: number, 
     },
   });
   if (!res.ok) throw new Error(`Eporner API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
-  const json = (await res.json()) as {
+  const json = (await readProviderJson(res,'twitch')) as {
     videos?: EpornerVideo[];
     total_pages?: number;
     total_count?: number;
@@ -1901,7 +2039,7 @@ async function fetchRedtubePage(query: string, order: string, page: number): Pro
     },
   });
   if (!res.ok) throw new Error(`RedTube API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
-  const json = (await res.json()) as {
+  const json = (await readProviderJson(res,'twitch')) as {
     videos?: Array<{ video?: RedtubeVideo } | RedtubeVideo>;
     count?: number;
     message?: string;
@@ -1992,7 +2130,7 @@ async function fetchChaturbateRooms(query: string, maxVideos: number, offset = 0
   url.search = new URLSearchParams({ wm: 'DkfRj', client_ip: 'request_ip', limit: String(limit), offset: String(offset) }).toString();
   const res = await cachedAdultFetch(url.href, { signal: AbortSignal.timeout(12_000), cacheTtlMs: 60_000, headers: { accept: 'application/json' } });
   if (!res.ok) throw new Error('Chaturbate rooms HTTP ' + res.status + (res.status === 429 ? ' (rate limited)' : ''));
-  const data = await res.json() as { results?: ChaturbateRoom[]; count?: number };
+  const data = await readProviderJson(res,'twitch') as { results?: ChaturbateRoom[]; count?: number };
   if (!Array.isArray(data.results) || !Number.isFinite(data.count)) throw new Error('Chaturbate returned an unreadable directory. Previous rooms were kept.');
   const checkedAt = Number(res.headers.get('x-reelcase-observed-at')) || Date.now();
   const needle = query.trim().toLowerCase();
@@ -2753,7 +2891,7 @@ export async function runBooruOriginal(data: unknown): Promise<string | null> {
     if (hostId === 'e621') {
       const response = await cachedAdultFetch(`https://e621.net/posts/${id}.json`, { signal: AbortSignal.timeout(10_000), cacheTtlMs: 30 * 60_000, headers: { accept: 'application/json', 'user-agent': 'Realhub/1.0' } });
       if (!response.ok) return null;
-      const body = asRecord(await response.json());
+      const body = asRecord(await readProviderJson(response));
       const url = asString(asRecord(asRecord(body?.post)?.file)?.url);
       return /^https:\/\//.test(url) ? url : null;
     }
@@ -2855,7 +2993,7 @@ async function fetchE621Page(tags: string, limit: number, page: number): Promise
     },
   });
   if (!res.ok) throw new Error(`e621 HTTP ${res.status}`);
-  const json: unknown = await res.json();
+  const json: unknown = await readProviderJson(res,'twitch');
   const root = asRecord(json);
   const rows=adultRows('booru',json,['posts'],['id']);
   const out: LibraryVideo[] = [];
@@ -3027,7 +3165,7 @@ async function getRedgifsAccessToken(): Promise<string> {
     signal: AbortSignal.timeout(12_000),
   });
   if (!res.ok) throw new Error(`Redgifs auth HTTP ${res.status}`);
-  const json = (await res.json()) as { token?: string };
+  const json = (await readProviderJson(res,'twitch')) as { token?: string };
   if (!json.token?.trim()) throw new Error("Redgifs auth missing token");
   // Temporary tokens last many hours; refresh hourly at most.
   redgifsAuth = { token: json.token.trim(), expiresAt: now + 60 * 60_000 };
@@ -3061,7 +3199,7 @@ async function fetchRedgifsDirect(query: string, maxVideos: number, page: number
     },
   });
   if (!res.ok) throw new Error(`Redgifs HTTP ${res.status}`);
-  const json: unknown = await res.json();
+  const json: unknown = await readProviderJson(res,'twitch');
   const videos = collectRedgifsRows(json)
     .map(redgifsVideo)
     .filter((video): video is LibraryVideo => video != null)
@@ -3100,7 +3238,7 @@ async function fetchRedgifsViaAdultDataLink(query: string, maxVideos: number, pa
     },
   });
   if (!res.ok) throw new Error(`AdultDataLink Redgifs HTTP ${res.status}`);
-  const json: unknown = await res.json();
+  const json: unknown = await readProviderJson(res,'twitch');
   const videos = collectRedgifsRows(json)
     .map(redgifsVideo)
     .filter((video): video is LibraryVideo => video != null)
@@ -3509,7 +3647,7 @@ async function fetchYoutubeComments(videoId: string, limit: number): Promise<{ c
         timeoutMs: 15_000,
       });
       if (!response.ok) return null;
-      return await response.json() as unknown;
+      return await readProviderJson(response) as unknown;
     };
 
     const initialData = youtubeInitialData(html);
@@ -3673,7 +3811,7 @@ async function fetchYoutubeChat(videoId: string, limit: number): Promise<{ comme
         timeoutMs: 15_000,
       });
       if (!response.ok) return null;
-      return await response.json() as unknown;
+      return await readProviderJson(response) as unknown;
     };
 
     let seed = youtubeLiveChatToken(youtubeInitialData(html));
@@ -3752,7 +3890,7 @@ async function fetchTwitchVodComments(videoId: string, limit: number): Promise<{
       if (!res.ok) {
         return { comments, note: comments.length ? "Partial Twitch VOD chat (rate limited)." : `Twitch VOD chat HTTP ${res.status}.` };
       }
-      const json = await res.json() as Array<{
+      const json = await readProviderJson(res,'twitch') as Array<{
         data?: {
           video?: {
             comments?: {
@@ -3917,7 +4055,7 @@ export async function runSearchRedtubeStars(dataRaw: unknown): Promise<{ stars: 
       },
     });
     if (!res.ok) throw new Error(`RedTube star API HTTP ${res.status}${res.status === 429 ? " (rate limited)" : ""}`);
-    const json = (await res.json()) as { stars?: unknown[]; message?: string; code?: number };
+    const json = (await readProviderJson(res,'twitch')) as { stars?: unknown[]; message?: string; code?: number };
     if (json.message && json.code) throw new Error(json.message);
     const stars: { name: string; thumb?: string; url?: string }[] = [];
     for (const row of json.stars ?? []) {
@@ -3940,3 +4078,6 @@ export async function runSearchRedtubeStars(dataRaw: unknown): Promise<{ stars: 
       note: filtered.length ? "Official RedTube star list." : "No matching RedTube creators on this page.",
     };
 }
+
+const readSelectedTwitchChapters=createTwitchChapterReader(id=>twitchGqlJson(TWITCH_CHAPTER_QUERY,{id}));
+export const runFetchTwitchChapters=(raw:unknown)=>readSelectedTwitchChapters(raw&&typeof raw==='object'?(raw as {videoId?:unknown}).videoId:undefined);

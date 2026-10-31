@@ -1,3 +1,5 @@
+import {TwitchChapters} from './twitch-chapters';
+import {twitchChapterEmbed} from '@/lib/remote/twitch-chapters';
 import {officialAdultUrl} from '@/lib/videos/provider-viewing';
 import {AdultProviderFrame,rememberOfficialViewing} from './provider-recovery';
 import { OfficialRoomPlayer } from './official-room-player';
@@ -120,6 +122,7 @@ export function Player({ playlist }: { playlist: string[] }) {
   const [vrStatus, setVrStatus] = useState("");
   const [removeReady, setRemoveReady] = useState(false);
   const [twitchTheater, setTwitchTheater] = useState(true);
+  const [chapterStart,setChapterStart]=useState<{id:string;seconds:number;revision:number}|null>(null);
   const capturedDur = useThumbs((s) => (video ? s.durations[video.id] : undefined));
   const scrubbing = useRef(false);
   const remoteStartedAt = useRef(0);
@@ -442,7 +445,7 @@ export function Player({ playlist }: { playlist: string[] }) {
     ? null
     : remote
       ? remote.kind === "twitch"
-        ? twitchEmbedUrl(remote, typeof window === "undefined" ? "" : window.location.hostname)
+        ? twitchChapterEmbed(twitchEmbedUrl(remote, typeof window === "undefined" ? "" : window.location.hostname),chapterStart?.id===video.id?chapterStart.seconds:undefined)
         : remote.kind === "youtube"
           ? youtubeEmbedUrl(remote.embedUrl ?? video.src ?? remote.watchUrl ?? "", remote.videoId, typeof window === "undefined" ? undefined : window.location.origin)
           : isAdultPullKind(remote.kind)
@@ -477,7 +480,7 @@ export function Player({ playlist }: { playlist: string[] }) {
         <>
         {isAdultPullKind(remote?.kind)?<AdultProviderFrame video={video} src={embedSrc}/>:<iframe
           ref={embedRef}
-          key={`embed:${video.id}`}
+          key={`embed:${video.id}:${chapterStart?.id===video.id?chapterStart.revision:0}`}
           title={video.name}
           src={embedSrc}
           className={cn("order-2 min-h-0 w-full flex-1 border-0 bg-bg", twitchSideMode && "sm:w-[68%]")}
@@ -681,6 +684,7 @@ export function Player({ playlist }: { playlist: string[] }) {
       {vrStatus && <p className="absolute z-20 right-4 bottom-4 max-w-sm rounded-md bg-surface/95 px-3 py-2 text-xs text-fg shadow-border sm:right-6">{vrStatus}</p>}
       {remote && supportsRemoteComments(remote.kind) && chrome && (
         <div data-player-controls className={cn(officialPlayer ? "order-3 max-h-48 shrink-0 overflow-y-auto border-t border-border bg-surface px-4" : "absolute z-20 bottom-24 left-4 right-4 max-w-xl sm:left-6")}>
+          <TwitchChapters key={`chapters:${video.id}`} video={video} onNavigate={seconds=>setChapterStart(previous=>({id:video.id,seconds,revision:(previous?.revision??0)+1}))}/>
           <AdultComments key={video.id} video={video} />
         </div>
       )}

@@ -1,0 +1,20 @@
+✔ large model resumes after restart from a verified checkpoint with bounded ranges and exact output (207.3996ms)
+✔ extra uncommitted suffix is read-only during review then removed only when explicit resume starts (192.0625ms)
+✔ ETag, pinned revision and local partial changes cannot be silently resumed (88.7137ms)
+✔ modified or replaced partials are never adopted or deleted by cancellation (75.9476ms)
+✔ cancelling a verified saved partial removes only its owned temporary data (66.3091ms)
+✔ fresh-transfer preview binds current publisher metadata and never overwrites an active verified model (70.4186ms)
+✔ checksum failure never enables a model and preserves installed files (46.151ms)
+✔ future journals and failed journal writes cannot start unrecorded model work (7.6531ms)
+✔ range reads reject insecure or foreign redirects, changed/missing validators and oversized responses (1.3706ms)
+✔ page-scoped remote approvals expire, resist foreign invalidation, reject unattended arguments and expose no secrets (5.1687ms)
+✔ publication interruption is recovered by verifying the existing destination without re-downloading weights (38.6543ms)
+✔ receipt admission is bounded and cancelled empty receipts can be replaced without scanning storage (14.5336ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 933.031

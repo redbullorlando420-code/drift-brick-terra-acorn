@@ -1,0 +1,25 @@
+✔ versioned operations accept bounded deltas, not future or oversized batches (1.1036ms)
+✔ manual records validate paired tags, provenance, field clocks and category shape (0.2099ms)
+✔ unknown and corrupt control generations remain rejected instead of reset (0.1027ms)
+✔ explicit snapshot retry invalidates only the slice writer reference cache (0.1077ms)
+✔ field clocks restore category separately from newer automatic tags without walking base dictionaries (2.5756ms)
+✔ pack generation keeps both stream links, all four editable drafts, short X text and manual-only sharing (3.9446ms)
+✔ channel validation rejects spoofed domains, credentials, non-HTTPS and video links; owner namespaces cannot overlap (0.9929ms)
+✔ ballots use latest valid normalized viewer vote, deduplicate IDs, preserve invalid replacements, and reject late messages (1.4713ms)
+✔ whole-sequence ties are deterministic regardless of arrival order; overflow rejects all moves (0.406ms)
+✔ controller checks resources for every move, interrupts a blocked sequence, and emergency stop clears everything (0.279ms)
+✔ simulator retains bounded logs, replay IDs and viewer entries under sustained messages (5.7578ms)
+✔ lease tokens are bounded, versioned generations rather than timestamps used as ownership (0.8114ms)
+✔ legacy packs migrate additively; pack and affected platform revisions advance together (1.3687ms)
+✔ conflict recovery reapplies only locally changed fields and preserves newer platform text and manual receipts (0.9638ms)
+✔ manual checklist undo and restoring a prior edit are revisioned without publication claims (1.7122ms)
+✔ history is bounded and schema corruption never silently truncates saved edit evidence (0.521ms)
+✔ channel setup keeps legacy values and rejects future versioned records (0.1192ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 243.4547

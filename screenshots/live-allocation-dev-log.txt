@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "automatic Twitch confirmation and discovery finish while the first YouTube response is deliberately blocked while automatic archive pulls yield to Live priority",
+        "healthy YouTube batches publish progress while the first YouTube batch is still stalled",
+        "automatic scans refresh all 42 Twitch and 52 YouTube stale streams and discover a live creator at the tail of 1,588 follows",
+        "all follow observations, including the newly discovered tail stream, are persisted in the dedicated follow checkpoint",
+        "allocation diagnostics show actual dispatch shares, age, uncertainty and distinct observation counts without starting extra provider reads",
+        "navigation changes automatic archive priority to the active provider without pinning the previous owner",
+        "live checks restart after six minutes without user input using the real browser session timer",
+        "Settings shows bounded session-only queued/in-flight/completion transitions with no creator URLs"
+      ],
+      "errors": [],
+      "requests": 254
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "automatic Twitch confirmation and discovery finish while the first YouTube response is deliberately blocked while automatic archive pulls yield to Live priority",
+        "healthy YouTube batches publish progress while the first YouTube batch is still stalled",
+        "automatic scans refresh all 42 Twitch and 52 YouTube stale streams and discover a live creator at the tail of 1,588 follows",
+        "all follow observations, including the newly discovered tail stream, are persisted in the dedicated follow checkpoint",
+        "allocation diagnostics show actual dispatch shares, age, uncertainty and distinct observation counts without starting extra provider reads",
+        "navigation changes automatic archive priority to the active provider without pinning the previous owner",
+        "live checks restart after six minutes without user input using the real browser session timer",
+        "Settings shows bounded session-only queued/in-flight/completion transitions with no creator URLs"
+      ],
+      "errors": [],
+      "requests": 255
+    }
+  ]
+}

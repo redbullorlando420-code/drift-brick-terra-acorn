@@ -1,0 +1,24 @@
+✔ Windows, POSIX and legacy-semicolon root declarations use explicit absolute path rules (1.283ms)
+✔ portable file features remain available while desktop-only capability claims are removed on other OSes (0.219ms)
+✔ unsupported native route families fail before Windows launch, registry, shortcut, tray or installer dispatch (0.1964ms)
+✔ browser negotiation trusts the Companion OS rather than the browser OS and rejects contradictory desktop capability claims (0.2661ms)
+✔ GLB export/reopen preserves world transforms and material color while excluding explode and wireframe without mutating the source (14.3122ms)
+✔ save naming, dirty signatures and corrupt local edit state are bounded and meaningful (0.5575ms)
+✔ saved-copy receipts are bounded and storage failure never fabricates persistence (5.357ms)
+✔ review does not create a model; exclusive atomic commit verifies bytes, hash and reload status (34.814ms)
+✔ existing source or destination is never overwritten, including a concurrent destination race (16.0036ms)
+✔ short, oversized, corrupt or mismatched uploads fail without a visible model (37.0102ms)
+✔ write/link failure retains original and leaves the save unconfirmed (12.7434ms)
+✔ root revocation interrupts a held stream and late bytes cannot commit it (10.0747ms)
+✔ a post-link receipt failure can be verified and recovered without uploading or replacing the file again (17.6974ms)
+✔ interrupted review never replays, explicit cancel releases it and corruption does not erase history (8.1671ms)
+✔ filename, size, path and pending budgets are enforced before output writes (31.8447ms)
+✔ history keeps forty receipts while retaining an in-flight reviewed save (9.7592ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 363.0763

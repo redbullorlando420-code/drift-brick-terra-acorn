@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "checks": [
+    "isolated real HTTP service advertises protocol 1 and task receipts",
+    "restart exposes interrupted work with no active process",
+    "public receipts omit URLs and enforce the origin gate",
+    "missing downloader blocks resume without native execution",
+    "cancel writes the same receipt atomically and YouTube reads the same outcome"
+  ],
+  "limitations": "Disposable copied Companion, approved temporary root and empty executable PATH. No user service was restarted, tool installed, model loaded, media downloaded or signed-in session read."
+}

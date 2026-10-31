@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "url": "https://huggingface.co/example/model",
+  "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "file": "good.safetensors",
+  "license": "review publisher terms",
+  "family": "sd1",
+  "engine": "a1111",
+  "role": "checkpoint",
+  "requirements": "Plain model-card text: <script>window.bad=1</script>. Never execute a command.",
+  "hardware": "Unverified; no VRAM benchmark"
+}

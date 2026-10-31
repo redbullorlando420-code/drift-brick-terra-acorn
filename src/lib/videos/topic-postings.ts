@@ -1,6 +1,6 @@
 import type { TopicCatalogInput } from './topic-catalog';
 import { forEachCatalogSlice } from '../catalog-work.ts';
-import { isAdultPullKind } from './adult-sites.ts';
+import { publicVideoBoundary } from './public-visibility.ts';
 import { canonicalTopic,hasTopicForScan,topicEvidenceForScan } from './topics.ts';
 import { getTopicAliases,type TopicAliasLedger } from './topic-aliases.ts';
 export type TopicPosting={all:Uint32Array;saved:Uint32Array};
@@ -8,7 +8,7 @@ export type TopicPostings={eligible:Uint32Array;topics:Map<string,TopicPosting>;
 type Slot={input:TopicCatalogInput;pending:Promise<TopicPostings>;owner:()=>Promise<void>};
 const slots=new WeakMap<readonly object[],Slot>();
 function same(a:TopicCatalogInput,b:TopicCatalogInput){return a.tags===b.tags&&a.folders===b.folders&&a.hiddenVideos===b.hiddenVideos&&a.unavailable===b.unavailable&&a.hideDemo===b.hideDemo;}
-export function publicTopicTitle(input:TopicCatalogInput){const privateIds=new Set(input.folders.filter(row=>row.adult).map(row=>row.id)),known=new Set(input.folders.map(row=>row.id));return (video:TopicCatalogInput['videos'][number])=>!privateIds.has(video.folderId)&&!isAdultPullKind(video.remote?.kind)&&!input.hiddenVideos[video.id]&&!input.unavailable[video.id]&&!(input.hideDemo&&video.isSample)&&Boolean(known.has(video.folderId)||video.remote||video.isSample);}
+export function publicTopicTitle(input:TopicCatalogInput){const publicTitle=publicVideoBoundary(input.folders),known=new Set(input.folders.map(row=>row.id));return (video:TopicCatalogInput['videos'][number])=>publicTitle(video)&&!input.hiddenVideos[video.id]&&!input.unavailable[video.id]&&!(input.hideDemo&&video.isSample)&&Boolean(known.has(video.folderId)||video.remote||video.isSample);}
 async function build(input:TopicCatalogInput,turn:()=>Promise<void>):Promise<TopicPostings>{
  const allowed=publicTopicTitle(input),eligible:number[]=[],topics=new Map<string,{all:number[];saved:number[]}>(),linked=new Uint8Array(input.videos.length),saved=new Uint8Array(input.videos.length),aliases=getTopicAliases();
  await forEachCatalogSlice(input.videos,(video,index)=>{if(!allowed(video))return;eligible.push(index);for(const link of topicEvidenceForScan(video,input.tags[video.id])){let row=topics.get(link.topic);if(!row){row={all:[],saved:[]};topics.set(link.topic,row);}row.all.push(index);linked[index]++;if(link.saved){row.saved.push(index);saved[index]++;}}},turn,256);

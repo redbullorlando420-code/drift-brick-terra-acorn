@@ -1,3 +1,5 @@
+import { parseProviderJson } from './provider-json.ts';
+import { ProviderBudgetError } from '../provider-budgets.ts';
 import { exactYoutubePublished } from '../videos/youtube-metadata.ts';
 /** Read only the selected video's player metadata, never a recommendation date. */
 export function youtubeWatchPublication(html: string, videoId: string): string | undefined {
@@ -12,13 +14,13 @@ export function youtubeWatchPublication(html: string, videoId: string): string |
       else if (c === '{') depth++;
       else if (c === '}' && --depth === 0) {
         try {
-          const data = JSON.parse(html.slice(start, i + 1));
+          const data = parseProviderJson(html.slice(start, i + 1));
           if (data.playabilityStatus?.status && data.playabilityStatus.status!=='OK')return;
            if (data.videoDetails?.videoId !== videoId || data.videoDetails?.isLive === true || data.videoDetails?.isUpcoming === true) return;
           const micro = data.microformat?.playerMicroformatRenderer;
           if (micro?.liveBroadcastDetails?.isLiveNow === true) return;
           return exactYoutubePublished(micro?.publishDate) ?? exactYoutubePublished(micro?.uploadDate);
-        } catch { return; }
+        } catch(error) { if(error instanceof ProviderBudgetError)throw error;return; }
       }
     }
   }

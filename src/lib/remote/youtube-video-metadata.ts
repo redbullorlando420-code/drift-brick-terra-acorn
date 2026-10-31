@@ -1,3 +1,5 @@
+import { parseProviderJson } from './provider-json.ts';
+import { ProviderBudgetError } from '../provider-budgets.ts';
 import { exactYoutubePublished } from '../videos/youtube-metadata.ts';
 
 export type YoutubeVideoMetadata = { id: string; description?: string; keywords?: string[]; date?: string; duration?: number };
@@ -17,7 +19,7 @@ export function youtubeWatchMetadata(html: string, id: string): YoutubeVideoMeta
     else if (c === '{') depth++;
     else if (c === '}' && --depth === 0) {
       try {
-        const data = JSON.parse(html.slice(start, i + 1)), details = data.videoDetails;
+        const data = parseProviderJson(html.slice(start, i + 1)), details = data.videoDetails;
         if (details?.videoId !== id || data.playabilityStatus?.status && data.playabilityStatus.status !== 'OK') return;
         const micro = data.microformat?.playerMicroformatRenderer;
         const live = details.isLive === true || details.isUpcoming === true || micro?.liveBroadcastDetails?.isLiveNow === true;
@@ -28,7 +30,7 @@ export function youtubeWatchMetadata(html: string, id: string): YoutubeVideoMeta
         return { id, ...(description !== undefined ? { description } : {}), ...(keywords ? { keywords } : {}),
           ...(!live && Number.isFinite(Number(details.lengthSeconds)) && Number(details.lengthSeconds) > 0 && Number(details.lengthSeconds) <= 31_536_000 ? { duration: Number(details.lengthSeconds) } : {}),
           ...(!live ? { date: exactYoutubePublished(micro?.publishDate) ?? exactYoutubePublished(micro?.uploadDate) } : {}) };
-      } catch { return; }
+      } catch(error) { if(error instanceof ProviderBudgetError)throw error;return; }
     }
   }
 }

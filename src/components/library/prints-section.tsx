@@ -135,7 +135,8 @@ function LocalCatalog({
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => void (async () => {
             setBusy(true);
             try {
-              const { prints } = await companionListPrints(120);
+              const { prints, error } = await companionListPrints(120);
+              if(error){setCompanionNote(error);return;}
               if (!prints.length) {
                 setCompanionNote("No STL/OBJ/GLB/3MF under approved roots (or Realhub Prints). Add a prints folder to REELCASE_ALLOWED_ROOTS.");
                 return;
@@ -183,7 +184,7 @@ function LocalCatalog({
                 const result = await companionSavePrint(item.name, btoa(binary));
                 if (result.ok) saved += 1;
               }
-              setCompanionNote(saved ? `Saved ${saved} print file${saved === 1 ? "" : "s"} into the companion Realhub Prints folder.` : "Nothing saved — start Companion and ensure an approved prints folder exists.");
+              setCompanionNote(saved ? `Saved ${saved} new print file${saved === 1 ? "" : "s"} into the companion Realhub Prints folder.` : "Nothing saved. Existing filenames are preserved; use the viewer’s Save a new model copy workflow for an edited copy. Check the approved Companion folder and connection.");
             } finally {
               setBusy(false);
             }
@@ -203,7 +204,7 @@ function LocalCatalog({
           </div>
           {items.slice(0, 80).map((item) => (
             <div
-              key={`${item.path}:${item.addedAt}`}
+              key={`${item.path}:${item.addedAt}`} data-print-name={item.name}
               className="flex items-center justify-between gap-4 border-b border-border/70 px-4 py-3 last:border-0"
             >
               <div className="min-w-0">

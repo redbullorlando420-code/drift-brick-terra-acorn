@@ -1,3 +1,4 @@
+import type { createRankingPass } from '../ranking-budget.ts';
 import { createExposurePenalty,type ExposureLedger } from './recommendation-exposure.ts';
 import { createRejectionPenalty, type RejectionLedger } from './recommendation-rejections.ts';
 import { forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
@@ -19,14 +20,14 @@ type Taste = {
 
 /** Learn from bounded explicit/meaningful signals, then score unseen candidates.
  * No per-video feature graph or transcript is retained for a deep archive. */
-export async function prepareTwitchRecommendationScore(videos: readonly LibraryVideo[], taste: Taste, signal?: AbortSignal, yieldTask = yieldCatalogTask) {
+export async function prepareTwitchRecommendationScore(videos: readonly LibraryVideo[], taste: Taste, signal?: AbortSignal, yieldTask = yieldCatalogTask, pass?: ReturnType<typeof createRankingPass>) {
   const creators = new Map<string, number>(), games = new Map<string, number>(), topics = new Map<string, number>(), terms = new Map<string, number>();
   const turn = async () => { signal?.throwIfAborted(); await yieldTask(); signal?.throwIfAborted(); };
   const add = (map: Map<string, number>, key: string, weight: number) => {
     if (!key || !map.has(key) && map.size >= 4096) return;
     map.set(key, Math.max(-16, Math.min(24, (map.get(key) ?? 0) + weight)));
   };
-  await forEachCatalogSlice(videos, video => {
+  await (pass?.visit ?? forEachCatalogSlice)(videos, video => {
     if (!vod(video)) return;
     const rating = taste.rating(video.id), watched = Math.max(0, Math.min(12, taste.watchScore(video.id)));
     const weight = rating === 1 ? -12 : rating === 2 ? -5 : (rating >= 4 ? (rating - 3) * 4 : 0)

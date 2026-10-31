@@ -1,3 +1,4 @@
+import { pullDispatchTrace, type PullOperation } from './pull-dispatch-trace.ts';
 import { getPullSettings, subscribePullSettings } from './pull-settings.ts';
 import { createPullScheduler } from './pull-scheduler.ts';
 import { getInteractionPriorityDelay } from './interaction-budget.ts';
@@ -55,16 +56,18 @@ export function catalogPullAvailable(ignoreInteraction = false, ignorePause = fa
     && (typeof document === 'undefined' || !document.hidden) && (ignoreInteraction || getInteractionPriorityDelay() === 0);
 }
 const scheduler = createPullScheduler(() => ({ concurrency: getPullSettings().concurrentRequests, gapMs: getPullSettings().requestGapMs }), ignorePause => catalogPullAvailable(false, ignorePause), 8, {
+  trace: operation => pullDispatchTrace.begin('catalog', operation),
   requestTimeoutMs: () => Math.max(90_000, getPullSettings().requestGapMs * 12 + 30_000, getPullSettings().youtubeRequestGapMs * 4 + 90_000),
   availabilityDelay: (ignorePause = false) => (ignorePause || !pullsPaused()) && !(getPullSettings().pauseWhileWatching && viewing) && (typeof document === 'undefined' || !document.hidden) ? getInteractionPriorityDelay() : Infinity,
 });
 // Independent, bounded provider lanes prevent a slow YouTube response from
 // blocking Twitch or a requested room page. Server transfer caps still apply.
-const createLiveLane = (concurrency = 1) => createPullScheduler(() => ({ concurrency, gapMs: 80 }), ignorePause => catalogPullAvailable(false, ignorePause), 4, {
+const createLiveLane = (name: string, concurrency = 1) => createPullScheduler(() => ({ concurrency, gapMs: 80 }), ignorePause => catalogPullAvailable(false, ignorePause), 4, {
+  trace: operation => pullDispatchTrace.begin(name, operation),
   requestTimeoutMs: concurrency > 1 ? 30_000 : () => Math.max(90_000, getPullSettings().youtubeRequestGapMs * 48 + 30_000),
   availabilityDelay: (ignorePause = false) => (ignorePause || !pullsPaused()) && !(getPullSettings().pauseWhileWatching && viewing) && (typeof document === 'undefined' || !document.hidden) ? getInteractionPriorityDelay() : Infinity,
 });
-const liveScheduler = createLiveLane(), youtubeLiveScheduler = createLiveLane(3), twitchLiveScheduler = createLiveLane();
+const liveScheduler = createLiveLane('rooms'), youtubeLiveScheduler = createLiveLane('youtube live', 3), twitchLiveScheduler = createLiveLane('twitch live');
 const liveSchedulers = [liveScheduler, youtubeLiveScheduler, twitchLiveScheduler];
 let combinedSnapshot = scheduler.snapshot();
 const queueListeners = new Set<() => void>();
@@ -108,7 +111,7 @@ export function waitForCatalogCommit(revision = scheduler.revision(), signal?: A
     gateListeners.add(check); signal?.addEventListener('abort', check, { once: true }); check();
   });
 }
-export async function runPausablePull<T>(request: (signal: AbortSignal) => Promise<T>, options?: { ignorePause?: boolean; live?: boolean; provider?: PullProvider; automatic?: boolean; signal?: AbortSignal }): Promise<T> {
+export async function runPausablePull<T>(request: (signal: AbortSignal) => Promise<T>, options?: { operation?: PullOperation; ignorePause?: boolean; live?: boolean; provider?: PullProvider; automatic?: boolean; signal?: AbortSignal }): Promise<T> {
   const lane = !options?.live ? scheduler : options.provider === 'youtube' ? youtubeLiveScheduler : options.provider === 'twitch' ? twitchLiveScheduler : liveScheduler;
-  return lane.run(request, { ...options, canStart: options?.automatic && !options.live ? () => automaticPullAvailable(options.provider) : undefined, deferWhenBlocked: options?.automatic && !options.live });
+  return lane.run(request, { ...options, operation: options?.operation ?? (options?.live ? 'live' : 'archive'), canStart: options?.automatic && !options.live ? () => automaticPullAvailable(options.provider) : undefined, deferWhenBlocked: options?.automatic && !options.live });
 }

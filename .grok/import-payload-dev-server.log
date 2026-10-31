@@ -1,0 +1,914 @@
+npm notice run dev
+npm notice run node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port 8080
+11:36:18 AM [vite] (client) Re-optimizing dependencies because vite config has changed
+
+  VITE v8.2.2  ready in 5349 ms
+
+  ➜  Local:   http://localhost:8080/
+  ➜  Network: http://10.5.0.2:8080/      NordLynx
+  ➜  Network: http://192.168.1.68:8080/  Ethernet 2
+11:36:19 AM [vite] (client) [optimizer] bundling dependencies...
+11:36:31 AM [vite] (ssr) connected.
+11:36:35 AM [vite] (client) dependencies optimized: @better-auth/core/env, @better-auth/core/error, @better-auth/core/utils/error-codes, @better-auth/core/utils/string, @better-auth/core/utils/url, @better-fetch/fetch, defu, nanostores
+11:36:35 AM [vite] (client) optimized dependencies changed. reloading
+11:36:35 AM [vite] (client) [Unhandled error] TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:8080/node_modules/@tanstack/react-start/dist/plugin/default-entry/client.tsx
+
+11:37:43 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx and 33 more
+11:37:43 AM [vite] (ssr) page reload src/lib/videos/import-review.ts
+11:37:43 AM [vite] (ssr) program reload
+11:37:43 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/import-review.tsx
+11:37:43 AM [vite] (ssr) page reload src/components/library/import-review.tsx
+11:37:43 AM [vite] (client) hmr update /src/styles.css?direct
+11:37:43 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx
+11:37:43 AM [vite] (ssr) page reload src/components/library/connect-panel.tsx
+11:39:10 AM [vite] (client) hmr update /src/styles.css?direct
+11:39:10 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/import-review.tsx
+11:39:10 AM [vite] (ssr) page reload src/components/library/import-review.tsx
+11:39:10 AM [vite] (ssr) program reload
+11:39:10 AM [vite] (client) hmr update /src/styles.css?direct
+11:39:10 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/import-review.tsx
+11:39:10 AM [vite] (ssr) page reload src/components/library/import-review.tsx
+11:39:10 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx and 33 more
+11:39:10 AM [vite] (ssr) page reload src/lib/videos/import-review.ts
+11:39:10 AM [vite] (client) hmr update /src/styles.css?direct
+11:39:56 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 36 more
+11:39:56 AM [vite] (ssr) page reload src/lib/remote/provider-json.ts
+11:39:56 AM [vite] (client) hmr update /src/styles.css?direct
+11:39:56 AM [vite] (client) hmr update /src/styles.css?direct
+11:39:56 AM [vite] (client) hmr update /src/styles.css?direct
+11:41:46 AM [vite] (client) hmr update /src/styles.css?direct
+11:44:48 AM [vite] (client) hmr update /src/styles.css?direct
+11:44:48 AM [vite] (client) hmr update /src/styles.css?direct
+11:44:48 AM [vite] (client) hmr update /src/styles.css?direct
+11:46:09 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx
+11:46:09 AM [vite] (ssr) page reload src/components/library/connect-panel.tsx
+11:46:09 AM [vite] (ssr) program reload
+11:46:09 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx and 36 more
+11:46:09 AM [vite] (ssr) page reload src/lib/videos/store.ts
+11:46:31 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx
+11:46:31 AM [vite] (ssr) page reload src/components/library/connect-panel.tsx
+1:06:41 PM [vite] (client) hmr update /src/styles.css?direct
+1:07:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx and 36 more
+1:07:44 PM [vite] (ssr) page reload src/lib/videos/types.ts
+1:07:44 PM [vite] (ssr) program reload
+1:07:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 40 more
+1:07:44 PM [vite] (ssr) page reload src/lib/videos/follow-checkpoints.ts
+1:07:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/settings-section.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 40 more
+1:07:44 PM [vite] (ssr) page reload src/lib/videos/entry-limits.ts
+1:08:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx and 40 more
+1:08:04 PM [vite] (ssr) page reload src/lib/remote/youtube-sources.ts
+1:08:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/settings-section.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 40 more
+1:08:04 PM [vite] (ssr) page reload src/lib/videos/remote-merge.ts
+1:08:04 PM [vite] (client) hmr update /src/styles.css?direct
+1:08:30 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/settings-section.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 40 more
+1:08:30 PM [vite] (ssr) page reload src/lib/remote/youtube-live.ts
+1:08:30 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/settings-section.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 40 more
+1:08:30 PM [vite] (ssr) page reload src/lib/remote/youtube-live-evidence.ts
+1:08:30 PM [vite] (client) hmr update /src/styles.css?direct
+1:08:30 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/live-check-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx and 36 more
+1:08:30 PM [vite] (ssr) page reload src/lib/videos/youtube-live-allocation.ts
+1:08:30 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx and 36 more
+1:08:30 PM [vite] (ssr) page reload src/lib/videos/youtube-live-health.ts
+1:09:19 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx and 36 more
+1:09:19 PM [vite] (ssr) page reload src/lib/videos/store.ts
+1:10:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-desk.tsx
+1:10:07 PM [vite] (ssr) page reload src/components/library/live-desk.tsx
+1:10:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/follow-manager.tsx
+1:10:07 PM [vite] (ssr) page reload src/lib/videos/creator-video-catalog.ts
+1:10:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/follow-manager.tsx
+1:10:07 PM [vite] (ssr) page reload src/components/library/follow-manager.tsx
+1:10:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/follow-manager.tsx
+1:10:07 PM [vite] (ssr) page reload src/components/library/use-creator-video-catalog.ts
+1:10:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx and 36 more
+1:10:07 PM [vite] (ssr) page reload src/lib/videos/store.ts
+1:10:07 PM [vite] (client) hmr update /src/styles.css?direct
+1:10:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx and 36 more
+1:10:45 PM [vite] (ssr) page reload src/lib/videos/store.ts
+1:10:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx and 40 more
+1:10:45 PM [vite] (ssr) page reload src/lib/remote/youtube-sources.ts
+1:10:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 40 more
+1:10:45 PM [vite] (ssr) page reload src/lib/videos/follow-checkpoints.ts
+1:12:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx and 40 more
+1:12:05 PM [vite] (ssr) page reload src/lib/remote/youtube-sources.ts
+1:12:05 PM [vite] (client) hmr update /src/styles.css?direct
+1:12:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/settings-section.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 40 more
+1:12:05 PM [vite] (ssr) page reload src/lib/videos/remote-merge.ts
+1:14:22 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx and 36 more
+1:14:22 PM [vite] (ssr) page reload src/lib/videos/store.ts
+1:14:22 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/settings-section.tsx
+1:14:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/live-check-status.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/settings-section.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 40 more
+1:14:43 PM [vite] (ssr) page reload src/lib/remote/youtube-live-evidence.ts
+1:15:18 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx and 36 more
+1:15:18 PM [vite] (ssr) page reload src/lib/videos/store.ts
+1:17:37 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx and 38 more
+1:17:37 PM [vite] (ssr) page reload src/lib/videos/store.ts
+1:17:37 PM [vite] (ssr) program reload
+1:20:52 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/live-check-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx and 42 more
+1:20:52 PM [vite] (ssr) page reload src/lib/videos/youtube-events.ts
+1:20:52 PM [vite] (ssr) program reload
+1:20:52 PM [vite] (client) hmr update /src/styles.css?direct
+1:20:52 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+1:20:52 PM [vite] (client) hmr update /src/styles.css?direct
+1:21:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+1:23:30 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/follow-manager.tsx
+1:23:30 PM [vite] (ssr) page reload src/components/library/follow-manager.tsx
+1:23:30 PM [vite] (ssr) program reload
+1:30:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/live-check-status.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx and 42 more
+1:30:54 PM [vite] (ssr) page reload src/lib/videos/youtube-events.ts
+1:30:54 PM [vite] (ssr) program reload
+1:30:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 42 more
+1:30:54 PM [vite] (ssr) page reload src/lib/videos/youtube-playlist-walk.ts
+1:30:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-upcoming.tsx
+1:30:54 PM [vite] (ssr) page reload src/components/library/youtube-upcoming.tsx
+1:30:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/playlist-reconciliation.tsx
+1:30:54 PM [vite] (ssr) page reload src/components/library/playlist-reconciliation.tsx
+1:33:07 PM [vite] (client) hmr update /src/styles.css?direct
+1:33:46 PM [vite] (client) hmr update /src/styles.css?direct
+1:33:46 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx and 38 more
+1:33:46 PM [vite] (ssr) page reload src/lib/videos/store.ts
+1:33:46 PM [vite] (ssr) program reload
+1:33:46 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx and 42 more
+1:33:46 PM [vite] (ssr) page reload src/lib/remote/youtube-sources.ts
+1:35:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/light-home.tsx and 42 more
+1:35:16 PM [vite] (ssr) page reload src/lib/remote/youtube-sources.ts
+1:35:16 PM [vite] (ssr) program reload
+1:44:50 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx
+1:44:50 PM [vite] (ssr) page reload src/lib/videos/library-pack.ts
+1:46:27 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx
+1:46:27 PM [vite] (ssr) page reload src/lib/videos/library-pack.ts
+1:47:20 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/settings-section.tsx
+1:47:20 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx
+1:47:20 PM [vite] (ssr) page reload src/lib/videos/library-pack.ts
+1:47:59 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx
+1:47:59 PM [vite] (ssr) page reload src/lib/videos/library-pack.ts
+1:50:56 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx
+1:50:56 PM [vite] (ssr) page reload src/lib/videos/library-pack.ts
+1:52:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx
+1:52:07 PM [vite] (ssr) page reload src/lib/videos/library-pack.ts
+1:53:17 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/settings-section.tsx
+1:53:17 PM [vite] (ssr) page reload src/lib/videos/library-pack.ts
+1:55:18 PM [vite] (ssr) page reload src/lib/videos/pack-stream.ts
+1:55:18 PM [vite] (ssr) program reload
+1:55:18 PM [vite] (ssr) page reload src/lib/videos/pack-preflight.ts
+1:58:18 PM [vite] (ssr) page reload src/lib/videos/pack-preflight.ts
+1:58:24 PM [vite] (ssr) page reload src/lib/videos/pack-preflight.ts
+2:00:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+2:00:12 PM [vite] (client) hmr update /src/styles.css?direct
+2:00:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+2:00:55 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-pack-transfer.tsx
+2:00:55 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/settings-section.tsx
+2:00:55 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx
+2:00:55 PM [vite] (ssr) page reload src/lib/videos/library-pack.ts
+2:00:55 PM [vite] (ssr) program reload
+2:01:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-pack-transfer.tsx
+2:01:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-pack-transfer.tsx
+2:04:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx
+2:04:14 PM [vite] (ssr) page reload src/lib/videos/pack-preflight.ts
+2:04:14 PM [vite] (ssr) program reload
+2:04:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx
+2:04:15 PM [vite] (ssr) page reload src/lib/videos/pack-preflight.ts
+2:04:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-pack-transfer.tsx
+5:47:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/performance-scorecard.tsx
+5:47:09 PM [vite] (client) hmr update /src/styles.css?direct
+5:47:09 PM [vite] (client) hmr update /src/styles.css?direct
+5:47:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 45 more
+5:47:09 PM [vite] (ssr) page reload src/lib/remote/adult-quality.ts
+5:47:09 PM [vite] (ssr) program reload
+5:47:10 PM [vite] (client) hmr update /src/styles.css?direct
+5:47:10 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/companion-update-panel.tsx
+5:47:10 PM [vite] (client) hmr update /src/styles.css?direct
+5:47:10 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-pack-transfer.tsx
+5:48:13 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/settings-section.tsx, /src/components/library/performance-scorecard.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx and 53 more
+5:48:13 PM [vite] (ssr) page reload src/lib/companion-protocol.ts
+5:48:13 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/settings-section.tsx, /src/components/library/performance-scorecard.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx and 52 more
+5:48:13 PM [vite] (ssr) page reload src/lib/companion.ts
+5:48:13 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/settings-section.tsx
+5:49:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/provider-recovery.tsx
+5:54:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/settings-section.tsx
+5:57:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 48 more
+5:57:41 PM [vite] (ssr) page reload src/lib/diagnostic-export.ts
+5:57:41 PM [vite] (ssr) program reload
+5:57:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/diagnostic-export-preview.tsx
+6:00:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+6:00:09 PM [vite] (client) hmr update /src/styles.css?direct
+6:00:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+6:00:58 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/diagnostic-export-preview.tsx
+6:01:56 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 48 more
+6:01:56 PM [vite] (ssr) page reload src/lib/diagnostic-export.ts
+6:01:56 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 48 more
+6:01:56 PM [vite] (ssr) page reload src/lib/diagnostic-export.ts
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+6:16:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/settings-section.tsx, /src/components/library/performance-scorecard.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx and 54 more
+6:16:54 PM [vite] (ssr) page reload src/lib/companion-protocol.ts
+6:16:54 PM [vite] (ssr) program reload
+6:16:54 PM [vite] (client) hmr update /src/styles.css?direct
+6:16:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-download-host.tsx, /src/components/library/youtube-publication-control.tsx, /src/components/library/youtube-download-button.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx and 47 more
+6:16:54 PM [vite] (ssr) page reload src/lib/youtube-download.ts
+6:17:17 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/settings-section.tsx, /src/components/library/performance-scorecard.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx and 53 more
+6:17:17 PM [vite] (ssr) page reload src/lib/companion.ts
+6:17:17 PM [vite] (client) hmr update /src/styles.css?direct
+6:19:01 PM [vite] (client) hmr update /src/styles.css?direct
+6:19:02 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/companion-recovery-panel.tsx
+6:19:38 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/companion-recovery-panel.tsx
+6:20:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/companion-recovery-panel.tsx, /src/components/library/companion-update-panel.tsx
+6:20:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/companion-update-panel.tsx
+6:20:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 48 more
+6:20:11 PM [vite] (ssr) page reload src/lib/diagnostic-export.ts
+6:22:52 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/games-section.tsx
+6:24:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+6:24:29 PM [vite] (client) hmr update /src/styles.css?direct
+6:24:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+6:55:01 PM [vite] (client) hmr update /src/styles.css?direct
+6:55:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/settings-section.tsx, /src/components/library/performance-scorecard.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx and 56 more
+6:55:01 PM [vite] (ssr) page reload src/lib/companion-protocol.ts
+6:55:01 PM [vite] (ssr) program reload
+6:55:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/settings-section.tsx, /src/components/library/performance-scorecard.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx and 55 more
+6:55:01 PM [vite] (ssr) page reload src/lib/companion.ts
+6:56:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/settings-section.tsx, /src/components/library/performance-scorecard.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx and 56 more
+6:56:04 PM [vite] (ssr) page reload src/lib/companion-protocol.ts
+6:56:04 PM [vite] (client) hmr update /src/styles.css?direct
+6:56:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/games-section.tsx
+6:56:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/companion-recovery-panel.tsx
+6:56:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+6:56:55 PM [vite] (client) hmr update /src/styles.css?direct
+6:59:25 PM [vite] (client) hmr update /src/styles.css?direct
+6:59:25 PM [vite] (client) hmr update /src/styles.css?direct
+7:02:14 PM [vite] (client) hmr update /src/styles.css?direct
+7:02:14 PM [vite] (client) hmr update /src/styles.css?direct
+7:02:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/companion-recovery-panel.tsx
+7:02:14 PM [vite] (client) hmr update /src/styles.css?direct
+7:03:32 PM [vite] (client) dependency optimized: three/examples/jsm/exporters/GLTFExporter.js
+7:04:56 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/print-model-viewer.tsx
+7:04:56 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/print-model-viewer.tsx, /src/components/library/print-save-panel.tsx
+7:04:56 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/print-model-viewer.tsx
+7:05:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/print-save-panel.tsx
+7:07:23 PM [vite] (client) hmr update /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/settings-section.tsx, /src/components/library/performance-scorecard.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx and 57 more
+7:07:23 PM [vite] (ssr) page reload companion/platform-capabilities.mjs
+7:07:23 PM [vite] (ssr) program reload
+7:09:06 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+7:09:07 PM [vite] (client) hmr update /src/styles.css?direct
+7:10:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+7:10:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+7:10:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/print-model-viewer.tsx, /src/components/library/print-save-panel.tsx
+7:10:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/print-model-viewer.tsx
+7:10:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/print-save-panel.tsx
+7:10:59 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/print-save-panel.tsx
+7:13:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/print-model-viewer.tsx
+2:03:21 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/settings-section.tsx
+2:03:21 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/settings-section.tsx, /src/components/library/performance-scorecard.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx and 58 more
+2:03:21 AM [vite] (ssr) page reload src/lib/companion-protocol.ts
+2:03:21 AM [vite] (ssr) program reload
+2:04:04 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/settings-section.tsx, /src/components/library/performance-scorecard.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx and 57 more
+2:04:04 AM [vite] (ssr) page reload src/lib/companion.ts
+2:04:04 AM [vite] (client) hmr update /src/styles.css?direct
+2:04:04 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-download-dialog.tsx
+2:04:04 AM [vite] (client) hmr update /src/styles.css?direct
+2:05:14 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/light-home.tsx
+2:05:14 AM [vite] (ssr) page reload src/components/library/light-home.tsx
+2:05:14 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+2:05:14 AM [vite] (ssr) page reload src/components/library/library-app.tsx
+2:05:26 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/photos-section.tsx, /src/components/library/settings-section.tsx
+2:05:26 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/photos-section.tsx
+2:06:16 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/photos-section.tsx, /src/components/library/settings-section.tsx
+2:06:16 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/photos-section.tsx
+2:08:40 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/photos-section.tsx, /src/components/library/settings-section.tsx
+2:14:05 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/capability-permissions.tsx
+2:14:05 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/setup-checklist.tsx
+2:14:05 AM [vite] (ssr) page reload src/components/library/setup-checklist.tsx
+2:14:05 AM [vite] (ssr) program reload
+2:14:05 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/setup-checklist.tsx, /src/components/library/photos-section.tsx, /src/components/library/settings-section.tsx, /src/components/library/capability-permissions.tsx, /src/components/library/stream-signal-section.tsx
+2:14:05 AM [vite] (ssr) page reload src/lib/capability-consent.ts
+2:14:41 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/capability-permissions.tsx
+2:15:04 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+2:15:26 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+2:15:26 AM [vite] (client) hmr update /src/styles.css?direct
+2:15:27 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/setup-checklist.tsx, /src/components/library/photos-section.tsx, /src/components/library/settings-section.tsx, /src/components/library/capability-permissions.tsx, /src/components/library/stream-signal-section.tsx
+2:15:27 AM [vite] (ssr) page reload src/lib/capability-consent.ts
+2:15:27 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/setup-checklist.tsx
+2:15:27 AM [vite] (ssr) page reload src/lib/setup-readiness.ts
+2:15:27 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/capability-permissions.tsx
+2:15:27 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/setup-checklist.tsx
+2:15:27 AM [vite] (ssr) page reload src/components/library/setup-checklist.tsx
+2:23:04 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/setup-checklist.tsx, /src/components/library/photos-section.tsx, /src/components/library/settings-section.tsx, /src/components/library/capability-permissions.tsx, /src/components/library/stream-signal-section.tsx
+2:23:04 AM [vite] (ssr) page reload src/lib/capability-consent.ts
+2:23:04 AM [vite] (ssr) program reload
+12:59:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/studio-model-library.tsx
+12:59:43 PM [vite] (client) hmr update /src/styles.css?direct
+12:59:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/settings-section.tsx, /src/components/library/performance-scorecard.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx and 65 more
+12:59:43 PM [vite] (ssr) page reload src/lib/companion-protocol.ts
+12:59:43 PM [vite] (ssr) program reload
+12:59:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/settings-section.tsx, /src/components/library/performance-scorecard.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx and 64 more
+12:59:43 PM [vite] (ssr) page reload src/lib/companion.ts
+1:02:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stable-diffusion-section.tsx, /src/components/library/studio-model-library.tsx
+1:02:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+1:05:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/model-transfer-recovery.tsx
+1:05:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/remote-desktop-section.tsx
+1:07:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+1:07:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+1:07:43 PM [vite] (client) hmr update /src/styles.css?direct
+1:07:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/model-transfer-recovery.tsx
+1:08:19 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/model-transfer-recovery.tsx
+1:08:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/model-transfer-recovery.tsx
+1:13:39 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/remote-desktop-section.tsx
+1:13:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/remote-desktop-section.tsx
+3:07:55 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/settings-section.tsx
+3:10:42 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+3:10:55 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+3:12:32 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/feature-readiness-panel.tsx
+3:12:32 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/feature-readiness-panel.tsx
+3:13:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+3:13:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+3:13:50 PM [vite] (client) hmr update /src/styles.css?direct
+3:28:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 55 more
+3:28:11 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+3:28:11 PM [vite] (ssr) program reload
+3:28:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 55 more
+3:28:14 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+3:28:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 46 more
+3:28:43 PM [vite] (ssr) page reload src/lib/slice-writer.ts
+3:28:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 46 more
+3:28:43 PM [vite] (ssr) page reload src/lib/videos/store.ts
+3:30:10 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 55 more
+3:30:10 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+3:30:10 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/settings-section.tsx
+3:32:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 55 more
+3:32:16 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+3:37:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+3:37:12 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+3:37:12 PM [vite] (ssr) program reload
+3:37:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+3:37:12 PM [vite] (ssr) page reload src/lib/videos/storage-recovery.ts
+3:37:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/storage-recovery-panel.tsx
+3:37:12 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+3:37:12 PM [vite] (ssr) page reload src/lib/videos/catalog-mutations.ts
+3:40:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx and 47 more
+3:40:45 PM [vite] (ssr) page reload src/lib/videos/types.ts
+3:40:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+3:40:45 PM [vite] (ssr) page reload src/lib/videos/catalog-mutations.ts
+3:40:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 47 more
+3:40:45 PM [vite] (ssr) page reload src/lib/videos/store.ts
+3:41:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+3:41:33 PM [vite] (ssr) page reload src/lib/videos/catalog-mutations.ts
+3:42:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 47 more
+3:42:34 PM [vite] (ssr) page reload src/lib/videos/store.ts
+3:42:34 PM [vite] (ssr) program reload
+3:42:39 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+3:42:39 PM [vite] (ssr) page reload src/lib/videos/catalog-mutations.ts
+3:42:39 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+3:42:39 PM [vite] (ssr) page reload src/lib/videos/storage-recovery.ts
+3:42:39 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/storage-recovery-panel.tsx
+3:45:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+3:45:54 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+3:45:54 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 47 more
+3:45:54 PM [vite] (ssr) page reload src/lib/videos/store.ts
+3:48:19 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+3:48:19 PM [vite] (ssr) page reload src/lib/videos/catalog-mutations.ts
+3:50:03 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+3:50:03 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+3:50:06 PM [vite] (client) hmr update /src/styles.css?direct
+3:52:22 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/storage-recovery-panel.tsx
+3:53:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+3:53:09 PM [vite] (ssr) page reload src/lib/videos/catalog-mutations.ts
+3:53:09 PM [vite] (ssr) program reload
+3:54:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/storage-recovery-panel.tsx
+3:54:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:54:28 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+3:54:28 PM [vite] (ssr) program reload
+3:56:46 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+3:56:46 PM [vite] (ssr) page reload src/lib/videos/catalog-mutations.ts
+3:57:56 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+3:57:56 PM [vite] (ssr) page reload src/lib/videos/catalog-mutations.ts
+4:01:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 47 more
+4:01:11 PM [vite] (ssr) page reload src/lib/videos/store.ts
+4:01:11 PM [vite] (ssr) program reload
+4:01:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+4:01:11 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+4:05:39 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+4:05:39 PM [vite] (ssr) page reload src/lib/videos/catalog-mutations.ts
+4:09:42 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 47 more
+4:09:42 PM [vite] (ssr) page reload src/lib/videos/store.ts
+4:09:42 PM [vite] (ssr) program reload
+4:09:42 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/storage-recovery-panel.tsx
+4:14:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 47 more
+4:14:43 PM [vite] (ssr) page reload src/lib/videos/store.ts
+4:14:43 PM [vite] (ssr) program reload
+4:14:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+4:14:43 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+4:14:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/storage-recovery-panel.tsx
+4:16:03 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+4:16:03 PM [vite] (ssr) page reload src/lib/videos/catalog-mutations.ts
+4:16:03 PM [vite] (ssr) program reload
+4:16:03 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+4:16:03 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+4:22:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 47 more
+4:22:24 PM [vite] (ssr) page reload src/lib/videos/store.ts
+4:22:24 PM [vite] (ssr) program reload
+6:30:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx and 47 more
+6:30:45 PM [vite] (ssr) page reload src/lib/videos/types.ts
+6:30:45 PM [vite] (client) hmr update /src/styles.css?direct
+6:30:45 PM [vite] (ssr) hmr update /src/lib/remote/functions.ts?tss-serverfn-split
+6:30:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+6:30:45 PM [vite] (ssr) page reload src/lib/videos/remote-merge.ts
+6:30:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+6:30:45 PM [vite] (ssr) page reload src/lib/videos/entry-limits.ts
+6:30:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 47 more
+6:30:45 PM [vite] (ssr) page reload src/lib/videos/store.ts
+6:30:45 PM [vite] (ssr) hot updated: /src/lib/remote/functions.ts?tss-serverfn-split
+6:31:25 PM [vite] (client) hmr update /src/styles.css?direct
+6:31:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+6:31:25 PM [vite] (ssr) page reload src/lib/videos/remote-merge.ts
+6:31:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 47 more
+6:31:25 PM [vite] (ssr) page reload src/lib/videos/store.ts
+6:31:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+6:31:25 PM [vite] (ssr) page reload src/lib/videos/entry-limits.ts
+6:32:23 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+6:32:23 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+6:32:23 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stable-diffusion-section.tsx
+6:33:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stable-diffusion-section.tsx
+6:33:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 56 more
+6:33:11 PM [vite] (ssr) page reload src/lib/videos/remote-merge.ts
+6:34:03 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 47 more
+6:34:03 PM [vite] (ssr) page reload src/lib/videos/store.ts
+6:34:32 PM [vite] (client) hmr update /src/styles.css?direct
+6:38:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/studio-output-library.tsx
+6:38:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx and 47 more
+6:38:29 PM [vite] (ssr) page reload src/lib/videos/types.ts
+6:38:29 PM [vite] (ssr) program reload
+6:39:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stable-diffusion-section.tsx
+6:39:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 57 more
+6:39:01 PM [vite] (ssr) page reload src/lib/studio-outputs.ts
+6:39:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+6:39:37 PM [vite] (client) hmr update /src/styles.css?direct
+6:39:37 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+6:39:38 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 57 more
+6:39:38 PM [vite] (ssr) page reload src/lib/videos/twitch-identity.ts
+6:39:38 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 57 more
+6:39:38 PM [vite] (ssr) page reload src/lib/videos/catalog-identity.ts
+6:39:38 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 57 more
+6:39:38 PM [vite] (ssr) page reload src/lib/studio-outputs.ts
+6:39:38 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/studio-output-library.tsx
+6:41:08 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 57 more
+6:41:08 PM [vite] (ssr) page reload src/lib/videos/twitch-identity.ts
+6:41:08 PM [vite] (ssr) program reload
+6:41:08 PM [vite] (client) hmr update /src/styles.css?direct
+6:41:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 57 more
+6:41:09 PM [vite] (ssr) page reload src/lib/videos/twitch-identity.ts
+6:43:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 57 more
+6:43:16 PM [vite] (ssr) page reload src/lib/videos/remote-merge.ts
+6:43:23 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 57 more
+6:43:23 PM [vite] (ssr) page reload src/lib/videos/remote-merge.ts
+7:01:48 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 57 more
+7:01:48 PM [vite] (ssr) page reload src/lib/videos/catalog-mutations.ts
+7:01:48 PM [vite] (ssr) program reload
+7:01:48 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 57 more
+7:01:48 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+7:02:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 57 more
+7:02:33 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+7:03:57 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx, /src/components/library/stream-signal-replay.tsx
+7:04:58 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 57 more
+7:04:58 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+7:05:23 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx
+7:06:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 57 more
+7:06:40 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+7:06:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 47 more
+7:06:40 PM [vite] (ssr) page reload src/lib/videos/store.ts
+7:06:42 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+7:06:42 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+7:07:27 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 47 more
+7:07:27 PM [vite] (ssr) page reload src/lib/videos/store.ts
+7:07:27 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx
+7:08:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx, /src/components/library/stream-signal-replay.tsx
+7:08:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 47 more
+7:08:11 PM [vite] (ssr) page reload src/lib/videos/store.ts
+7:10:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx
+7:11:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx
+7:12:23 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx
+7:12:23 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 58 more
+7:12:23 PM [vite] (ssr) page reload src/lib/writer-lease.ts
+7:12:23 PM [vite] (ssr) program reload
+7:15:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 58 more
+7:15:01 PM [vite] (ssr) page reload src/lib/writer-lease.ts
+7:15:01 PM [vite] (ssr) program reload
+7:15:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx
+7:15:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 58 more
+7:15:01 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+7:15:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx
+7:17:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 58 more
+7:17:28 PM [vite] (ssr) page reload src/lib/writer-lease.ts
+7:17:28 PM [vite] (ssr) program reload
+7:17:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 58 more
+7:17:28 PM [vite] (ssr) page reload src/lib/videos/catalog-mutations.ts
+7:17:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/catalog-writer-status.tsx
+7:17:28 PM [vite] (ssr) page reload src/components/library/catalog-writer-status.tsx
+7:17:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 58 more
+7:17:28 PM [vite] (ssr) page reload src/lib/stream-signal-revisions.ts
+7:19:59 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx, /src/components/library/stream-signal-replay.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx and 60 more
+7:19:59 PM [vite] (ssr) page reload src/lib/stream-signal.ts
+7:19:59 PM [vite] (ssr) program reload
+7:19:59 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 58 more
+7:19:59 PM [vite] (ssr) page reload src/lib/stream-signal-revisions.ts
+7:19:59 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+7:19:59 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+7:19:59 PM [vite] (client) hmr update /src/styles.css?direct
+7:20:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 58 more
+7:20:00 PM [vite] (ssr) page reload src/lib/writer-lease.ts
+7:20:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 58 more
+7:20:00 PM [vite] (ssr) page reload src/lib/stream-signal-revisions.ts
+7:20:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx, /src/components/library/stream-signal-replay.tsx, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx and 60 more
+7:20:00 PM [vite] (ssr) page reload src/lib/stream-signal.ts
+7:20:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx
+7:20:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/catalog-writer-status.tsx
+7:20:00 PM [vite] (ssr) page reload src/components/library/catalog-writer-status.tsx
+7:23:49 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 58 more
+7:23:49 PM [vite] (ssr) page reload src/lib/stream-signal-revisions.ts
+7:23:49 PM [vite] (ssr) program reload
+7:23:49 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/catalog-writer-status.tsx
+7:23:49 PM [vite] (ssr) page reload src/components/library/catalog-writer-status.tsx
+7:23:49 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 58 more
+7:23:49 PM [vite] (ssr) page reload src/lib/writer-lease.ts
+7:23:49 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx
+7:27:32 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 48 more
+7:27:32 PM [vite] (ssr) page reload src/lib/videos/store.ts
+7:27:32 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/catalog-writer-status.tsx
+7:27:32 PM [vite] (ssr) page reload src/components/library/catalog-writer-status.tsx
+7:28:03 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 48 more
+7:28:03 PM [vite] (ssr) page reload src/lib/videos/store.ts
+7:28:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 58 more
+7:28:04 PM [vite] (ssr) page reload src/lib/writer-lease.ts
+7:28:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx
+7:28:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/catalog-writer-status.tsx
+7:28:04 PM [vite] (ssr) page reload src/components/library/catalog-writer-status.tsx
+7:29:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx
+7:29:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx
+7:29:16 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stream-signal-section.tsx
+7:35:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/catalog-writer-status.tsx
+7:35:34 PM [vite] (ssr) page reload src/components/library/catalog-writer-status.tsx
+7:35:34 PM [vite] (ssr) program reload
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+AbortError: This operation was aborted
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    ... 8 lines matching cause stack trace ...
+    at TCP.<anonymous> (node:net:362:12) {
+  cause: DOMException [AbortError]: This operation was aborted
+      at new DOMException (node:internal/per_context/domexception:76:18)
+      at AbortController.abort (node:internal/abort_controller:579:18)
+      at abort (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:316:51)
+      at ServerResponse.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:320:35)
+      at ServerResponse.wrapper (node:events:639:12)
+      at ServerResponse.emit (node:events:514:28)
+      at emitCloseNT (node:_http_server:1156:10)
+      at Socket.onServerResponseClose (node:_http_server:292:5)
+      at Socket.emit (node:events:526:24)
+      at TCP.<anonymous> (node:net:362:12),
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}
+7:46:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/photos-section.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+7:46:59 PM [vite] (client) [console.error] TypeError: Cannot read properties of null (reading 'games')
+    at http://127.0.0.1:8080/src/components/library/games-section.tsx?t=1793379583429:53:26
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12902:13)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6617:153)
+    at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6652:55)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7701:6)
+    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7688:5)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7665:604)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7606:5)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7658:6)
+
+The above error occurred in the <GamesSection> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:46:59 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:46:59 PM [vite] (client) [console.error] TypeError: Cannot read properties of null (reading 'games')
+    at http://127.0.0.1:8080/src/components/library/games-section.tsx?t=1793379583429:53:26
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12902:13)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6617:153)
+    at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6652:55)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7701:6)
+    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7688:5)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7706:432)
+    at doubleInvokeEffectsOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8924:125)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:123)
+
+The above error occurred in the <GamesSection> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:46:59 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:47:01 PM [vite] (client) [console.error] TypeError: Cannot read properties of null (reading 'prints')
+    at LocalCatalog (http://127.0.0.1:8080/src/components/library/prints-section.tsx?t=1793379583429:76:19)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12866:12)
+    at renderWithHooks (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:4213:19)
+    at updateFunctionComponent (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:5569:16)
+    at beginWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6140:20)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at performUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8429:92)
+    at workLoopSync (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8325:37)
+    at renderRootSync (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8309:6)
+    at performWorkOnRoot (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7994:27)
+
+The above error occurred in the <LocalCatalog> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:47:01 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:47:04 PM [vite] (client) [console.error] TypeError: Cannot read properties of null (reading 'prints')
+    at SettingsSection (http://127.0.0.1:8080/src/components/library/settings-section.tsx?t=1793402884111:675:18)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12866:12)
+    at renderWithHooks (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:4213:19)
+    at updateFunctionComponent (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:5569:16)
+    at beginWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6140:20)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at performUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8429:92)
+    at workLoopSync (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8325:37)
+    at renderRootSync (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8309:6)
+    at performWorkOnRoot (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7994:27)
+
+The above error occurred in the <SettingsSection> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:47:04 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:47:07 PM [vite] (client) [console.error] TypeError: saved.map is not a function
+    at http://127.0.0.1:8080/src/components/library/games-section.tsx?t=1793379583429:55:18
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12902:13)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6617:153)
+    at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6652:55)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7701:6)
+    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7688:5)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7665:604)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7606:5)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7658:6)
+
+The above error occurred in the <GamesSection> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:47:07 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:47:07 PM [vite] (client) [console.error] TypeError: saved.map is not a function
+    at http://127.0.0.1:8080/src/components/library/games-section.tsx?t=1793379583429:55:18
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12902:13)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6617:153)
+    at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6652:55)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7701:6)
+    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7688:5)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7706:432)
+    at doubleInvokeEffectsOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8924:125)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:123)
+
+The above error occurred in the <GamesSection> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:47:07 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:47:09 PM [vite] (client) [console.error] TypeError: Cannot read properties of null (reading 'id')
+    at http://127.0.0.1:8080/src/components/library/prints-section.tsx?t=1793379583429:226:52
+    at Array.some (<anonymous>)
+    at LocalCatalog (http://127.0.0.1:8080/src/components/library/prints-section.tsx?t=1793379583429:226:32)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12866:12)
+    at renderWithHooks (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:4213:19)
+    at updateFunctionComponent (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:5569:16)
+    at beginWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6140:20)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at performUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8429:92)
+    at workLoopSync (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8325:37)
+
+The above error occurred in the <LocalCatalog> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:47:09 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:47:12 PM [vite] (client) [console.error] Received NaN for the `children` attribute. If this is expected, cast the value to a string.
+7:47:15 PM [vite] (client) [console.error] TypeError: Cannot read properties of null (reading 'games')
+    at http://127.0.0.1:8080/src/components/library/games-section.tsx?t=1793379583429:53:26
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12902:13)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6617:153)
+    at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6652:55)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7701:6)
+    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7688:5)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7665:604)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7606:5)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7658:6)
+
+The above error occurred in the <GamesSection> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:47:15 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:47:15 PM [vite] (client) [console.error] TypeError: Cannot read properties of null (reading 'games')
+    at http://127.0.0.1:8080/src/components/library/games-section.tsx?t=1793379583429:53:26
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12902:13)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6617:153)
+    at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6652:55)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7701:6)
+    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7688:5)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7706:432)
+    at doubleInvokeEffectsOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8924:125)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:123)
+
+The above error occurred in the <GamesSection> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:47:15 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:47:17 PM [vite] (client) [console.error] TypeError: Cannot read properties of null (reading 'prints')
+    at LocalCatalog (http://127.0.0.1:8080/src/components/library/prints-section.tsx?t=1793379583429:76:19)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12866:12)
+    at renderWithHooks (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:4213:19)
+    at updateFunctionComponent (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:5569:16)
+    at beginWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6140:20)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at performUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8429:92)
+    at workLoopSync (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8325:37)
+    at renderRootSync (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8309:6)
+    at performWorkOnRoot (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7994:27)
+
+The above error occurred in the <LocalCatalog> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:47:17 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:47:20 PM [vite] (client) [console.error] TypeError: Cannot read properties of null (reading 'prints')
+    at SettingsSection (http://127.0.0.1:8080/src/components/library/settings-section.tsx?t=1793402884111:675:18)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12866:12)
+    at renderWithHooks (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:4213:19)
+    at updateFunctionComponent (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:5569:16)
+    at beginWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6140:20)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at performUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8429:92)
+    at workLoopSync (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8325:37)
+    at renderRootSync (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8309:6)
+    at performWorkOnRoot (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7994:27)
+
+The above error occurred in the <SettingsSection> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:47:20 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:47:23 PM [vite] (client) [console.error] TypeError: saved.map is not a function
+    at http://127.0.0.1:8080/src/components/library/games-section.tsx?t=1793379583429:55:18
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12902:13)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6617:153)
+    at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6652:55)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7701:6)
+    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7688:5)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7665:604)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7606:5)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7658:6)
+
+The above error occurred in the <GamesSection> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:47:23 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:47:23 PM [vite] (client) [console.error] TypeError: saved.map is not a function
+    at http://127.0.0.1:8080/src/components/library/games-section.tsx?t=1793379583429:55:18
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12902:13)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at commitHookEffectListMount (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6617:153)
+    at commitHookPassiveMountEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6652:55)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7701:6)
+    at recursivelyTraverseReconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7688:5)
+    at reconnectPassiveEffects (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:7706:432)
+    at doubleInvokeEffectsOnFiber (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8924:125)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:123)
+
+The above error occurred in the <GamesSection> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:47:23 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:47:25 PM [vite] (client) [console.error] TypeError: Cannot read properties of null (reading 'id')
+    at http://127.0.0.1:8080/src/components/library/prints-section.tsx?t=1793379583429:226:52
+    at Array.some (<anonymous>)
+    at LocalCatalog (http://127.0.0.1:8080/src/components/library/prints-section.tsx?t=1793379583429:226:32)
+    at Object.react_stack_bottom_frame (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:12866:12)
+    at renderWithHooks (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:4213:19)
+    at updateFunctionComponent (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:5569:16)
+    at beginWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:6140:20)
+    at runWithFiberInDEV (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:851:66)
+    at performUnitOfWork (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8429:92)
+    at workLoopSync (http://127.0.0.1:8080/node_modules/.vite/deps/react-dom_client.js?v=8682443a:8325:37)
+
+The above error occurred in the <LocalCatalog> component.
+
+React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundary.
+
+7:47:25 PM [vite] (client) [console.warn] Warning: Error in route match: //
+7:47:28 PM [vite] (client) [console.error] Received NaN for the `children` attribute. If this is expected, cast the value to a string.
+7:47:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-shared.tsx
+7:52:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/spotify-section.tsx
+7:52:28 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/shop-section.tsx
+7:52:55 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/shop-section.tsx
+7:52:56 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/hub-shared.tsx
+7:52:56 PM [vite] (client) hmr update /src/styles.css?direct
+7:52:56 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/spotify-section.tsx
+7:52:56 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/shop-section.tsx
+7:59:03 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/photos-section.tsx
+8:00:22 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/photos-section.tsx
+8:00:22 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/stats-section.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx and 70 more
+8:00:22 PM [vite] (ssr) page reload src/lib/videos/persist.ts
+8:00:22 PM [vite] (ssr) program reload
+8:00:23 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+8:00:23 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+8:00:23 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+8:00:23 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+8:00:23 PM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+8:00:23 PM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+8:00:23 PM [vite] (client) hmr invalidate /src/components/library/provider-recovery.tsx Could not Fast Refresh ("rememberOfficialViewing" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+8:00:23 PM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/official-room-player.tsx, /src/components/library/adult-panel.tsx, /src/components/library/player.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+12:05:50 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/shop-section.tsx

@@ -1,0 +1,33 @@
+✔ official clip forms and VOD routes derive typed case-sensitive identities (2.5939ms)
+✔ a numeric provider ID aliases a slug only with the explicit response pair (135.5479ms)
+✔ all admission merges retain the saved ID and union source edges, never title-match (278.2289ms)
+✔ aliases consume one entry slot, refresh at the cap and share one room identity (80.2541ms)
+✔ one temporary result survives a long run without retaining prior blobs or writing their bytes into job receipts (49.7006ms)
+✔ preview cleanup is reviewable, cancellable and cannot clear a newer result (0.4817ms)
+✔ explicit clear-on-navigation releases the buffer including a result completed after navigation (0.4113ms)
+✔ expired preview cleanup leaves the completed image intact (0.2084ms)
+✔ oversized engine PNG does not replace the last completed preview (846.2453ms)
+✔ older clip pages may add verified aliases and memberships without replacing fresh observations (52.336ms)
+✔ routine refreshes keep historical YouTube uploads that were not repeated by the provider (1.8684ms)
+✔ a successful live check reports stale broadcast cards while marking them offline (0.214ms)
+✔ catalog sweeps reuse unchanged rows and append new uploads without dropping saved details (1.009ms)
+✔ an archive row with an unknown date retains a known feed publication date (0.5077ms)
+✔ compact YouTube archive rows retain known views and duration while accepting explicit fresh values (0.226ms)
+✔ unchanged million-entry pages visit the catalog once without copying it (784.5371ms)
+✔ staged changes preserve sequential duplicates, canonical identity and newer live observations (1.1969ms)
+✔ async refreshes share unchanged arrays and preserve removals, live transitions and new rows (61.8534ms)
+✔ cancellation of staged catalog work leaves all original references intact (0.9234ms)
+✔ large change batches and late removals match sequential merge behavior without mutating the input (808.8697ms)
+✔ indexed sweep preparation yields before reads, never scans its index, and reuses unchanged catalogs (7.4168ms)
+✔ indexed sweep staging matches sequential merges, canonical aliases and duplicate page rows (0.9914ms)
+✔ cancelled indexed copies leave the original catalog and every index position intact (11.6889ms)
+✔ saved refresh preparation handles dense sparse ledgers without sorting/exporting their patch keys (169.0825ms)
+✔ routine refresh cancellation reaches prefix materialization and preserves all existing cards (1.723ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2041.7814

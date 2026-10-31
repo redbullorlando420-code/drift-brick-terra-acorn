@@ -1,3 +1,4 @@
+import { scheduleRankingStart } from '@/lib/ranking-budget';
 import { getRecommendationExposure } from '@/lib/recommendation-exposure-store';
 import { useEffect, useMemo, useState } from "react";
 import { rankTwitchVods } from "@/lib/videos/twitch-vod-ranking";
@@ -29,16 +30,18 @@ export function useTwitchVodRanking(
       return;
     }
     if (viewer || phase !== "active" || packet?.scope === scope) return;
+    return scheduleRankingStart('twitch', pass => {
     const controller = new AbortController(),
       now = Date.now();
     void prepareTwitchRecommendationScore(videos, { tags, favorites, likes, viewCounts, rating: getRating,
-      watchScore: id => watchTimeScore(getWatchTime(id)), now, recommendationExposure: getRecommendationExposure(), recommendationRejections: getRecommendationRejections(), creatorIsFavorited, tagIsLiked: recommendationTopicIsLiked }, controller.signal)
-      .then(score => rankTwitchVods(videos, score, controller.signal))
+      watchScore: id => watchTimeScore(getWatchTime(id)), now, recommendationExposure: getRecommendationExposure(), recommendationRejections: getRecommendationRejections(), creatorIsFavorited, tagIsLiked: recommendationTopicIsLiked }, controller.signal, undefined, pass)
+      .then(score => rankTwitchVods(videos, score, controller.signal, undefined, pass))
       .then((rows) => {
-        if (!controller.signal.aborted) setPacket({ scope, rows });
+        if (!controller.signal.aborted) { pass.finish(); setPacket({ scope, rows }); }
       })
-      .catch(() => {});
+      .catch(() => { pass.finish(controller.signal.aborted ? 'cancelled' : 'failed'); });
     return () => controller.abort();
+    });
   }, [active, scope, viewer, phase]);
   // Activity changes can refresh ordering without removing an entire painted
   // shelf. Catalog changes (including hidden titles) never reuse old rows.

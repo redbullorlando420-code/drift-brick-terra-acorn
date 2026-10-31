@@ -1,1 +1,0 @@
-import{n as e,o as t,t as n}from"./jsx-runtime-CfuWmoMz.js";import{v as r}from"./store-bhP0OgKq.js";import{t as i}from"./library-app-COVgHF2e.js";import{y as a}from"./index-CCa-DOtR.js";var o=t(e()),s=n();function c(){let e=a(),t=r(e=>e.setSource);return(0,o.useLayoutEffect)(()=>{t(`landing`),e({to:`/`,replace:!0})},[e,t]),(0,s.jsx)(i,{})}export{c as component};

@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "checks": [
+    "Read-only status identifies both owned real processes, including a Unicode installation path.",
+    "Companion receives real named-pipe cleanup before exact server termination; an unrelated Node process survives.",
+    "Second click succeeds without additional termination.",
+    "Older-service fallback terminates only the verified Companion identity and discloses the interruption.",
+    "The actual running Realhub installation is unchanged."
+  ],
+  "scope": "Disposable Node service fixtures and real Windows WMI/named pipes. User server, media, engines and Companion were not stopped."
+}

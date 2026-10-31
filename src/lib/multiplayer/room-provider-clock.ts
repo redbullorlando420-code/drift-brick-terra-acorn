@@ -26,3 +26,11 @@ export function roomClockSample(sentWall: number, sentMono: number, receivedMono
 export function roomPacketElapsed(sentAt: number, receivedAt: number, offset = 0) {
   return Math.max(0, Math.min(2, (receivedAt + offset - sentAt) / 1000));
 }
+
+/** Provider-generated live events are device observations, never shared room intent.
+ * Explicit room controls still use the independently authorized sync request path. */
+export function providerMayShareEvent(live: boolean) { return !live; }
+export type RoomLiveMode = 'on-demand' | 'independent-live';
+/** Neither supported provider exposes a verified DVR seekable range to this bridge.
+ * Elapsed duration is not evidence of a seekable DVR window. */
+export function roomLiveMode(live: boolean): RoomLiveMode { return live ? 'independent-live' : 'on-demand'; }

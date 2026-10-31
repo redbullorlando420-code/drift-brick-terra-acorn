@@ -1,0 +1,22 @@
+✔ control and chat precede paced catalog pages under backpressure without changing control order (1.1513ms)
+✔ obsolete clocks coalesce, while pause, seek and canonical state discard stale resume observations (5.6994ms)
+✔ per-peer queues stay byte and packet bounded while urgent traffic has reserved space (121.5333ms)
+✔ revocation, search cancellation and last-moment authority guards remove unsent catalog metadata (0.3395ms)
+✔ closed, throwing and stalled channels do not leak buffers or create endless retained work (0.1694ms)
+✔ three paced peers retain independent budgets and a slow guest cannot block another guest or host controls (4.4531ms)
+✔ lost acknowledgement checks a receipt and confirms an applied operation without replaying it (1.0904ms)
+✔ missing receipt retries once with stable identity and only an unchanged queue, selection and host (0.1913ms)
+✔ consumed or removed titles cannot reappear after a reconnect, even if the old original arrives after the receipt query (0.1014ms)
+✔ offline intents remain pending, reconnect queries precede retry, and orphaned work expires without mutations (0.1379ms)
+✔ receipts and query fences are isolated by peer, bounded, retained beyond intent expiry and cleared per room (1.5917ms)
+✔ pending operations and completed history stay bounded, duplicate receipts do not grow history (0.2304ms)
+✔ receipt queries reject oversized/duplicate identities and old host generations cannot authorize edits (0.227ms)
+✔ delayed original expires at the host even after receipt and query histories have been pruned (0.1037ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 252.064

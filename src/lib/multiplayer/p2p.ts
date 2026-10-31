@@ -9,6 +9,7 @@
  * rolls back and accepts, so pairs converge without wedging.
  */
 
+import { RoomOutbox, ROOM_OUTBOX_LIMITS, type OutboxSnapshot } from './room-outbox.ts';
 import { registerPeriodicTask } from '../periodic-work.ts';
 
 export type SignalKind = "offer" | "answer" | "ice";
@@ -37,6 +38,9 @@ export interface PeerInfo {
   id: string;
   name: string;
   connectionState: RTCPeerConnectionState;
+  reliableReady?: boolean;
+  reliableClosed?: boolean;
+  iceState?: RTCIceConnectionState;
   /** Selected local ICE candidate type: host | srflx | prflx | relay. */
   candidateType: string | null;
   /** Data-channel ping RTT (ms), measured every 2s once connected. */
@@ -58,6 +62,9 @@ export interface P2PRoomOptions {
   /** Local-player media travels as RTC tracks, never as buffered file bytes. */
   onMediaStream?: (from: string, stream: MediaStream) => void;
   onPeerReady?: (from: string) => void;
+  onSignalingState?: (state: 'connecting'|'online'|'retrying') => void;
+  onLocalRelayMessage?: () => void;
+  onTransportChanged?: (state:OutboxSnapshot) => void;
   onDebug?: (event: string) => void;
 }
 
@@ -79,6 +86,8 @@ interface PeerSlot {
   recreatedForOffer?: boolean;
   info: PeerInfo;
   pingSentAt?: number;
+  outbox?:RoomOutbox;
+  flushTimer?:ReturnType<typeof setTimeout>;
 }
 
 const FAST_POLL_MS = 400;
@@ -111,6 +120,25 @@ export class P2PRoom {
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private stopPing: (() => void) | null = null;
   private closed = false;
+  private pollInFlight = false;
+  private manualRetryAt = -Infinity;
+  private signalingState: 'connecting'|'online'|'retrying' = 'connecting';
+  private transportFingerprint='';
+  private reportTransport(){
+    if(this.closed)return;
+    const total:OutboxSnapshot={queuedBytes:0,queuedPackets:0,nativeBytes:0,catalogPackets:0,dropped:0,coalesced:0,blocked:false};
+    for(const slot of this.peers.values()){const state=slot.outbox?.snapshot(slot.reliable?.bufferedAmount??0);if(!state)continue;for(const key of ['queuedBytes','queuedPackets','nativeBytes','catalogPackets','dropped','coalesced'] as const)total[key]+=state[key];total.blocked=total.blocked||state.blocked;}
+    const fingerprint=JSON.stringify(total);if(fingerprint===this.transportFingerprint)return;this.transportFingerprint=fingerprint;this.opts.onTransportChanged?.(total);
+  }
+  private clearOutbox(slot:PeerSlot){if(slot.flushTimer)clearTimeout(slot.flushTimer);slot.flushTimer=undefined;slot.outbox?.close();slot.outbox=undefined;}
+  private flushOutbox(slot:PeerSlot){
+    if(slot.flushTimer)clearTimeout(slot.flushTimer);slot.flushTimer=undefined;
+    if(this.closed||slot.pc.connectionState==='closed')return;
+    if(slot.reliable)slot.outbox?.flush(slot.reliable,Date.now());this.reportTransport();
+    if(slot.outbox?.size)slot.flushTimer=setTimeout(()=>this.flushOutbox(slot),50);
+  }
+  cancelCatalogResult(peer:string,id:string){this.peers.get(peer)?.outbox?.cancelCatalog(id);this.reportTransport();}
+  private signalStatus(state: 'connecting'|'online'|'retrying') { if(this.closed||state===this.signalingState)return;this.signalingState=state;this.opts.onSignalingState?.(state); }
   private mediaStream: MediaStream | null = null;
   private everPolled = false;
   private lastPeersFingerprint = "";
@@ -143,18 +171,22 @@ export class P2PRoom {
       this.localRelay.onmessage = (event) => {
         const message = event.data as { from?: string; to?: string; data?: unknown } | null;
         if (!message || message.from === this.opts.selfId || (message.to && message.to !== this.opts.selfId)) return;
+        this.opts.onLocalRelayMessage?.();
         this.debug("Local tab relay delivered a room message");
         this.opts.onMessage?.(message.from ?? "local-guest", message.data, "reliable");
       };
       this.debug("Local tab relay ready");
     }
     try {
+      this.pollInFlight=true;
       await this.pollOnce();
       this.debug("Signaling registered");
     } catch {
+      this.signalStatus('retrying');
       this.debug("Signaling retry scheduled");
       // First poll can fail transiently; the scheduled loop below retries.
     }
+    this.pollInFlight=false;
     if (this.closed) return;
     this.schedulePoll(this.anyPairConnecting() ? FAST_POLL_MS : IDLE_POLL_MS);
     this.stopPing = registerPeriodicTask({ name: 'Room transport health', mode: 'always', background: false, everyMs: PING_INTERVAL_MS, work: () => {
@@ -170,7 +202,7 @@ export class P2PRoom {
     this.stopPing?.(); this.stopPing = null;
     this.localRelay?.close();
     this.localRelay = null;
-    for (const slot of this.peers.values()) slot.pc.close();
+    for (const slot of this.peers.values()) {this.clearOutbox(slot);slot.pc.close();}
     this.peers.clear();
     this.mediaStream = null;
     // Leaving the roster is the teardown broadcast: everyone's next poll
@@ -181,6 +213,24 @@ export class P2PRoom {
       body: JSON.stringify({ op: "leave", room: this.opts.room, peer: this.opts.selfId }),
       keepalive: true,
     }).catch(() => {});
+  }
+
+  /** Retry only signaling; keep live channels, media and room state intact. */
+  retrySignaling(): void {
+    if(this.closed||Date.now()-this.manualRetryAt<2000)return;
+    this.manualRetryAt=Date.now();
+    if(!this.pollInFlight)this.schedulePoll(0);
+  }
+  /** Recreate only failed paths; never interrupt a healthy reliable channel. */
+  retryPeers(): void {
+    if(this.closed||Date.now()-this.manualRetryAt<2000)return;
+    this.manualRetryAt=Date.now();
+    for(const [id,slot] of [...this.peers]){
+      const failed=['failed','disconnected','closed'].includes(slot.pc.connectionState)||slot.reliable?.readyState==='closed'||slot.terminal;
+      if(!failed)continue;
+      this.clearOutbox(slot);slot.pc.close();this.peers.delete(id);this.connectTo(id,slot.info.name,this.opts.selfId>id);
+    }
+    this.emitPeers();if(!this.pollInFlight)this.schedulePoll(0);
   }
 
   /** Send on the unreliable game-state channel (drops stale packets). */
@@ -197,17 +247,20 @@ export class P2PRoom {
   }
 
   /** Send reliably (ordered) to one peer, or to all when peerId is omitted. */
-  send(data: unknown, peerId?: string): void {
+  send(data: unknown, peerId?: string, valid?:()=>boolean): boolean {
+    if(this.closed)return false;
     const wire = JSON.stringify({ t: "d", d: data });
     const targets = peerId ? [this.peers.get(peerId)] : [...this.peers.values()];
-    let delivered = false;
+    let delivered = false,accepted=true;
     for (const slot of targets) {
-      if (slot?.reliable?.readyState === "open") delivered = true;
-      if (slot?.reliable?.readyState === "open") slot.reliable.send(wire);
+      if(slot?.reliable?.readyState!=='open')continue;delivered=true;
+      slot.outbox??=new RoomOutbox();const queued=slot.outbox.enqueue(data,wire,Date.now(),valid);accepted=queued&&accepted;this.flushOutbox(slot);
     }
     // Avoid duplicate events once WebRTC is open, while guaranteeing the
     // same-machine guest window can chat, receive room state, and sync video.
-    if (!delivered) this.localRelay?.postMessage({ from: this.opts.selfId, to: peerId, data });
+    if(valid&&!valid())return false;
+    if (!delivered && this.localRelay) {try{this.localRelay.postMessage({from:this.opts.selfId,to:peerId,data});return true;}catch{return false;}}
+    return delivered&&accepted;
   }
 
   peerList(): PeerInfo[] {
@@ -269,6 +322,8 @@ export class P2PRoom {
     if (!res.ok) throw new Error(`signaling poll failed: ${res.status}`);
     const body = (await res.json()) as RtcPollResponse;
     if (this.closed) return;
+    if(!Array.isArray(body.peers)||!Array.isArray(body.signals))throw new Error('Malformed room roster');
+    this.signalStatus('online');
     if (!this.everPolled) {
       this.everPolled = true;
       this.opts.onConnected?.();
@@ -288,12 +343,15 @@ export class P2PRoom {
   }
 
   private async poll(): Promise<void> {
-    if (this.closed) return;
+    if (this.closed || this.pollInFlight) return;
+    this.pollInFlight=true;
     try {
       await this.pollOnce();
     } catch {
+      this.signalStatus('retrying');
       // Transient poll failures are expected (tab sleep, deploy roll); retry.
     }
+    this.pollInFlight=false;
     this.schedulePoll(this.anyPairConnecting() ? FAST_POLL_MS : IDLE_POLL_MS);
   }
 
@@ -311,7 +369,7 @@ export class P2PRoom {
     }
     for (const [id, slot] of this.peers) {
       if (!alive.has(id)) {
-        slot.pc.close();
+        this.clearOutbox(slot);slot.pc.close();
         this.peers.delete(id);
       }
     }
@@ -337,6 +395,9 @@ export class P2PRoom {
         id: peerId,
         name,
         connectionState: pc.connectionState,
+        iceState: pc.iceConnectionState,
+        reliableReady: false,
+        reliableClosed: false,
         candidateType: null,
         rttMs: null,
       },
@@ -346,6 +407,7 @@ export class P2PRoom {
     pc.onicecandidate = (e) => {
       if (e.candidate) void this.sendSignal(peerId, "ice", e.candidate.toJSON());
     };
+    pc.oniceconnectionstatechange = () => {slot.info.iceState=pc.iceConnectionState;this.emitPeers();};
     pc.onconnectionstatechange = () => {
       slot.info.connectionState = pc.connectionState;
       if (pc.connectionState === "connecting" || pc.connectionState === "connected") {
@@ -402,8 +464,9 @@ export class P2PRoom {
     channel.onopen = () => {
       slot.lastProgressAt = Date.now();
       this.debug(`Peer ${channel.label} channel open with ${slot.info.name || "guest"}`);
-      if (channel.label === "reliable") this.opts.onPeerReady?.(slot.info.id);
+      if (channel.label === "reliable") {this.clearOutbox(slot);slot.outbox=new RoomOutbox();channel.bufferedAmountLowThreshold=ROOM_OUTBOX_LIMITS.lowWaterBytes;channel.onbufferedamountlow=()=>this.flushOutbox(slot);slot.info.reliableReady=true;slot.info.reliableClosed=false;this.emitPeers();this.opts.onPeerReady?.(slot.info.id);}
     };
+    channel.onclose = () => {if(channel.label==="reliable"){this.clearOutbox(slot);this.reportTransport();slot.info.reliableReady=false;slot.info.reliableClosed=true;this.emitPeers();}};
     channel.onmessage = (e) => {
       let msg: { t: string; d?: unknown };
       try {
@@ -478,7 +541,7 @@ export class P2PRoom {
           if (kind !== "offer" || slot.recreatedForOffer) throw err;
           const attempts = slot.recoveryAttempts;
           const name = slot.info.name;
-          slot.pc.close();
+          this.clearOutbox(slot);slot.pc.close();
           this.peers.delete(from);
           const fresh = this.connectTo(from, name, false);
           if (!fresh) return;
@@ -612,7 +675,7 @@ export class P2PRoom {
         // We are the dialer: rebuild the pair from scratch.
         const { name } = slot.info;
         const attempts = slot.recoveryAttempts;
-        slot.pc.close();
+        this.clearOutbox(slot);slot.pc.close();
         this.peers.delete(peerId);
         const fresh = this.connectTo(peerId, name, true);
         if (fresh) fresh.recoveryAttempts = attempts;
@@ -648,11 +711,12 @@ export class P2PRoom {
   }
 
   private emitPeers(): void {
+    if(this.closed)return;
     // Only notify when something observable actually changed — React state
     // setters otherwise re-render consumers on every poll/ping.
     const list = this.peerList();
     const fingerprint = JSON.stringify(
-      list.map((p) => [p.id, p.name, p.connectionState, p.candidateType, p.rttMs]),
+      list.map((p) => [p.id, p.name, p.connectionState, p.candidateType, p.rttMs, p.reliableReady, p.reliableClosed, p.iceState]),
     );
     if (fingerprint === this.lastPeersFingerprint) return;
     this.lastPeersFingerprint = fingerprint;

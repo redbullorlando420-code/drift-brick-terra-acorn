@@ -17,6 +17,8 @@ test("unknown and epoch dates never become today's uploads", () => {
 test("legacy synthetic archive dates are repaired without guessing feed dates", () => {
  const row = {id:"a",addedAt:1800000000000,description:"Creator public channel catalog item.",remote:{kind:"youtube",channelName:"Creator"}};
  assert.equal(repairLegacyYoutubeDate(row as any).addedAt,0);
- const feed = {...row,description:"A real feed description"};
+ const unverified = {...row,description:"A real feed description"};
+ assert.equal(repairLegacyYoutubeDate(unverified as any).addedAt,0);
+ const feed = {...unverified,remote:{...row.remote,publishedSource:"rss",publishedPrecision:"instant"}};
  assert.equal(repairLegacyYoutubeDate(feed as any),feed);
 });

@@ -1,3 +1,4 @@
+import { BatchStatusAnnouncement } from './batch-status-announcement';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useLibrary } from "@/lib/videos/store";
@@ -29,6 +30,7 @@ export function TwitchClipsControl() {
     [notice, setNotice] = useState(""),
     [results, setResults] = useState<Result[]>([]),
     [progress, setProgress] = useState({ done: 0, total: 0 });
+  const batchRevision = useRef(0);
   const stopped = useRef(false),
     mounted = useRef(true);
   useEffect(() => {
@@ -40,6 +42,7 @@ export function TwitchClipsControl() {
   }, []);
   const start = async (mode: "recent" | "archive", focusedId?: string, fresh = false) => {
     if (busy || remoteBusy || refreshing) return;
+    batchRevision.current++;
     const current = useLibrary.getState().follows,
       queue =
         !focusedId && creator === "all"
@@ -136,7 +139,7 @@ export function TwitchClipsControl() {
   return (
     <section
       className="mb-5 rounded-lg border border-border bg-surface p-4"
-      aria-label="Twitch clip updates"
+      data-status-scope aria-label="Twitch clip updates"
     >
       <h2 className="font-display text-xl text-fg">Keep clips fresh.</h2>
       <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">
@@ -236,8 +239,9 @@ export function TwitchClipsControl() {
           max={progress.total}
         />
       )}
+      <BatchStatusAnnouncement id={String(batchRevision.current)} label="Twitch clip update" phase={busy?stopped.current?'waiting':'running':notice?'complete':'idle'} total={progress.total} outcome={notice}/>
       {notice && (
-        <p role="status" className="mt-3 text-sm text-accent">
+        <p className="mt-3 text-sm text-accent">
           {notice}
         </p>
       )}

@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Search crash releases its worker, cooperative fallback remains usable, changed queries do not auto-restart, explicit retry builds only the latest query",
+        "Preview worker crash produces a retry action and releases its catalog; explicit retry replaces it without closing the preview",
+        "Statistics constructor failure resolves to retry rather than a stranded spinner",
+        "YouTube ranking failure retains newest-first browsing and offers an explicit fresh worker",
+        "Repeated navigation during held native photo decodes stays at four native calls, releases photo URLs, and closes every obsolete bitmap after late completion",
+        "On-demand diagnostics report empty decode queues and bounded peaks without retaining media titles or URLs"
+      ],
+      "searchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\root-diagnostics-worker-production-desktop-search-recovery.png",
+      "previewScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\root-diagnostics-worker-production-desktop-preview-recovery.png",
+      "nativeDecode": {
+        "starts": 4,
+        "closed": 4,
+        "urls": 0
+      },
+      "measurements": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\root-diagnostics-worker-production-desktop-measurements.json",
+      "diagnosticsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\root-diagnostics-worker-production-desktop-diagnostics.png",
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "Search crash releases its worker, cooperative fallback remains usable, changed queries do not auto-restart, explicit retry builds only the latest query",
+        "Preview worker crash produces a retry action and releases its catalog; explicit retry replaces it without closing the preview",
+        "Statistics constructor failure resolves to retry rather than a stranded spinner",
+        "YouTube ranking failure retains newest-first browsing and offers an explicit fresh worker",
+        "Repeated navigation during held native photo decodes stays at four native calls, releases photo URLs, and closes every obsolete bitmap after late completion",
+        "On-demand diagnostics report empty decode queues and bounded peaks without retaining media titles or URLs"
+      ],
+      "searchScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\root-diagnostics-worker-production-mobile-search-recovery.png",
+      "previewScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\root-diagnostics-worker-production-mobile-preview-recovery.png",
+      "nativeDecode": {
+        "starts": 4,
+        "closed": 4,
+        "urls": 0
+      },
+      "measurements": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\root-diagnostics-worker-production-mobile-measurements.json",
+      "diagnosticsScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\root-diagnostics-worker-production-mobile-diagnostics.png",
+      "ok": true
+    }
+  ],
+  "limitations": "Isolated desktop/mobile Chrome, real workers with deliberate error events and held native bitmap promises. No real provider or physical phone is claimed."
+}

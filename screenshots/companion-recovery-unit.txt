@@ -1,0 +1,36 @@
+✔ restart restores active and queued work as interrupted without starting anything; explicit resume retains ID and clears old browser consent (27.4583ms)
+✔ completed receipt survives restart and a repeated enqueue/resume never starts another process without an explicit new-download request (32.4705ms)
+✔ a failed receipt commit cannot start a downloader and leaves the prior manifest readable (10.5355ms)
+✔ future or malformed manifests are preserved and cannot be overwritten by a new operation (2.9443ms)
+✔ legacy receipt migration allowlists fields and does not expose URLs or injected credential headers (10.2161ms)
+✔ cancellation and timeout outcomes cannot be changed to complete by a late process exit (14.1466ms)
+✔ receipt history remains bounded while partial files are retained and offline URLs cannot carry embedded credentials (305.7955ms)
+✔ documented legacy file operations remain usable without claiming newer capabilities (1.7439ms)
+✔ protocol major and malformed responses fail closed; additive minor and unknown fields are ignored (0.2374ms)
+✔ native route families negotiate file, download, artwork, print, launch and creative features (0.1892ms)
+✔ one coalesced health probe gates unsupported operations before dispatch while allowed legacy reads still work (23.9687ms)
+✔ local media byte ranges handle seeking, suffixes and malformed/out-of-bounds requests (1.4715ms)
+✔ completed local media serves bounded ranges and HEAD, with truthful missing/invalid responses (64.1119ms)
+Test: downloading 0.00 GB with SHA-256 verification.
+Test: 0.00 / 0.00 GB
+Test: SHA-256 verified.
+Test: downloading 0.00 GB with SHA-256 verification.
+Test: 0.00 / 0.00 GB
+Test: downloading 0.00 GB with SHA-256 verification.
+✔ verified artifact transfer validates range, bytes and digest before enabling the file (38.0655ms)
+✔ YouTube accepts canonical IDs and rejects URLs, arguments, traversal and playlists (1.8951ms)
+✔ 100% progress is not completion: successful exit and a nonempty video file are required (23.3703ms)
+✔ errors and empty successful exits never report completion; stderr is bounded (21.6753ms)
+✔ queue deduplicates active videos, is bounded, and cancellation waits for process exit (43.2192ms)
+✔ process launch errors, revoked roots and restarts remain truthful (15.572ms)
+✔ browser session authentication is opt-in, enum-only, per job and yt-dlp-only (15.5605ms)
+✔ cookie and authorization header values never become UI status or persisted diagnostics (8.2895ms)
+✔ local playback resolves only completed nonempty media from the exact approved job directory (15.8271ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 509.537

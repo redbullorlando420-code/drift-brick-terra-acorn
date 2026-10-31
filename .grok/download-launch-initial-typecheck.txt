@@ -1,0 +1,5 @@
+npm notice run typecheck
+npm notice run tsc --noEmit
+src/components/library/companion-recovery-panel.tsx(245,58): error TS7053: Element implicitly has an 'any' type because expression of type '"error" | "done" | "interrupted" | "running" | "paused" | "cancelled" | "queued"' can't be used to index type '{ queued: string; running: string; interrupted: string; done: string; error: string; cancelled: string; }'.
+  Property 'paused' does not exist on type '{ queued: string; running: string; interrupted: string; done: string; error: string; cancelled: string; }'.
+src/components/library/games-section.tsx(146,30): error TS2304: Cannot find name 'companionFetch'.

@@ -15,9 +15,9 @@ export function qwenGraph(body, model, seed) {
     '8':{class_type:'PreviewImage',inputs:{images:['7',0]}},
   };
 }
-export function createQwenEngine({dir,models,validate,spawnProcess=spawn,fetchLocal=fetch}) {
+export function createQwenEngine({dir,models,validate,spawnProcess=spawn,fetchLocal=fetch,platform=process.platform}) {
   const source=join(dir,'tools','comfyui'),python=join(source,'venv','Scripts','python.exe');let engine=null,generation=null;
-  const canStart=()=>existsSync(python)&&existsSync(join(dir,'tools','comfyui-ready.json'));
+  const canStart=()=>platform==='win32'&&existsSync(python)&&existsSync(join(dir,'tools','comfyui-ready.json'));
   async function api(route,body,timeout=5000){const response=await fetchLocal('http://127.0.0.1:8189'+route,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,redirect:'error',signal:AbortSignal.timeout(timeout)});if(!response.ok)throw Error('ComfyUI HTTP '+response.status+': '+(await response.text()).slice(0,200));const text=await response.text();return text.trim()?JSON.parse(text):{};}
   async function available(){const catalog=await models.list();return catalog.models.filter(m=>m.role==='diffusion_models'&&/^qwen_image_2\.1_(turbo_)?(bf16|int8_convrot)\.safetensors$/.test(m.name)).map(m=>m.name);}
   const stopOwned = () => { if(!engine)return;const owned=engine;if(process.platform==='win32')spawnProcess('taskkill.exe',['/PID',String(owned.pid),'/T','/F'],{shell:false,windowsHide:true,stdio:'ignore'}).once('error',()=>{});else owned.kill(); };

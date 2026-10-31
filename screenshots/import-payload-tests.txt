@@ -1,0 +1,16 @@
+✔ 10k review keeps names held, saved identities skipped and each explicit batch bounded (68.3043ms)
+✔ choices, errors, filter and logical keyboard anchor survive session cleaning and disk merge (0.8237ms)
+✔ failed rows retry only explicitly and choices do not select prototype names accidentally (34.3493ms)
+✔ JSON preflight counts UTF-8 and quoted delimiters without changing valid metadata (0.8269ms)
+✔ valid oversized token, depth and string graphs are rejected before JSON.parse allocation (16.451ms)
+✔ retained archive projections drop unused nested trees and preserve consumed format/date fields (1.5213ms)
+✔ a rejected later graph retains the accepted Twitch page and its safe continuation (5.0143ms)
+✔ a metadata refresh over 100k saved rows preserves every unchanged card reference (2910.9669ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3184.912

@@ -26,14 +26,15 @@ export async function launch({ browser = true } = {}) {
   if (alive) { console.log('Realhub launcher is already open.'); if (browser) spawn('explorer.exe', [app], { shell: false, stdio: 'ignore' }).on('error', console.error); return; }
   await unlink(lock).catch(() => {}); handle = await open(lock, 'wx');
  }
- await handle.writeFile(String(process.pid)); const cleanup = async () => { await handle.close().catch(() => {}); await unlink(lock).catch(() => {}); };
- console.log('Realhub — local server and Companion. Leave this window open. Ctrl+C stops services started here.');
- const stop = () => { for (const child of children) if (child.exitCode === null && child.pid) { if (process.platform === 'win32') spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { shell: false, stdio: 'ignore' }).on('error', console.error); else child.kill(); } void cleanup().finally(() => process.exit()); };
+ await handle.writeFile(String(process.pid)); let cleaned = false; const cleanup = async () => { if(cleaned)return;cleaned=true;await handle.close().catch(() => {}); await unlink(lock).catch(() => {}); };
+ console.log('Realhub — local server and Companion. Use Stop Realhub on your desktop to stop this installation.');
+ let stopping = false;
+ const stop = async () => { if(stopping)return;stopping=true;try{if(process.platform==='win32'){const {stopDesktop}=await import('./stop-desktop.mjs');const result=await stopDesktop({root});if(!result.ok)console.error('Some services remain running. Use Stop Realhub to review.');}else for(const child of children)if(child.exitCode===null)child.kill();}catch(error){console.error(error.message);}finally{await cleanup();process.exit();} };
  process.once('SIGINT', stop); process.once('SIGTERM', stop);
  try {
   await startServices({ probe: service => readiness(service === 'Server' ? app : 'http://127.0.0.1:43123/', service), start: service => {
    const npm = join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'); if (service === 'Server' && !existsSync(npm)) throw new Error('Node.js npm CLI is missing. Repair Node.js.');
-   const child = spawn(process.execPath, service === 'Server' ? [npm, 'run', 'dev'] : ['companion/reelcase-companion.mjs'], { cwd: root, shell: false, stdio: 'inherit' }); child.on('error', console.error); children.push(child);
+   const child = spawn(process.execPath, service === 'Server' ? [npm, 'run', 'dev'] : [join(root,'companion','reelcase-companion.mjs')], { cwd: root, shell: false, stdio: 'inherit' }); child.on('error', console.error); children.push(child);
   } });
   console.log('Realhub is ready. Existing services were reused.'); if (browser) spawn('explorer.exe', [app], { shell: false, stdio: 'ignore' }).on('error', console.error); await cleanup();
  } catch (error) { console.error(error.message); await cleanup(); process.exitCode = 1; }

@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Actual IndexedDB failures before prepare, after durable prepare, card apply, metadata apply and commit preserve the prior state; accepted deltas replay once with no full catalog scan.",
+        "Manual tags, locks and category survive lost acknowledgement; stale provider metadata cannot replace them and a full localStorage mirror falls back to IndexedDB.",
+        "Interrupted cleanup rolls back without later deletion; future journals remain preserved and block conflicting catalog writes.",
+        "Desktop/touch-mobile UI previews a bounded artwork-only cleanup; cancel deletes nothing, confirmation skips changed artwork and preserves personal records with approximate byte reporting.",
+        "A real page reload recovers the prepared accepted row before new writers; independent category clocks, expired previews, unavailable estimates and partial cleanup quota reporting also pass."
+      ],
+      "scale": {
+        "rows": 100001,
+        "maxGapMs": 12,
+        "ticks": 64,
+        "recoveryCatalogScans": 0,
+        "maxStagedRows": 64,
+        "controlsReadyMs": 445
+      },
+      "ok": true
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "Actual IndexedDB failures before prepare, after durable prepare, card apply, metadata apply and commit preserve the prior state; accepted deltas replay once with no full catalog scan.",
+        "Manual tags, locks and category survive lost acknowledgement; stale provider metadata cannot replace them and a full localStorage mirror falls back to IndexedDB.",
+        "Interrupted cleanup rolls back without later deletion; future journals remain preserved and block conflicting catalog writes.",
+        "Desktop/touch-mobile UI previews a bounded artwork-only cleanup; cancel deletes nothing, confirmation skips changed artwork and preserves personal records with approximate byte reporting.",
+        "A real page reload recovers the prepared accepted row before new writers; independent category clocks, expired previews, unavailable estimates and partial cleanup quota reporting also pass."
+      ],
+      "scale": {
+        "rows": 100001,
+        "maxGapMs": 29,
+        "ticks": 60,
+        "recoveryCatalogScans": 0,
+        "maxStagedRows": 64,
+        "controlsReadyMs": 544
+      },
+      "ok": true
+    }
+  ],
+  "limitations": "Isolated Chrome profiles, actual IndexedDB and compiled source modules; injected storage failures and synthetic 100k catalogs. No real user library, provider or physical device was changed."
+}

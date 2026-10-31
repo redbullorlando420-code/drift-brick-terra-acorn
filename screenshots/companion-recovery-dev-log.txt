@@ -1,0 +1,30 @@
+locator.waitFor: Timeout 25000ms exceeded.
+Call log:
+[2m  - waiting for getByText('Supported old shortcut.lnk', { exact: true }) to be visible[22m
+
+    at E:\codex\drift-brick-terra-acorn\scripts\companion-recovery-browser-check.mjs:184:75
+locator.waitFor: Timeout 25000ms exceeded.
+Call log:
+[2m  - waiting for getByText('Supported old shortcut.lnk', { exact: true }) to be visible[22m
+
+    at E:\codex\drift-brick-terra-acorn\scripts\companion-recovery-browser-check.mjs:184:75
+{
+  "ok": false,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [],
+      "errors": [],
+      "ok": false,
+      "error": "locator.waitFor: Timeout 25000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Supported old shortcut.lnk', { exact: true }) to be visible\u001b[22m\n\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\companion-recovery-browser-check.mjs:184:75"
+    },
+    {
+      "mobile": true,
+      "checks": [],
+      "errors": [],
+      "ok": false,
+      "error": "locator.waitFor: Timeout 25000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Supported old shortcut.lnk', { exact: true }) to be visible\u001b[22m\n\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\companion-recovery-browser-check.mjs:184:75"
+    }
+  ],
+  "limitation": "Isolated browser profiles and controlled Companion responses. No real native app launch, media download, model install, browser-cookie read or external session was triggered."
+}

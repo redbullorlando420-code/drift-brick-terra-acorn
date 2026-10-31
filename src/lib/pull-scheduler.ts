@@ -1,12 +1,14 @@
+import type { DispatchPhase, PullOperation } from './pull-dispatch-trace.ts';
 type Policy = { concurrency: number; gapMs: number };
 export type PullQueueSnapshot = { active: number; waiting: number; held: boolean; cancelled: number };
-type Job = { work: (signal: AbortSignal) => Promise<unknown>; resolve: (value: unknown) => void; reject: (error: Error) => void; generation: number; controller: AbortController; ignorePause: boolean; canStart?: () => boolean; deferWhenBlocked?: boolean };
+type Job = { trace?: (phase: DispatchPhase) => void; work: (signal: AbortSignal) => Promise<unknown>; resolve: (value: unknown) => void; reject: (error: Error) => void; generation: number; controller: AbortController; ignorePause: boolean; canStart?: () => boolean; deferWhenBlocked?: boolean };
 export class PullPriorityDeferredError extends Error { constructor() { super('Automatic pull deferred to the active page.'); this.name = 'PullPriorityDeferredError'; } }
 const cancelledError = () => new Error('Pull cancelled; accepted catalog entries remain saved.');
 /** A bounded queue sleeps on pause/visibility changes. Each active slot retains
  * at most one response; cancellation aborts transport and releases that slot. */
 export function createPullScheduler(policy: () => Policy, available: (ignorePause?: boolean) => boolean, maxWaiting = 8,
-  options: { availabilityDelay?: (ignorePause?: boolean) => number; requestTimeoutMs?: number | (() => number) } = {}) {
+  options: { trace?: (operation: PullOperation) => (phase: DispatchPhase) => void; availabilityDelay?: (ignorePause?: boolean) => number; requestTimeoutMs?: number | (() => number) } = {}) {
+  const optionsFactoryTrace = (operation: PullOperation) => options.trace?.(operation);
   const queue: Job[] = [], running = new Set<Job>(), held = new Set<() => void>();
   const listeners = new Set<() => void>();
   let lastStarted = -Infinity, timer: ReturnType<typeof setTimeout> | undefined;
@@ -28,7 +30,7 @@ export function createPullScheduler(policy: () => Policy, available: (ignorePaus
     timer = undefined;
     for (let index = queue.length - 1; index >= 0; index--) {
       const job = queue[index];
-      if (job.deferWhenBlocked && job.canStart?.() === false) { queue.splice(index, 1); job.reject(new PullPriorityDeferredError()); }
+      if (job.deferWhenBlocked && job.canStart?.() === false) { queue.splice(index, 1); job.trace?.('deferred'); job.reject(new PullPriorityDeferredError()); }
     }
     emit();
     // Page priority affects admission only. A completed response must still be
@@ -61,10 +63,12 @@ export function createPullScheduler(policy: () => Policy, available: (ignorePaus
         // Measure the actual transport start, after setup and before notifying
         // subscribers. A slow store listener must not compress the next gap.
         lastStarted = performance.now();
+        job.trace?.('started');
         const work = job.work(job.controller.signal);
         emit();
         const result = await Promise.race([work, interruption]);
         clearTimeout(timeout);
+        if (!available(job.ignorePause)) job.trace?.('held');
         while (!available(job.ignorePause) && job.generation === generation && !job.controller.signal.aborted) {
           await new Promise<void>(resolve => {
             const resume = () => { if (!available(job.ignorePause) && !job.controller.signal.aborted && job.generation === generation) return; held.delete(resume); job.controller.signal.removeEventListener('abort', resume); resolve(); };
@@ -74,34 +78,37 @@ export function createPullScheduler(policy: () => Policy, available: (ignorePaus
           });
         }
         if (job.generation !== generation || job.controller.signal.aborted) throw cancelledError();
+        job.trace?.('complete');
         job.resolve(result);
-      } catch (error) { job.reject(error instanceof Error ? error : new Error(String(error))); }
+      } catch (error) { job.trace?.(job.controller.signal.aborted ? 'cancelled' : 'failed'); job.reject(error instanceof Error ? error : new Error(String(error))); }
       finally { clearTimeout(timeout); job.controller.signal.removeEventListener('abort', abort); running.delete(job); emit(); pump(); }
     })();
     if (queue.length && running.size < config.concurrency) schedule(config.gapMs);
   };
   return {
-    run<T>(work: (signal: AbortSignal) => Promise<T>, options: { ignorePause?: boolean; canStart?: () => boolean; deferWhenBlocked?: boolean; signal?: AbortSignal } = {}): Promise<T> {
+    run<T>(work: (signal: AbortSignal) => Promise<T>, options: { operation?: PullOperation; ignorePause?: boolean; canStart?: () => boolean; deferWhenBlocked?: boolean; signal?: AbortSignal } = {}): Promise<T> {
       if (options.signal?.aborted) return Promise.reject(options.signal.reason ?? cancelledError());
       if (queue.length >= maxWaiting) return Promise.reject(new Error('Pull queue is full. Let the current batch finish before adding more.'));
       const ignorePause = options.ignorePause === true;
       const result = new Promise<T>((resolve, reject) => {
         const cleanup = () => options.signal?.removeEventListener('abort', abort);
-        const job: Job = { work, resolve: (value: unknown) => { cleanup(); resolve(value as T); }, reject: error => { cleanup(); reject(error); }, generation, controller: new AbortController(), ignorePause, canStart: options.canStart, deferWhenBlocked: options.deferWhenBlocked };
+        const optionsTrace = optionsFactoryTrace(options.operation ?? 'archive');
+        const job: Job = { trace: optionsTrace, work, resolve: (value: unknown) => { cleanup(); resolve(value as T); }, reject: error => { cleanup(); reject(error); }, generation, controller: new AbortController(), ignorePause, canStart: options.canStart, deferWhenBlocked: options.deferWhenBlocked };
         const abort = () => {
           const position = queue.indexOf(job);
-          if (position >= 0) { queue.splice(position, 1); job.reject(cancelledError()); }
+          if (position >= 0) { queue.splice(position, 1); job.trace?.('cancelled'); job.reject(cancelledError()); }
           else job.controller.abort(options.signal?.reason ?? cancelledError());
           pump();
         };
         options.signal?.addEventListener('abort', abort, { once: true });
-        if (ignorePause) queue.unshift(job); else queue.push(job);
+        // FIFO among eligible jobs. Pause bypass never reverses older work.
+        queue.push(job); job.trace?.('queued');
       });
       pump(); return result;
     },
     cancel() {
       generation++; cancelled += queue.length + running.size;
-      for (const job of queue.splice(0)) job.reject(cancelledError());
+      for (const job of queue.splice(0)) { job.trace?.('cancelled'); job.reject(cancelledError()); }
       for (const job of running) job.controller.abort(cancelledError());
       if (timer !== undefined) clearTimeout(timer); timer = undefined; emit();
     },

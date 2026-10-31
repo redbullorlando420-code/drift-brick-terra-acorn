@@ -1,0 +1,16 @@
+✔ documented legacy file operations remain usable without claiming newer capabilities (1.1461ms)
+✔ protocol major and malformed responses fail closed; additive minor and unknown fields are ignored (0.2357ms)
+✔ native route families negotiate file, download, artwork, print, launch and creative features (0.2145ms)
+✔ one coalesced health probe gates unsupported operations before dispatch while allowed legacy reads still work (28.4728ms)
+✔ update report allowlist strips paths, identities, URLs and arbitrary nested data (1.973ms)
+✔ baseline parser bounds future/corrupt job state and never trusts arbitrary version text (0.37ms)
+✔ post-update differences preserve baseline and expose missing features, tools, approvals and interrupted jobs (0.8828ms)
+✔ download failures are stable categories and never return raw credentials or cookie content (1.4726ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 188.529

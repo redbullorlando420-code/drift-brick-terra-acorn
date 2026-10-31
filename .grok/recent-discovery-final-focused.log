@@ -1,0 +1,36 @@
+✔ metadata reader counts decompressed bytes across multibyte/chunked responses (22.1593ms)
+✔ unknown-length oversized success cancels before publishing a truncated page (10.1738ms)
+✔ bounded error prefix cancels large error bodies without treating them as valid JSON (0.3879ms)
+✔ stalled bodies and aborted reads release their stream instead of retaining an active slot (43.373ms)
+✔ shared transport holds its slot until the complete body finishes, skips aborted queued work (2.0103ms)
+✔ shared queue rejects excess jobs and cancellation immediately frees waiting capacity (1.0265ms)
+✔ transport reconstruction removes compressed length headers and preserves JSON/status (0.5712ms)
+✔ YouTube oversized pages release serial transfer and do not impose a rate cooldown (1.9986ms)
+✔ large YouTube HTTP errors retain real cooldown/challenge classification with a bounded prefix (7.2399ms)
+✔ a stalled YouTube rate-limit body still records the HTTP cooldown (33.5122ms)
+✔ many tiny chunks are assembled across fixed blocks without changing bytes (514.5757ms)
+✔ warm metadata cache enforces byte and entry limits, LRU, expiry and unretained large entries (1.0372ms)
+✔ adult metadata budget rejects an oversized replacement and preserves a still-valid cached page (2.2653ms)
+✔ actual Twitch refresh rejects oversized metadata without losing a saved cursor or claiming exhaustion (2.7423ms)
+✔ YouTube accepts complete earlier pages but holds the rejected byte-budget page for retry (2.4924ms)
+✔ Twitch byte-budget failure after a complete page retains its VODs and next-page checkpoint (197.7876ms)
+✔ a focused Twitch result above the warm row limit is delivered whole and never retained as a second graph (1497.7869ms)
+✔ recent upload rotation covers 2,000 creators independently of live and archive clocks and survives reload (158.8527ms)
+✔ cached success cannot rewind a watermark or clear a newer failed check (0.3916ms)
+✔ per-creator retry is bounded, honors Retry-After and does not block healthy creators (0.2773ms)
+✔ saved recent state validates and bounds external messages (0.1229ms)
+✔ full feed gap detection is uncertainty; partial/empty feeds and present watermark cannot claim a gap (0.9258ms)
+✔ repair has an independent durable cursor and unresolved does not mean deleted (0.3519ms)
+✔ endpoint waits isolate RSS, archive, HTML and live; provider-wide waits hold healthy creators too (0.4277ms)
+✔ confirmed publication excludes pull clocks, upcoming, live, future, and relative evidence; date-only remains explicit (1.6811ms)
+✔ 100k recent selection yields, keeps bounded results, excludes private/hidden rows and explains personal recommendations (171.5887ms)
+✔ real RSS conversion detects 15+ intervening uploads; repair stops at anchor, deduplicates and preserves archive/feed clocks (91.4562ms)
+✔ real repair obeys a two-page limit and failed continuation retains all independent positions (277.8426ms)
+ℹ tests 28
+ℹ suites 0
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2637.2125

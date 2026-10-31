@@ -1,0 +1,31 @@
+✔ explicit upcoming evidence owns schedule, excludes waiting audience and cannot become live by clock (2.8151ms)
+✔ postponements, partial disappearance, ten-minute completion and flaps keep one identity and announcement receipt (134.1434ms)
+✔ near-start work stays inside existing slots and reserves oldest-first discovery across 2k creators (11.2662ms)
+✔ event checkpoints survive reload, reject invalid states and retain upcoming metadata after supplemental evidence (1.5719ms)
+✔ partial/resumed playlist walks preserve unseen tail; complete walk removes only one membership with canonical id and feedback stable (171.8086ms)
+✔ interrupted suffix, duplicate traversal, mismatched checkpoint and admission limits never prune unseen members (241.0369ms)
+✔ empty confirmed playlist retains cards and all other source edges; new order sorts without rewriting video ids (121.0039ms)
+✔ real public API maps upcoming to one canonical live/replay card and carries playlist walk across bounded calls (186.9182ms)
+✔ routine refreshes keep historical YouTube uploads that were not repeated by the provider (1.7438ms)
+✔ a successful live check reports stale broadcast cards while marking them offline (0.1712ms)
+✔ catalog sweeps reuse unchanged rows and append new uploads without dropping saved details (0.6602ms)
+✔ an archive row with an unknown date retains a known feed publication date (0.2313ms)
+✔ compact YouTube archive rows retain known views and duration while accepting explicit fresh values (0.2469ms)
+✔ unchanged million-entry pages visit the catalog once without copying it (427.7295ms)
+✔ staged changes preserve sequential duplicates, canonical identity and newer live observations (0.6731ms)
+✔ async refreshes share unchanged arrays and preserve removals, live transitions and new rows (8.6274ms)
+✔ cancellation of staged catalog work leaves all original references intact (0.8193ms)
+✔ large change batches and late removals match sequential merge behavior without mutating the input (792.9688ms)
+✔ indexed sweep preparation yields before reads, never scans its index, and reuses unchanged catalogs (5.8728ms)
+✔ indexed sweep staging matches sequential merges, canonical aliases and duplicate page rows (0.614ms)
+✔ cancelled indexed copies leave the original catalog and every index position intact (9.1838ms)
+✔ saved refresh preparation handles dense sparse ledgers without sorting/exporting their patch keys (127.1769ms)
+✔ routine refresh cancellation reaches prefix materialization and preserves all existing cards (1.4881ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1543.4696

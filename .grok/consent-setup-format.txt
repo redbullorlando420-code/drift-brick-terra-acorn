@@ -1,0 +1,8 @@
+src/lib/capability-consent.ts 63ms
+src/lib/setup-readiness.ts 8ms
+src/components/library/capability-permissions.tsx 18ms
+src/components/library/setup-checklist.tsx 18ms
+companion/capability-consent.mjs 21ms
+scripts/consent-setup.test.mjs 19ms
+scripts/consent-setup-http-check.mjs 9ms
+scripts/consent-setup-browser-check.mjs 18ms

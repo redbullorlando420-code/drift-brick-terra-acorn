@@ -1,3 +1,4 @@
+import { companionFetch } from '../companion.ts';
 /** Best-effort offline save for adult embeds via local Companion + yt-dlp. */
 
 export type OfflineSaveResult =
@@ -8,7 +9,7 @@ export async function requestAdultOfflineSave(url: string): Promise<OfflineSaveR
   const target = url.trim();
   if (!/^https:\/\//i.test(target)) return { ok: false, error: "No https URL to save." };
   try {
-    const res = await fetch("http://127.0.0.1:43123/offline/save", {
+    const res = await companionFetch("/offline/save", {
       method: "POST",
       headers: { "content-type": "application/json", origin: window.location.origin },
       body: JSON.stringify({ url: target }),

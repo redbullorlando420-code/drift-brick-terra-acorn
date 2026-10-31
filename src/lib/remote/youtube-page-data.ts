@@ -1,3 +1,6 @@
+import { projectYoutubeRenderer } from './provider-projection.ts';
+import { parseProviderJson } from './provider-json.ts';
+import { ProviderBudgetError } from '../provider-budgets.ts';
 /** Extract the balanced JSON value rather than depending on script spacing or
  * the closing script immediately following ytInitialData. */
 export function youtubeInitialData(html: string): unknown | null {
@@ -16,7 +19,7 @@ export function youtubeInitialData(html: string): unknown | null {
     } else if (char === '"') quoted = true;
     else if (char === "{") depth++;
     else if (char === "}" && --depth === 0) {
-      try { return JSON.parse(html.slice(start, index + 1)); } catch { return null; }
+      try { return parseProviderJson(html.slice(start, index + 1)); } catch(error) { if(error instanceof ProviderBudgetError)throw error;return null; }
     }
   }
   return null;
@@ -73,7 +76,7 @@ export function youtubeVideoRenderers(items: unknown, maximum: number): YoutubeR
       thumbnail: { thumbnails: short.thumbnail?.sources },
       youtubeType: 'short',
     } : undefined);
-    if (normalized?.videoId && !seen.has(normalized.videoId)) { seen.add(normalized.videoId); found.push(normalized); }
+    if (normalized?.videoId && !seen.has(normalized.videoId)) { seen.add(normalized.videoId); found.push(projectYoutubeRenderer(normalized)); }
     for (const value of Object.values(record).reverse()) if (value && typeof value === "object") stack.push(value);
   }
   return found;

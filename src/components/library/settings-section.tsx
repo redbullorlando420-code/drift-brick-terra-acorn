@@ -1,3 +1,12 @@
+import {CapabilityPermissions} from './capability-permissions';
+import {SetupChecklist} from './setup-checklist';
+import {FeatureReadinessPanel} from './feature-readiness-panel';
+import {StorageRecoveryPanel} from './storage-recovery-panel';
+import {RootAccessPanel} from './root-access-panel';
+import { LibraryPackTransfer } from './library-pack-transfer';
+import { DataSaverPanel } from './data-saver-panel';
+import { CompanionRecoveryPanel } from './companion-recovery-panel';
+import { companionFetch } from '@/lib/companion';
 import {hydrateProviderViewing} from '@/lib/provider-viewing-store';
 import {hydrateAnimeReviews} from '@/lib/anime-review-store';
 import {hydrateFilmReviews} from '@/lib/film-review-store';
@@ -16,9 +25,8 @@ import { Button } from "@/components/ui/button";
 import { PullSettingsPanel } from './pull-settings-panel';
 import { Input } from "@/components/ui/input";
 import { useLibrary } from "@/lib/videos/store";
-import { buildLibraryPackFiles, downloadLibraryPackZip, importLibraryPackZip, applyLibraryPackFiles, type LibraryPackMode } from "@/lib/videos/library-pack";
-import { companionExportLibraryPack, companionImportLibraryPack, companionHealth, companionInspectMedia, type CompanionMediaInspection } from "@/lib/companion";
-import { linksFromHistoryAndResume, loadDurablePhotosSync } from "@/lib/videos/persist";
+import { companionHealth, companionInspectMedia, type CompanionMediaInspection } from "@/lib/companion";
+import { loadDurablePhotosSync } from "@/lib/videos/persist";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { useSourceAssets } from "@/lib/source-assets";
 import { exportFeedback } from "@/lib/media-feedback";
@@ -37,7 +45,7 @@ const PREFERENCE_GROUPS = {
 } as const;
 
 const ACTIVE_PREFERENCE_DETAILS: Record<string, string> = {
-  "alerts-go-live-alerts": "Active: adds an in-app notice when a tracked Twitch channel goes live after a refresh.",
+  "alerts-go-live-alerts": "Active: adds an in-app notice when a tracked Twitch channel or confirmed YouTube broadcast goes live after a refresh. Each YouTube broadcast keeps a saved alert receipt.",
   "alerts-new-twitch-vod-alerts": "Active: adds an in-app notice when a tracked Twitch channel has a newly discovered VOD or clip.",
   "alerts-new-youtube-upload-alerts": "Active: adds an in-app notice when a tracked YouTube channel has a newly discovered upload.",
   "alerts-desktop-notifications": "Active: asks the browser for permission, then mirrors enabled Realhub alerts as desktop notifications.",
@@ -424,6 +432,12 @@ export function SettingsSection() {
       copy="Your Realhub library stays in this browser. Export a portable metadata backup whenever you need it."
     >
       <PullSettingsPanel />
+      <CompanionRecoveryPanel />
+      <SetupChecklist settings/>
+      <FeatureReadinessPanel/>
+      <StorageRecoveryPanel/>
+      <CapabilityPermissions/>
+      <RootAccessPanel/>
       <EnrichmentStatus />
       {!auditReady && <p className="mt-4 text-sm text-muted" role="status">Updating catalog diagnostics in the background… Pull and performance controls are ready.</p>}
       <div className="grid gap-4 sm:grid-cols-3">
@@ -445,7 +459,7 @@ export function SettingsSection() {
         <div>
           <h2 className="font-display text-2xl text-fg">Export local metadata</h2>
           <p className="mt-1 max-w-xl text-sm text-muted">
-            Downloads your catalog, favorites, likes, tags, watch history, follows, notifications,
+            Private exports contain local paths, private titles, tags and personal history. Shareable diagnostics use the privacy previews below. Downloads include your catalog, favorites, likes, tags, watch history, follows, notifications,
             print list, and game list. Your original media and any browser file permissions remain
             private on this device.
           </p>
@@ -456,179 +470,8 @@ export function SettingsSection() {
           <Button variant="secondary" onClick={exportChannels}>YouTube + Twitch</Button>
         </div>
       </div>
-      <section className="mt-4 rounded-lg border border-border bg-elevated p-5 shadow-border">
-        <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Library pack · local folder</p>
-        <h2 className="mt-2 font-display text-2xl text-fg">Export / import follows, history, links & marks</h2>
-        <p className="mt-1 max-w-2xl text-sm text-muted">
-          Downloads a zip that matches <code className="text-fg">public/import-templates/</code>: follows, watch history,
-          creator collections, saved video URLs, continue-watching pointers, favorites/likes, Photos sources &amp; likes, Adult marks, ratings &amp; tag hearts, and stats.
-          Import merges into durable IndexedDB stores and does not wipe unrelated data unless you confirm replace-follows.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={async () => {
-            await Promise.all([hydrateGuidePreset(),hydrateFilmReviews(),hydrateAnimeReviews(),hydrateProviderViewing()]);
-            const state = useLibrary.getState();
-            downloadLibraryPackZip({
-              follows: state.follows,
-              history: state.history,
-              links: linksFromHistoryAndResume(state.history, state.resumeProgress),
-              favorites: Object.keys(state.favorites),
-              likes: Object.keys(state.likes),
-              viewCounts: state.viewCounts,
-              cameCounts: state.cameCounts,
-              progress: state.progress,
-              resumeProgress: state.resumeProgress,
-              adultVideos: state.videos,
-              folders: state.folders,
-              tags: state.tags,
-              photoSources: state.folders.filter((f) => f.kind === "directory" || f.kind === "files").map((f) => ({
-                id: f.id, name: f.name, kind: f.kind as "directory" | "files",
-                ...(f.photoCount != null ? { photoCount: f.photoCount } : {}),
-                ...(f.lastCheckedAt != null ? { lastCheckedAt: f.lastCheckedAt } : {}),
-              })),
-              photoMeta: loadDurablePhotosSync()?.meta,
-              photoLikes: loadDurablePhotosSync()?.likes,
-            });
-            setServiceNote("Library pack zip downloaded. Unzip to edit offline, or keep as backup.");
-          }}><Download className="size-4" /> Export library pack</Button>
-          <Button variant="secondary" onClick={() => {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = ".zip,.json,.csv,application/zip,application/json,text/csv";
-            input.onchange = () => {
-              const file = input.files?.[0];
-              if (!file) return;
-              const proceed = window.confirm("Import this library pack into Realhub?\n\nData merges into durable local stores. Unrelated data is kept.");
-              if (!proceed) { setServiceNote("Import cancelled."); return; }
-              const wipeFollows = window.confirm("Also REPLACE all YouTube/Twitch follows with the file?\n\nOK = replace follows\nCancel = merge follows (recommended)");
-              const mode: LibraryPackMode = wipeFollows ? "replace-follows" : "merge";
-              void importLibraryPackZip(file, {
-                getFollows: () => useLibrary.getState().follows,
-                setFollows: (follows) => useLibrary.setState({ follows }),
-                getHistory: () => useLibrary.getState().history,
-                setHistory: (history) => useLibrary.setState({ history }),
-                getViewCounts: () => useLibrary.getState().viewCounts,
-                getCameCounts: () => useLibrary.getState().cameCounts,
-                setMarks: (viewCounts, cameCounts) => useLibrary.setState({ viewCounts, cameCounts }),
-                getFavorites: () => Object.keys(useLibrary.getState().favorites),
-                getLikes: () => Object.keys(useLibrary.getState().likes),
-                setShelves: (favorites, likes) => useLibrary.setState({
-                  favorites: Object.fromEntries(favorites.map((id) => [id, true as const])),
-                  likes: Object.fromEntries(likes.map((id) => [id, true as const])),
-                }),
-                getPhotoSources: () => useLibrary.getState().folders
-                  .filter((f) => f.kind === "directory" || f.kind === "files")
-                  .map((f) => ({ id: f.id, name: f.name, kind: f.kind as "directory" | "files", photoCount: f.photoCount, lastCheckedAt: f.lastCheckedAt })),
-                setPhotoSources: (sources) => useLibrary.setState((s) => {
-                  let folders = s.folders;
-                  for (const source of sources) {
-                    if (folders.some((f) => f.id === source.id)) {
-                      folders = folders.map((f) => f.id === source.id ? { ...f, name: source.name, kind: source.kind, photoCount: source.photoCount ?? f.photoCount, lastCheckedAt: source.lastCheckedAt ?? f.lastCheckedAt } : f);
-                    } else {
-                      folders = [...folders, { id: source.id, name: source.name, kind: source.kind, videoCount: 0, photoCount: source.photoCount ?? 0, lastCheckedAt: source.lastCheckedAt, needsPermission: true, health: "permission-needed" as const }];
-                    }
-                  }
-                  return { folders };
-                }),
-                getProgress: () => useLibrary.getState().progress,
-                getResumeProgress: () => useLibrary.getState().resumeProgress,
-                setResume: (progress, resumeProgress) => useLibrary.setState({ progress, resumeProgress }),
-                getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
-                setLinks: () => { /* links persist via saveDurableLinks inside apply */ },
-              }, mode).then((result) => {
-                setServiceNote(`Pack import · +${result.followsAdded} follows · +${result.collectionsMerged} creator collections · +${result.historyMerged} history · +${result.linksMerged} links${result.photosMerged ? ` · photos ${result.photosMerged}` : ""}${result.feedbackMerged ? " · ratings/hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}`);
-              }).catch((error) => {
-                setServiceNote(error instanceof Error ? error.message : "Library pack import failed.");
-              });
-            };
-            input.click();
-          }}><Upload className="size-4" /> Import library pack</Button>
-          <Button variant="secondary" onClick={async () => {
-            await Promise.all([hydrateGuidePreset(),hydrateFilmReviews(),hydrateAnimeReviews(),hydrateProviderViewing()]);
-            const state = useLibrary.getState();
-            const files = buildLibraryPackFiles({
-              follows: state.follows,
-              history: state.history,
-              links: linksFromHistoryAndResume(state.history, state.resumeProgress),
-              favorites: Object.keys(state.favorites),
-              likes: Object.keys(state.likes),
-              viewCounts: state.viewCounts,
-              cameCounts: state.cameCounts,
-              progress: state.progress,
-              resumeProgress: state.resumeProgress,
-              adultVideos: state.videos,
-              folders: state.folders,
-              tags: state.tags,
-              photoSources: state.folders.filter((f) => f.kind === "directory" || f.kind === "files").map((f) => ({
-                id: f.id, name: f.name, kind: f.kind as "directory" | "files",
-                ...(f.photoCount != null ? { photoCount: f.photoCount } : {}),
-                ...(f.lastCheckedAt != null ? { lastCheckedAt: f.lastCheckedAt } : {}),
-              })),
-              photoMeta: loadDurablePhotosSync()?.meta,
-              photoLikes: loadDurablePhotosSync()?.likes,
-            });
-            void companionExportLibraryPack(files).then((result) => {
-              setServiceNote(result.ok
-                ? `Wrote library pack to companion folder · ${result.written?.length ?? 0} files${result.root ? ` · ${result.root}` : ""}`
-                : (result.error || "Companion pack export failed."));
-            });
-          }}>Save pack to companion folder</Button>
-          <Button variant="secondary" onClick={() => {
-            void companionImportLibraryPack().then((pack) => {
-              if (!pack.ok || !pack.files || !Object.keys(pack.files).length) {
-                setServiceNote(pack.error || "No library pack files in the companion folder.");
-                return;
-              }
-              const proceed = window.confirm("Import the companion-folder library pack into Realhub?\n\nData merges into durable local stores.");
-              if (!proceed) { setServiceNote("Companion import cancelled."); return; }
-              const wipeFollows = window.confirm("Also REPLACE all YouTube/Twitch follows with the folder pack?\n\nOK = replace follows\nCancel = merge follows (recommended)");
-              const mode: LibraryPackMode = wipeFollows ? "replace-follows" : "merge";
-              try {
-                const result = applyLibraryPackFiles(pack.files, {
-                  getFollows: () => useLibrary.getState().follows,
-                  setFollows: (follows) => useLibrary.setState({ follows }),
-                  getHistory: () => useLibrary.getState().history,
-                  setHistory: (history) => useLibrary.setState({ history }),
-                  getViewCounts: () => useLibrary.getState().viewCounts,
-                  getCameCounts: () => useLibrary.getState().cameCounts,
-                  setMarks: (viewCounts, cameCounts) => useLibrary.setState({ viewCounts, cameCounts }),
-                  getFavorites: () => Object.keys(useLibrary.getState().favorites),
-                  getLikes: () => Object.keys(useLibrary.getState().likes),
-                  setShelves: (favorites, likes) => useLibrary.setState({
-                    favorites: Object.fromEntries(favorites.map((id) => [id, true as const])),
-                    likes: Object.fromEntries(likes.map((id) => [id, true as const])),
-                  }),
-                  getPhotoSources: () => useLibrary.getState().folders
-                    .filter((f) => f.kind === "directory" || f.kind === "files")
-                    .map((f) => ({ id: f.id, name: f.name, kind: f.kind as "directory" | "files", photoCount: f.photoCount, lastCheckedAt: f.lastCheckedAt })),
-                  setPhotoSources: (sources) => useLibrary.setState((s) => {
-                    let folders = s.folders;
-                    for (const source of sources) {
-                      if (folders.some((f) => f.id === source.id)) {
-                        folders = folders.map((f) => f.id === source.id ? { ...f, name: source.name, kind: source.kind, photoCount: source.photoCount ?? f.photoCount, lastCheckedAt: source.lastCheckedAt ?? f.lastCheckedAt } : f);
-                      } else {
-                        folders = [...folders, { id: source.id, name: source.name, kind: source.kind, videoCount: 0, photoCount: source.photoCount ?? 0, lastCheckedAt: source.lastCheckedAt, needsPermission: true, health: "permission-needed" as const }];
-                      }
-                    }
-                    return { folders };
-                  }),
-                  getProgress: () => useLibrary.getState().progress,
-                  getResumeProgress: () => useLibrary.getState().resumeProgress,
-                  setResume: (progress, resumeProgress) => useLibrary.setState({ progress, resumeProgress }),
-                  getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
-                  setLinks: () => { /* links persist via saveDurableLinks inside apply */ },
-                }, mode);
-                setServiceNote(`Companion pack import · +${result.followsAdded} follows · +${result.historyMerged} history · +${result.linksMerged} links${result.photosMerged ? ` · photos ${result.photosMerged}` : ""}`);
-              } catch (error) {
-                setServiceNote(error instanceof Error ? error.message : "Companion pack import failed.");
-              }
-            });
-          }}>Load pack from companion folder</Button>
-          <a className="inline-flex h-8 items-center rounded-md bg-bg/45 px-3 text-xs text-muted shadow-border hover:text-fg" href="/import-templates/README.md" target="_blank" rel="noreferrer">Open templates</a>
-        </div>
-        {serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}
-      </section>
-      <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connected services</p><h2 className="mt-2 font-display text-2xl text-fg">Independent caches, on your schedule.</h2><p className="mt-1 text-sm text-muted">Twitch and YouTube refresh together from your saved follows. Photo imports, Roku discovery, and Spotify remain independently local and refresh only when you ask.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[{ name: "YouTube", detail: "Saved channels", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows("youtube", { catalog: true }); const status = useLibrary.getState().remoteRefreshStatus; setServiceNote(status?.failed === status?.checked ? "YouTube refresh failed. Check channel health." : `Refreshed YouTube catalog · ${result.newVideos.length} videos added from ${status?.refreshed ?? 0} channels.`); } }, { name: "Twitch", detail: "Live + VOD cache", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows("twitch"); setServiceNote(`Refreshed Twitch catalog · ${result.newVideos.length} new videos from ${result.pull?.done ?? 0} channels.`); } }, { name: "Photos", detail: `${folders.filter((folder) => folder.photoCount).length} source folders`, checked: Math.max(0, ...folders.map((folder) => folder.lastCheckedAt ?? 0)), action: async () => { const sources = folders.filter((folder) => folder.photoCount && (folder.kind === "directory" || folder.kind === "files")); const counts = await Promise.all(sources.map((folder) => refreshSourcePhotos(folder.id))); setServiceNote(`Refreshed local photo sources · ${counts.reduce((sum, count) => sum + count, 0)} photos found.`); } }, { name: "Roku", detail: "Companion-assisted", checked: 0, action: async () => { try { const res = await fetch("http://127.0.0.1:43123/roku/discover"); const data = await res.json() as { devices?: unknown[] }; setServiceNote(`Roku refresh complete · ${(data.devices ?? []).length} device(s) found.`); } catch { setServiceNote("Roku refresh needs the local Realhub Companion running."); } } }, { name: "Spotify", detail: "Saved music shortcuts", checked: 0, action: async () => { setServiceNote("Spotify shortcuts are local and ready. Open Spotify from its library section to refresh provider content."); } }].map((service) => <div key={service.name} className="rounded-md bg-bg/45 p-3 shadow-border"><p className="text-sm font-medium text-fg">{service.name}</p><p className="mt-1 text-xs text-muted">{service.detail}</p><p className="mt-1 text-[11px] text-subtle">{service.checked ? `Last refreshed ${new Date(service.checked).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Not refreshed this session"}</p><Button size="sm" variant="secondary" className="mt-3" onClick={() => void service.action()}>Refresh</Button></div>)}</div>{serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}</section>
+      <LibraryPackTransfer/>
+      <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connected services</p><h2 className="mt-2 font-display text-2xl text-fg">Independent caches, on your schedule.</h2><p className="mt-1 text-sm text-muted">Twitch and YouTube refresh together from your saved follows. Photo imports, Roku discovery, and Spotify remain independently local and refresh only when you ask.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[{ name: "YouTube", detail: "Saved channels", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows("youtube", { catalog: true }); const status = useLibrary.getState().remoteRefreshStatus; setServiceNote(status?.failed === status?.checked ? "YouTube refresh failed. Check channel health." : `Refreshed YouTube catalog · ${result.newVideos.length} videos added from ${status?.refreshed ?? 0} channels.`); } }, { name: "Twitch", detail: "Live + VOD cache", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows("twitch"); setServiceNote(`Refreshed Twitch catalog · ${result.newVideos.length} new videos from ${result.pull?.done ?? 0} channels.`); } }, { name: "Photos", detail: `${folders.filter((folder) => folder.photoCount).length} source folders`, checked: Math.max(0, ...folders.map((folder) => folder.lastCheckedAt ?? 0)), action: async () => { const sources = folders.filter((folder) => folder.photoCount && (folder.kind === "directory" || folder.kind === "files")); const counts = await Promise.all(sources.map((folder) => refreshSourcePhotos(folder.id))); setServiceNote(`Refreshed local photo sources · ${counts.reduce((sum, count) => sum + count, 0)} photos found.`); } }, { name: "Roku", detail: "Companion-assisted", checked: 0, action: async () => { try { const res = await companionFetch("/roku/discover"); const data = await res.json() as { devices?: unknown[] }; setServiceNote(`Roku refresh complete · ${(data.devices ?? []).length} device(s) found.`); } catch { setServiceNote("Roku refresh needs the local Realhub Companion running."); } } }, { name: "Spotify", detail: "Saved music shortcuts", checked: 0, action: async () => { setServiceNote("Spotify shortcuts are local and ready. Open Spotify from its library section to refresh provider content."); } }].map((service) => <div key={service.name} className="rounded-md bg-bg/45 p-3 shadow-border"><p className="text-sm font-medium text-fg">{service.name}</p><p className="mt-1 text-xs text-muted">{service.detail}</p><p className="mt-1 text-[11px] text-subtle">{service.checked ? `Last refreshed ${new Date(service.checked).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Not refreshed this session"}</p><Button size="sm" variant="secondary" className="mt-3" onClick={() => void service.action()}>Refresh</Button></div>)}</div>{serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}</section>
       <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Device & performance</p><p className="mt-1 text-sm text-muted">The controls that change how Realhub runs and fits your screen.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className={`rounded-lg bg-elevated p-5 shadow-border ${debugEnabled ? 'sm:col-span-2 xl:col-span-4' : ''}`}>
           <span className="text-accent"><Settings2 className="size-5" /></span>
@@ -719,6 +562,7 @@ export function SettingsSection() {
           </p>
         </div>
         <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Adult performance</h2><p className="mt-2 text-sm leading-6 text-muted">Tune Adult rails and one catalog request separately. Smaller choices reduce decoding and keep filtering responsive.</p><p className="mt-4 text-xs text-muted">Cards per Adult rail</p><div className="mt-2 flex flex-wrap gap-2">{[16, 24, 48, 72].map((value) => <Button key={value} size="sm" variant={adultRailLimit === value ? "default" : "secondary"} onClick={() => { setAdultRailLimit(value); localStorage.setItem("reelcase.adult-rail-limit", String(value)); window.dispatchEvent(new Event("reelcase:adult-render-settings")); }}>{value} cards</Button>)}</div><p className="mt-4 text-xs text-muted">Batch limits and automatic pacing are in Pull management above.</p></div>
+        <DataSaverPanel />
         <div className="rounded-lg bg-elevated p-5 shadow-border sm:col-span-2" data-performance-profile>
           <span className="text-accent"><PackageSearch className="size-5" /></span>
           <h2 className="mt-3 font-display text-2xl text-fg">Performance profile</h2>

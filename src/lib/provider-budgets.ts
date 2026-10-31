@@ -2,6 +2,8 @@
  * Limits apply to each complete upstream page, not the accumulated archive. */
 export const PROVIDER_BUDGETS = {
   responseBytes: 8 * 1024 * 1024,
+  /** Per-page structural ceilings, checked before allocating parsed objects. */
+  json: { tokens: 120_000, containers: 40_000, depth: 96, stringUnits: 256 * 1024, scratchBytes: 32 * 1024 * 1024 },
   errorPrefixBytes: 64 * 1024,
   bodyTimeoutMs: 15_000,
   queuedRequests: 80,
@@ -26,6 +28,6 @@ export const PROVIDER_BUDGETS = {
 } as const;
 
 export class ProviderBudgetError extends Error {
-  readonly budget: 'bytes' | 'queue';
-  constructor(budget: 'bytes' | 'queue', message: string) { super(message); this.budget = budget; this.name = 'ProviderBudgetError'; }
+  readonly budget: 'bytes' | 'queue' | 'graph';
+  constructor(budget: 'bytes' | 'queue' | 'graph', message: string) { super(message); this.budget = budget; this.name = 'ProviderBudgetError'; }
 }

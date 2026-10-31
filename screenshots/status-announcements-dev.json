@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "100 creator clip updates produce two polite announcements, with one completion/error summary and detailed visible results retained",
+        "Partial failure leaves a reachable retry control; progress is inspectable without announcing every internal counter",
+        "100 creator live checks retain detailed progress while announcing only start and completion"
+      ],
+      "errors": [],
+      "announcements": {
+        "clips": [
+          "Twitch clip update started for 100 creators. Detailed progress is available below.",
+          "100 / 100 creators checked · 0 clips returned (saved matches included) · 0 repeated listings skipped · 1 need attention."
+        ],
+        "live": [
+          "Twitch live check started for 100 creators. Detailed progress is available below.",
+          "Twitch live check complete. 100 of 100 creators checked; 0 broadcasts; 0 need attention. Review check details or use Check all to retry."
+        ]
+      },
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "100 creator clip updates produce two polite announcements, with one completion/error summary and detailed visible results retained",
+        "Partial failure leaves a reachable retry control; progress is inspectable without announcing every internal counter",
+        "100 creator live checks retain detailed progress while announcing only start and completion"
+      ],
+      "errors": [],
+      "announcements": {
+        "clips": [
+          "Twitch clip update started for 100 creators. Detailed progress is available below.",
+          "100 / 100 creators checked · 0 clips returned (saved matches included) · 0 repeated listings skipped · 1 need attention."
+        ],
+        "live": [
+          "Twitch live check started for 100 creators. Detailed progress is available below.",
+          "Twitch live check complete. 100 of 100 creators checked; 0 broadcasts; 0 need attention. Review check details or use Check all to retry."
+        ]
+      },
+      "ok": true
+    }
+  ],
+  "limitation": "Isolated real UI/store with controlled provider metadata and DOM live-region mutation counts. No screen-reader speech output or physical assistive device was tested."
+}

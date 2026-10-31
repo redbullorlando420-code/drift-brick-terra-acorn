@@ -8,6 +8,19 @@ import { join, sep } from 'node:path';
 import { createDownloadManager, youtubeWatchUrl, youtubeBrowserAuth, downloadMessage } from '../companion/download-manager.mjs';
 import { youtubeDownloadTarget, openYoutubeDownload, getYoutubeDownload, closeYoutubeDownload, subscribeYoutubeDownload } from '../src/lib/youtube-download.ts';
 const id = 'BaW_jenozKc';
+test('YouTube progress and failure receipts contain safe descriptions instead of raw session output', t => {
+  const f=fixture(t);f.enqueue();const child=f.processes[0].child;
+  child.stdout.write('[download] 25% token=SECRET_QUERY Cookie: SECRET_COOKIE\n');
+  assert.equal(f.manager.list()[0].detail,'Downloading video · 25%');
+  child.stderr.write('ERROR: Could not decrypt browser database C:/PRIVATE_PROFILE token=SECRET_SESSION\n');
+  child.emit('close',1);
+  assert.match(f.manager.list()[0].detail,/local browser session could not be read/);
+  assert.equal(f.manager.list()[0].key,id);assert.equal(f.manager.list()[0].status,'error');
+  const disk=readFileSync(join(f.root,'.realhub-downloads.json'),'utf8');
+  assert(!disk.includes('SECRET_'));assert(!disk.includes('PRIVATE_PROFILE'));
+  const restored=createDownloadManager(f.options);t.after(()=>restored.shutdown());
+  assert.equal(restored.list()[0].detail,f.manager.list()[0].detail);
+});
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'realhub-download-')), processes = [];
   t.after(() => { manager.shutdown(); rmSync(root, { recursive: true, force: true }); });
@@ -60,9 +73,9 @@ test('process launch errors, revoked roots and restarts remain truthful', t => {
   const f = fixture(t); f.enqueue(); f.processes[0].child.emit('error', new Error('ENOENT binary missing'));
   assert.match(f.manager.list()[0].detail, /ENOENT/);
   f.enqueue('12345678901');
-  const restored = createDownloadManager(f.options); assert.equal(restored.list()[0].status, 'error'); assert.match(restored.list()[0].detail, /Companion stopped/);
+  const restored = createDownloadManager(f.options); assert.equal(restored.list()[0].status, 'interrupted'); assert.match(restored.list()[0].detail, /Companion stopped/);
   const denied = createDownloadManager({ ...f.options, approveRoot: () => null }); assert.throws(() => denied.enqueue({ key: id }), /approved download folder/);
-  assert.ok(JSON.parse(readFileSync(join(f.root, '.realhub-downloads.json'), 'utf8')).length);
+  assert.ok(JSON.parse(readFileSync(join(f.root, '.realhub-downloads.json'), 'utf8')).jobs.length);
 });
 
 test('browser session authentication is opt-in, enum-only, per job and yt-dlp-only', t => {
@@ -96,7 +109,7 @@ test('local playback resolves only completed nonempty media from the exact appro
   assert.equal(f.manager.media(job.id), null); assert.equal(f.manager.media('missing'), null);
   writeFileSync(join(job.path, 'test.mp4'), 'media'); f.processes[0].child.emit('close', 0);
   assert.deepEqual(f.manager.media(job.id), { path: join(job.path, 'test.mp4'), size: 5, mime: 'video/mp4' });
-  const saved = JSON.parse(readFileSync(join(f.root, '.realhub-downloads.json')));
+  const saved = JSON.parse(readFileSync(join(f.root, '.realhub-downloads.json'))).jobs;
   for (const patch of [{ file: '../outside.mp4' }, { file: 'cookies.txt' }, { path: f.root }, { status: 'running' }, { key: '../outside' }]) {
     writeFileSync(join(f.root, '.realhub-downloads.json'), JSON.stringify([{ ...saved[0], ...patch }]));
     const restored = createDownloadManager(f.options); assert.equal(restored.media(job.id), null);

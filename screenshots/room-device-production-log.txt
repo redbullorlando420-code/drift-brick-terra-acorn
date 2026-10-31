@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "checks": [
+    "YouTube live buffering and guest-local pause never send shared pause or repeated corrective seeks; elapsed duration is not treated as DVR",
+    "Caption validation, save and deliberate YouTube reload preserve room playback; preferred language stays isolated to the guest browser",
+    "Guest reload preserves device-local captions and independent live classification",
+    "Explicit shared pause still works for live; selecting a VOD clears the live-only guidance",
+    "Twitch host-buffering clocks do not pause a live guest; local player pause/ad events cannot change the room; device start still plays",
+    "Native TextTrack inventory, language selection and disable apply locally through real browser APIs; missing tracks have honest fallback"
+  ]
+}

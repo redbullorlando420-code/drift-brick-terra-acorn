@@ -1,3 +1,4 @@
+import { videoIsPrivate } from './public-visibility.ts';
 import type { LibraryVideo } from "./types";
 import { activityCandidates, activityCandidatesAsync } from './activity-lookup.ts';
 import { forEachCatalogEntry } from '../catalog-work.ts';
@@ -55,7 +56,7 @@ export function selectSavedCards(videos: readonly LibraryVideo[], favorites: Rec
   // reuses the bounded activity matches instead of scanning every title.
   for (const video of activityCandidates(videos, [], savedIds)) {
     if (!savedIds.has(video.id) || hidden[video.id] || (hideDemo && video.isSample)) continue;
-    if (adult === adultIds.has(video.folderId)) saved.push(video);
+    if (adult === videoIsPrivate(adultIds,video)) saved.push(video);
   }
   return saved;
 }
@@ -76,7 +77,7 @@ export async function selectSavedCardsAsync(videos: readonly LibraryVideo[], fav
   if (!savedIds.size) return [];
   const candidates = await activityCandidatesAsync(videos, [], savedIds, turn), saved: LibraryVideo[] = [];
   await forEachCatalogEntry(candidates, video => {
-    if (savedIds.has(video.id) && !hidden[video.id] && !(hideDemo && video.isSample) && adult === adultIds.has(video.folderId)) saved.push(video);
+    if (savedIds.has(video.id) && !hidden[video.id] && !(hideDemo && video.isSample) && adult === videoIsPrivate(adultIds,video)) saved.push(video);
   }, turn);
   return saved;
 }

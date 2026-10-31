@@ -1,0 +1,14 @@
+{
+  "ok": false,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "an old Twitch observation is shown as needing a check, not as an ended broadcast; a live-only refresh restores both channels while archive pulling is paused"
+      ],
+      "errors": [],
+      "error": "locator.scrollIntoViewIfNeeded: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('list', { name: 'From your source folders · 2 titles', exact: true })\u001b[22m\n\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\refined-desks-browser-check.mjs:42:229"
+    }
+  ],
+  "limitation": "Isolated desktop/mobile Chromium; 3,009 catalog titles, real persistence and app selectors, deterministic provider/player fixtures. Actual Twitch batching is checked separately."
+}

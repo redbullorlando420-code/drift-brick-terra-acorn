@@ -1,3 +1,5 @@
+import { dedupeFollows } from './follow-identity';
+import { preflightPack, type PreparedPack } from './pack-preflight';
 import {getProviderViewing,importProviderViewing} from '../provider-viewing-store';
 import {getAnimeReviews,importAnimeReviews} from '../anime-review-store';
 import {getFilmReviews,importFilmReviews} from '../film-review-store';
@@ -17,7 +19,7 @@ import { mergeFollowRecovery, normalizeFollowCheckpoints } from './follow-checkp
  * ratings/hearts, and Adult stats. Browsers download a zip that mirrors the
  * documented folder layout under public/import-templates/.
  */
-import { zipSync, unzipSync, strToU8, strFromU8 } from "fflate";
+import { zipSync, strToU8 } from "fflate";
 import { buildAdultStatsSnapshot, adultStatsToCsv, type AdultStatsSnapshot } from "./adult-stats";
 import {
   saveFollows,
@@ -133,15 +135,6 @@ function normalizeFollowRow(row: Record<string, unknown>): FollowedChannel | nul
   };
 }
 
-function dedupeFollows(rows: FollowedChannel[]): FollowedChannel[] {
-  const seen = new Set<string>();
-  return rows.filter((row) => {
-    const key = `${row.kind}:${row.handle.toLowerCase()}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
 
 function engagementSummary(input: LibraryPackBuildInput) {
   const feedback = exportFeedback();
@@ -328,6 +321,8 @@ export function buildLibraryPackFiles(input: LibraryPackBuildInput): Record<stri
     [`${LIBRARY_PACK_ROOT}/stats/engagement-summary.json`]: JSON.stringify(engagementSummary(input), null, 2),
   };
 
+  if (input.photoSources) files[`${LIBRARY_PACK_ROOT}/photos/sources.json`] = JSON.stringify({sources:input.photoSources});
+  if (input.photoMeta || input.photoLikes) files[`${LIBRARY_PACK_ROOT}/photos/likes.json`] = JSON.stringify({meta:input.photoMeta??{},likes:input.photoLikes??[]});
   if (adultStats) {
     files[`${LIBRARY_PACK_ROOT}/stats/adult-stats.json`] = JSON.stringify(adultStats, null, 2);
     files[`${LIBRARY_PACK_ROOT}/stats/adult-stats.csv`] = adultStatsToCsv(adultStats);
@@ -358,17 +353,7 @@ function fileEndsWith(name: string, suffix: string) {
   return pathKey(name).toLowerCase().endsWith(suffix.toLowerCase());
 }
 
-function readPackTextFiles(buffer: ArrayBuffer): Record<string, string> {
-  const unzipped = unzipSync(new Uint8Array(buffer));
-  const out: Record<string, string> = {};
-  for (const [name, bytes] of Object.entries(unzipped)) {
-    if (name.endsWith("/")) continue;
-    out[pathKey(name)] = strFromU8(bytes);
-  }
-  return out;
-}
-
-function collectFollows(files: Record<string, string>): FollowedChannel[] {
+function collectFollows(files: Record<string, string>, parsedFiles?: ReadonlyMap<string, unknown>): FollowedChannel[] {
   const rows: FollowedChannel[] = [];
   for (const [name, body] of Object.entries(files)) {
     if (fileEndsWith(name, "follows.csv") || /follows\/.*\.csv$/i.test(name)) {
@@ -383,7 +368,7 @@ function collectFollows(files: Record<string, string>): FollowedChannel[] {
     }
     if (/follows\/.*\.json$/i.test(name) || fileEndsWith(name, "youtube.json") || fileEndsWith(name, "twitch.json") || fileEndsWith(name, "channels.json")) {
       try {
-        const parsed = JSON.parse(body) as { channels?: unknown[] } | unknown[];
+        const parsed = (parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body)) as { channels?: unknown[] } | unknown[];
         const list = Array.isArray(parsed) ? parsed : Array.isArray(parsed.channels) ? parsed.channels : [];
         for (const item of list) {
           if (!item || typeof item !== "object") continue;
@@ -422,12 +407,12 @@ function normalizeHistoryEntry(raw: unknown): HistoryEntry | null {
   };
 }
 
-function collectHistory(files: Record<string, string>): HistoryEntry[] {
+function collectHistory(files: Record<string, string>, parsedFiles?: ReadonlyMap<string, unknown>): HistoryEntry[] {
   const rows: HistoryEntry[] = [];
   for (const [name, body] of Object.entries(files)) {
     if (fileEndsWith(name, "history.json") || /(?:^|\/)reelcase-history-[^/]+\.json$/i.test(pathKey(name))) {
       try {
-        const parsed = JSON.parse(body) as { entries?: HistoryEntry[] } | HistoryEntry[];
+        const parsed = (parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body)) as { entries?: HistoryEntry[] } | HistoryEntry[];
         const list = Array.isArray(parsed) ? parsed : parsed.entries ?? [];
         for (const entry of list) {
           const normalized = normalizeHistoryEntry(entry);
@@ -461,12 +446,12 @@ function collectHistory(files: Record<string, string>): HistoryEntry[] {
   return rows;
 }
 
-function collectLinks(files: Record<string, string>): SavedVideoLink[] {
+function collectLinks(files: Record<string, string>, parsedFiles?: ReadonlyMap<string, unknown>): SavedVideoLink[] {
   const rows: SavedVideoLink[] = [];
   for (const [name, body] of Object.entries(files)) {
     if (fileEndsWith(name, "links.json")) {
       try {
-        const parsed = JSON.parse(body) as { links?: SavedVideoLink[] } | SavedVideoLink[];
+        const parsed = (parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body)) as { links?: SavedVideoLink[] } | SavedVideoLink[];
         const list = Array.isArray(parsed) ? parsed : parsed.links ?? [];
         rows.push(...list);
       } catch { /* skip */ }
@@ -543,15 +528,21 @@ export function applyLibraryPackFiles(
   files: Record<string, string>,
   hooks: LibraryPackApplyHooks,
   mode: LibraryPackMode = "merge",
+  parsedFiles?: ReadonlyMap<string, unknown>,
 ): LibraryPackImportResult {
+  // Compatibility callers receive syntax/version validation before their first
+  // write too. Interactive imports always use the fully inspected parsed path.
+  if(!parsedFiles)for(const [name,body] of Object.entries(files))if(name.endsWith('.json')){
+    const value=JSON.parse(body);if(name.endsWith('manifest.json')&&value.version!==1)throw Error('Unsupported library pack version.');
+  }
   const warnings: string[] = [];
   const filesRead = Object.keys(files);
-  const incomingFollows = collectFollows(files);
-  const incomingHistory = collectHistory(files);
-  const incomingLinks = collectLinks(files);
+  const incomingFollows = collectFollows(files, parsedFiles);
+  const incomingHistory = collectHistory(files, parsedFiles);
+  const incomingLinks = collectLinks(files, parsedFiles);
 
   let followsAdded = 0;
-  if (incomingFollows.length) {
+  if (incomingFollows.length || mode === "replace-follows" && filesRead.some(name=>/follows\/(?:youtube|twitch)\.json$/.test(name))) {
     const current = hooks.getFollows();
     const next = mode === "replace-follows" ? dedupeFollows(incomingFollows) : dedupeFollows(mergeFollowRecovery({ channels: incomingFollows, savedAt: 0 }, { channels: current, savedAt: 0 }));
     followsAdded = Math.max(0, next.length - current.length);
@@ -565,7 +556,7 @@ export function applyLibraryPackFiles(
     if (!fileEndsWith(name, "follows/collections.json")) continue;
     collectionsRead = true;
     try {
-      const parsed = JSON.parse(body) as { collections?: unknown };
+      const parsed = (parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body)) as { collections?: unknown };
       if (!Array.isArray(parsed.collections)) throw new Error("invalid collection list");
       const current = loadCreatorCollections();
       const merged = mergeCreatorCollections(current, normalizeCreatorCollections(parsed.collections));
@@ -598,13 +589,13 @@ export function applyLibraryPackFiles(
   for (const [name, body] of Object.entries(files)) {
     if (fileEndsWith(name, "view-counts.json")) {
       try {
-        viewCounts = mergeCounts(viewCounts, asCountMap(JSON.parse(body)));
+        viewCounts = mergeCounts(viewCounts, asCountMap((parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body))));
         marksMerged += 1;
       } catch { warnings.push(`Could not parse ${name}`); }
     }
     if (fileEndsWith(name, "came-counts.json")) {
       try {
-        cameCounts = mergeCounts(cameCounts, asCountMap(JSON.parse(body)));
+        cameCounts = mergeCounts(cameCounts, asCountMap((parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body))));
         marksMerged += 1;
       } catch { warnings.push(`Could not parse ${name}`); }
     }
@@ -618,7 +609,7 @@ export function applyLibraryPackFiles(
   for (const [name, body] of Object.entries(files)) {
     if (!fileEndsWith(name, "shelves.json")) continue;
     try {
-      const parsed = JSON.parse(body) as { favorites?: string[]; likes?: string[] };
+      const parsed = (parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body)) as { favorites?: string[]; likes?: string[] };
       const favorites = [...new Set([...hooks.getFavorites(), ...(parsed.favorites ?? [])])];
       const likes = [...new Set([...hooks.getLikes(), ...(parsed.likes ?? [])])];
       shelvesMerged = favorites.length + likes.length - hooks.getFavorites().length - hooks.getLikes().length;
@@ -629,40 +620,43 @@ export function applyLibraryPackFiles(
 
   for (const [name, body] of Object.entries(files)) {
     if (!fileEndsWith(name, "recommendation-exposure.json")) continue;
-    try { const value: unknown = JSON.parse(body); if (!isExposureLedger(value)) throw new Error("unsupported exposure ledger"); importRecommendationExposure(value); }
+    try { const value: unknown = (parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body)); if (!isExposureLedger(value)) throw new Error("unsupported exposure ledger"); importRecommendationExposure(value); }
     catch { warnings.push("Could not restore recent recommendation exposure from " + name); }
   }
   for (const [name, body] of Object.entries(files)) {
     if (!fileEndsWith(name, "topic-aliases.json")) continue;
-    try { const value: unknown = JSON.parse(body); if (!isTopicAliasLedger(value)) throw new Error("unsupported topic aliases"); importTopicAliases(value); }
+    try { const value: unknown = (parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body)); if (!isTopicAliasLedger(value)) throw new Error("unsupported topic aliases"); importTopicAliases(value); }
     catch { warnings.push("Could not restore topic aliases from " + name); }
   }
   for(const [name,body]of Object.entries(files)){
     if(!fileEndsWith(name,'topic-bridges.json'))continue;
-    try{const value:unknown=JSON.parse(body);if(!isBridgeLedger(value))throw Error('unsupported topic bridge ledger');importTopicBridges(value);}catch{warnings.push('Could not restore topic bridges from '+name);}
+    try{const value:unknown=(parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body));if(!isBridgeLedger(value))throw Error('unsupported topic bridge ledger');importTopicBridges(value);}catch{warnings.push('Could not restore topic bridges from '+name);}
   }
   for(const [name,body] of Object.entries(files)){
     if(!fileEndsWith(name,'guide-preset.json'))continue;
-    try{const value:unknown=JSON.parse(body);if(!isGuidePreset(value))throw Error('unsupported Guide preset');importGuidePreset(value);}catch{warnings.push('Could not restore Guide preset from '+name);}
+    try{const value:unknown=(parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body));if(!isGuidePreset(value))throw Error('unsupported Guide preset');importGuidePreset(value);}catch{warnings.push('Could not restore Guide preset from '+name);}
   }
   for(const [name,body] of Object.entries(files)){
     if(!fileEndsWith(name,'film-reviews.json'))continue;
-    try{importFilmReviews(parseFilmLedger(JSON.parse(body)));}catch{warnings.push('Could not restore film reviews from '+name);}
+    try{importFilmReviews(parseFilmLedger((parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body))));}catch{warnings.push('Could not restore film reviews from '+name);}
   }
   for(const [name,body] of Object.entries(files)){
     if(!fileEndsWith(name,'anime-reviews.json'))continue;
-    try{importAnimeReviews(JSON.parse(body));}catch{warnings.push('Could not restore anime reviews from '+name);}
+    try{importAnimeReviews((parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body)));}catch{warnings.push('Could not restore anime reviews from '+name);}
   }
   for(const [name,body]of Object.entries(files)){
     if(!fileEndsWith(name,'provider-viewing.json'))continue;
-    try{importProviderViewing(JSON.parse(body));}catch{warnings.push('Could not restore provider viewing preferences from '+name);}
+    try{importProviderViewing((parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body)));}catch{warnings.push('Could not restore provider viewing preferences from '+name);}
+  }
+  for(const [name,body] of Object.entries(files))if(fileEndsWith(name,'recommendation-rejections.json')){
+    const value=parsedFiles?.has(name)?parsedFiles.get(name):JSON.parse(body);importFeedback({recommendationRejections:value as DurableFeedback['recommendationRejections']});
   }
   let feedbackMerged = false;
   let feedbackPartial: Partial<DurableFeedback> = {};
   for (const [name, body] of Object.entries(files)) {
     if (fileEndsWith(name, "ratings.json") || fileEndsWith(name, "tag-hearts.json") || fileEndsWith(name, "feedback.json")) {
       try {
-        feedbackPartial = { ...feedbackPartial, ...JSON.parse(body) };
+        feedbackPartial = { ...feedbackPartial, ...(parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body)) };
         feedbackMerged = true;
       } catch { warnings.push(`Could not parse ${name}`); }
     }
@@ -672,7 +666,7 @@ export function applyLibraryPackFiles(
   for (const [name, body] of Object.entries(files)) {
     if (!fileEndsWith(name, "resume.json")) continue;
     try {
-      const parsed = JSON.parse(body) as {
+      const parsed = (parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body)) as {
         progress?: Record<string, { t: number; d: number; at: number }>;
         resumeProgress?: Record<string, { t: number; d: number; at: number }>;
       };
@@ -690,13 +684,13 @@ export function applyLibraryPackFiles(
   for (const [name, body] of Object.entries(files)) {
     if (fileEndsWith(name, "photos/sources.json") || /photos\/sources\.json$/i.test(name)) {
       try {
-        const parsed = JSON.parse(body) as { sources?: DurablePhotoSource[] };
+        const parsed = (parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body)) as { sources?: DurablePhotoSource[] };
         incomingPhotoSources = [...incomingPhotoSources, ...(parsed.sources ?? [])];
       } catch { warnings.push(`Could not parse ${name}`); }
     }
     if (fileEndsWith(name, "photos/likes.json") || /photos\/likes\.json$/i.test(name)) {
       try {
-        const parsed = JSON.parse(body) as { likes?: string[]; meta?: Record<string, DurablePhotoMeta> };
+        const parsed = (parsedFiles?.has(name) ? parsedFiles.get(name) : JSON.parse(body)) as { likes?: string[]; meta?: Record<string, DurablePhotoMeta> };
         incomingPhotoLikes = [...incomingPhotoLikes, ...(parsed.likes ?? [])];
         incomingPhotoMeta = { ...incomingPhotoMeta, ...(parsed.meta ?? {}) };
       } catch { warnings.push(`Could not parse ${name}`); }
@@ -726,31 +720,24 @@ export async function importLibraryPackZip(
   hooks: LibraryPackApplyHooks,
   mode: LibraryPackMode = "merge",
 ): Promise<LibraryPackImportResult> {
-  const buffer = await file.arrayBuffer();
-  if (file.name.toLowerCase().endsWith(".zip") || file.type.includes("zip")) {
-    return applyLibraryPackFiles(readPackTextFiles(buffer), hooks, mode);
-  }
-  // Single JSON/CSV drop: treat as one named file.
-  const text = strFromU8(new Uint8Array(buffer));
-  const fakeName = file.name || "import.json";
-  return applyLibraryPackFiles({ [fakeName]: text }, hooks, mode);
+  const prepared = await preflightPack(file);
+  return applyPreparedLibraryPack(prepared,hooks,mode);
 }
 
-/** Download only the README + empty templates as a starter zip. */
-export function downloadLibraryPackTemplates() {
-  const empty: LibraryPackBuildInput = {
-    follows: [
-      { id: "yt:example", kind: "youtube", handle: "example", title: "Example YouTube" },
-      { id: "tw:example", kind: "twitch", handle: "example", title: "Example Twitch" },
-    ],
-    history: [],
-    links: [],
-    favorites: [],
-    likes: [],
-    viewCounts: {},
-    cameCounts: {},
-    progress: {},
-    resumeProgress: {},
-  };
-  downloadLibraryPackZip(empty);
+export function applyPreparedLibraryPack(prepared: PreparedPack,hooks:LibraryPackApplyHooks,mode:LibraryPackMode='merge'){
+ if(!prepared.report.ok)throw Error('Backup validation failed. No data was imported.');
+ const files=Object.fromEntries([...prepared.files.keys()].map(name=>[name,'']));
+ return applyLibraryPackFiles(files,hooks,mode,prepared.files);
+}
+
+export function libraryPackExtras():Record<string,unknown>{return {
+ 'follows/collections.json':loadCreatorCollections(),
+ 'marks/topic-aliases.json':getTopicAliases(),'marks/topic-bridges.json':getTopicBridges(),
+ 'marks/guide-preset.json':getGuidePreset(),'marks/recommendation-exposure.json':getRecommendationExposure(),
+ 'marks/film-reviews.json':getFilmReviews().ledger,'marks/anime-reviews.json':getAnimeReviews().ledger,
+ 'marks/provider-viewing.json':getProviderViewing().ledger,
+};}
+
+export function downloadLibraryPackTemplates(){
+ downloadLibraryPackZip({follows:[{id:'yt:example',kind:'youtube',handle:'example',title:'Example YouTube'},{id:'tw:example',kind:'twitch',handle:'example',title:'Example Twitch'}],history:[],links:[],favorites:[],likes:[],viewCounts:{},cameCounts:{},progress:{},resumeProgress:{}});
 }

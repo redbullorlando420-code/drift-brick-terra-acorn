@@ -28,10 +28,10 @@ export function OfficialRoomPlayer({ video, onOpen }: { video: LibraryVideo; onO
   const openWebsite = () => { choose('website'); onOpen?.(); };
   return <section ref={frame} data-provider-frame="myfreecams" data-provider-running={ready&&mode==='embedded'&&!suspended} aria-label="MyFreeCams official player" className="min-w-0 bg-surface text-fg [&:fullscreen]:h-screen [&:fullscreen]:w-screen [&:fullscreen]:overflow-y-auto">
     <div className="space-y-3 border-b border-border p-3 sm:p-4">
-      <div><h2 className="font-display text-lg">MyFreeCams official website</h2><p className="max-w-2xl text-xs leading-5 text-muted">Sign in on MFC’s own tab so it can use its first-party session. Your viewing choice is remembered on this device.</p></div>
+      <div><h2 className="font-display text-lg">MyFreeCams official website</h2><p className="max-w-2xl text-xs leading-5 text-muted">The room opens inside Realhub by default. Your viewing choice is remembered on this device. Use MFC’s own tab if embedded sign-in or panels do not work.</p></div>
       <div className="flex flex-wrap gap-2" aria-label="MyFreeCams viewing mode">
-        <a href={href} target="_blank" rel="noopener noreferrer" onClick={openWebsite} className="inline-flex min-h-11 items-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-accent-fg">Sign in on MFC <ExternalLink className="size-4" aria-hidden="true" /></a>
         <Button variant={mode === 'embedded' ? 'default' : 'secondary'} className="min-h-11" aria-pressed={mode === 'embedded'} onClick={() => choose('embedded')}>Inside Realhub</Button>
+        <a href={href} target="_blank" rel="noopener noreferrer" onClick={openWebsite} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-4 text-sm text-fg">Sign in on MFC <ExternalLink className="size-4" aria-hidden="true" /></a>
         <Button variant={mode === 'website' ? 'default' : 'secondary'} className="min-h-11" aria-pressed={mode === 'website'} onClick={() => choose('website')}>Direct website</Button>
         <a href={href} target="_blank" rel="noopener noreferrer" onClick={openWebsite} className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-3 text-sm">Watch on MyFreeCams <ExternalLink className="size-4" aria-hidden="true" /></a>
         <a href={shareHref} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-border px-3 text-sm">Share & profile <ExternalLink className="size-4" aria-hidden="true" /></a>

@@ -16,11 +16,12 @@ export const RoomVideoSearch=memo(function RoomVideoSearch({candidates,catalogPe
   hostCatalog?:RoomHostCatalog;preferHost?:boolean;
 }){
   const [query,setQuery]=useState(''),[source,setSource]=useState<'library'|'youtube'|'host'>(preferHost?'host':'library');
-  const [offset,setOffset]=useState(0),[local,setLocal]=useState<{videos:LibraryVideo[];hasMore:boolean;nextOffset?:number}>({videos:[],hasMore:false});
+  const [offset,setOffset]=useState(0),[local,setLocal]=useState<{videos:LibraryVideo[];hasMore:boolean;nextOffset?:number;catalogRevision?:number}>({videos:[],hasMore:false});
   const [hostOffsets,setHostOffsets]=useState([0]);
   const [searching,setSearching]=useState(false),[online,setOnline]=useState<Page>(),[error,setError]=useState('');
   const [cursors,setCursors]=useState<Array<string|undefined>>([undefined]),[page,setPage]=useState(0);
   const [hostRetry,setHostRetry]=useState(0);
+  useEffect(()=>{setOffset(0);setHostOffsets([0]);},[hostCatalog?.revision]);
   const request=useRef<AbortController | undefined>(undefined);
   useEffect(()=>()=>request.current?.abort(),[]);
   useEffect(()=>{
@@ -47,7 +48,7 @@ export const RoomVideoSearch=memo(function RoomVideoSearch({candidates,catalogPe
     }catch(cause){if(!controller.signal.aborted)setError(cause instanceof Error?cause.message:'YouTube search is unavailable. Try again or paste a video link.');}
     finally{if(!controller.signal.aborted)setSearching(false);}
   };
-  const videos=source!=='youtube'?local.videos:online?.videos??[];
+  const videos=source==='host'?(hostCatalog?.connected&&local.catalogRevision===hostCatalog.revision?local.videos:[]):source==='library'?local.videos:online?.videos??[];
   const busy=searching||source==='library'&&catalogPending;
   return <section aria-label="Find room videos" className="mt-4 border-t border-border pt-4">
     <h4 className="flex items-center gap-2 font-medium text-fg"><Search className="size-4 text-accent"/>Find videos</h4>
@@ -60,7 +61,7 @@ export const RoomVideoSearch=memo(function RoomVideoSearch({candidates,catalogPe
       <Input className="min-w-0 flex-1 basis-48" value={query} onChange={event=>reset(event.target.value)} maxLength={160} placeholder={source!=='youtube'?'Title, creator, topic or video tags':'Search public YouTube videos'} aria-label="Search room videos"/>
       {source==='youtube'&&<Button size="sm" className="min-h-11" disabled={!query.trim()||busy} type="submit"><Search className="size-4"/>Search YouTube</Button>}
     </form>
-    <p className="mt-2 text-xs leading-5 text-muted">{source==='host'?'Find videos in the host’s library even when your own library is empty. Only this result page is sent to your device. Queue a title for everyone; the host confirms the order.':source==='library'?`Search all ${candidates.length.toLocaleString()} playable library videos by title, creator, description or tags. Results update as you type.`:'Search public YouTube without following a channel. Results stay in this room until you queue or play one. Press Search YouTube to send your query.'}</p>
+    <p className="mt-2 text-xs leading-5 text-muted">{source==='host'?'Find videos in the host’s library even when your own library is empty. Search shared titles and creators. Only this result page is sent to your device; private sources, descriptions and saved tags are excluded. Queue a title for everyone; the host confirms the order.':source==='library'?`Search all ${candidates.length.toLocaleString()} playable library videos by title, creator, description or tags. Results update as you type.`:'Search public YouTube without following a channel. Results stay in this room until you queue or play one. Press Search YouTube to send your query.'}</p>
     <div role="status" aria-live="polite" className="mt-2 text-xs text-accent">{busy?(catalogPending&&source==='library'?'Preparing playable videos…':'Searching videos…'):error||`${videos.length} result${videos.length===1?'':'s'}${source==='host'?` · page ${hostOffsets.length}`:source==='library'?` · page ${Math.floor(offset/ROOM_SEARCH_PAGE_SIZE)+1}`:online?` · page ${page+1}`:''}`}</div>
     {source==='host'&&error&&<Button size="sm" variant="secondary" className="mt-2 min-h-11" disabled={!hostCatalog?.connected||busy} onClick={()=>setHostRetry(value=>value+1)}>Retry host search</Button>}
     {source==='youtube'&&!!query.trim()&&<a className="mt-2 inline-flex min-h-11 items-center gap-1 text-xs text-accent" href={`https://www.youtube.com/results?search_query=${encodeURIComponent(query.trim())}`} target="_blank" rel="noreferrer"><ExternalLink className="size-3"/>Open this search on YouTube</a>}

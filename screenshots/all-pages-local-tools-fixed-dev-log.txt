@@ -1,0 +1,34 @@
+desktop: studio
+desktop: recipes
+desktop: remote
+mobile: studio
+mobile: recipes
+mobile: remote
+[
+  {
+    "viewport": "desktop",
+    "errors": [],
+    "recipes": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-local-tools-fixed-dev-recipes-desktop.png",
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-local-tools-fixed-dev-studio-desktop.png",
+    "remote": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-local-tools-fixed-dev-remote-desktop.png",
+    "credits": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-local-tools-fixed-dev-credits-desktop.png",
+    "generation": 2,
+    "launches": 1,
+    "revocations": 3,
+    "scope": "Local Studio/recipes/RustDesk/credits only; live YouTube publication checks excluded",
+    "ok": true
+  },
+  {
+    "viewport": "mobile",
+    "errors": [],
+    "recipes": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-local-tools-fixed-dev-recipes-mobile.png",
+    "studio": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-local-tools-fixed-dev-studio-mobile.png",
+    "remote": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-local-tools-fixed-dev-remote-mobile.png",
+    "credits": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-local-tools-fixed-dev-credits-mobile.png",
+    "generation": 2,
+    "launches": 1,
+    "revocations": 3,
+    "scope": "Local Studio/recipes/RustDesk/credits only; live YouTube publication checks excluded",
+    "ok": true
+  }
+]

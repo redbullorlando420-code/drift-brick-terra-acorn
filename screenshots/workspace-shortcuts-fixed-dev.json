@@ -1,0 +1,41 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "target": "Spotify",
+      "checks": [
+        "Invalid saved/typed URLs rejected; official localized Spotify link normalized",
+        "Storage failure is visible and recoverable; retry persists across reload"
+      ],
+      "ok": true
+    },
+    {
+      "mobile": false,
+      "target": "Shop",
+      "checks": [
+        "Damaged entries do not crash Shop or overwrite stored data on mount; adding and changing status work",
+        "Storage failure is visible and recoverable; retry persists across reload"
+      ],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "target": "Spotify",
+      "checks": [
+        "Invalid saved/typed URLs rejected; official localized Spotify link normalized",
+        "Storage failure is visible and recoverable; retry persists across reload"
+      ],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "target": "Shop",
+      "checks": [
+        "Damaged entries do not crash Shop or overwrite stored data on mount; adding and changing status work",
+        "Storage failure is visible and recoverable; retry persists across reload"
+      ],
+      "ok": true
+    }
+  ]
+}

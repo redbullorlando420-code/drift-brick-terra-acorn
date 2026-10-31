@@ -1,11 +1,12 @@
+import { STUDIO_OUTPUT_LIMITS } from './studio-outputs.ts';
 import { generatedSeed, studioSettingsError, type StudioSettings } from './studio-settings.ts';
 import { generatedCheckpoint, generatedProvenance, type RecipeProvenance } from './studio-recipes.ts';
 import type { ModelPreflight } from './studio-model-notes.ts';
 import { createLocalId } from './local-id.ts';
 import { recoverStudioJobs, STUDIO_JOB_LIMIT, type StudioJob } from './studio-jobs.ts';
 
-export type StudioImage = { blob: Blob; settings: StudioSettings; seed?: number; seconds: number; checkpoint?: string; provenance?:RecipeProvenance };
-type StudioSnapshot = { busy: boolean; interrupting: boolean; image: StudioImage | null; note: string; error: string; jobs:StudioJob[]; ready:boolean; saveError:string };
+export type StudioImage = { id:string; blob: Blob; settings: StudioSettings; seed?: number; seconds: number; checkpoint?: string; provenance?:RecipeProvenance };
+type StudioSnapshot = { busy: boolean; interrupting: boolean; image: StudioImage | null; note: string; error: string; jobs:StudioJob[]; ready:boolean; saveError:string; cleanup?:{token:string;imageId:string;bytes:number;expiresAt:number} };
 export type StudioRequest = (path: string, body: object) => Promise<{ image?: string; info?: string; engineJobId?:string }>;
 export type StudioJobStorage = { load:()=>Promise<StudioJob[]>; save:(jobs:StudioJob[])=>Promise<string|void> };
 /** One user-started request; durable small receipts never resubmit engine work.
@@ -15,6 +16,13 @@ export class StudioSession {
   private listeners = new Set<() => void>();
   private run = 0;
   private engine = 'a1111';
+  private viewers=0;
+  private retainAcrossNavigation=true;
+  setRetainAcrossNavigation=(retain:boolean)=>{this.retainAcrossNavigation=retain;};
+  connectView=()=>{this.viewers++;return()=>{this.viewers=Math.max(0,this.viewers-1);if(!this.viewers&&!this.retainAcrossNavigation)this.patch({image:null,cleanup:undefined});};};
+  previewCleanup=()=>{if(this.state.busy||!this.state.image)return;this.patch({cleanup:{token:createLocalId('cleanup:'),imageId:this.state.image.id,bytes:this.state.image.blob.size,expiresAt:Date.now()+300000}});};
+  cancelCleanup=()=>this.patch({cleanup:undefined});
+  confirmCleanup=(token:string)=>{const plan=this.state.cleanup;if(!plan||plan.token!==token||this.state.busy)return;if(plan.expiresAt<Date.now()||this.state.image?.id!==plan.imageId){this.patch({cleanup:undefined,note:'Preview changed or cleanup expired. Review it again.'});return;}this.clearImage();};
   private hydration:Promise<void>|null=null;
   private readonly request:StudioRequest;
   private readonly storage?:StudioJobStorage;
@@ -31,7 +39,7 @@ export class StudioSession {
   }
   private persist(){if(!this.storage)return Promise.resolve(true);const jobs=this.state.jobs;const next=this.writing.then(async()=>{try{const warning=await this.storage!.save(jobs);this.patch({saveError:warning??''});return true;}catch(e){this.patch({saveError:e instanceof Error?e.message:'Image job history could not be saved.'});return false;}});this.writing=next;return next;}
   retrySave=()=>this.persist();
-  clearImage = () => { if (!this.state.busy) this.patch({ image: null, error: '', note: 'Image cleared from this app session. Downloaded files and saved recipes are unchanged.' }); };
+  clearImage = () => { if (!this.state.busy) this.patch({ image: null, cleanup:undefined, error: '', note: 'Image cleared from this app session. Downloaded files and saved recipes are unchanged.' }); };
   async generate(settings: StudioSettings, review?:ModelPreflight) {
     if(this.state.busy)return;
     if(!this.state.ready){this.patch({error:'Recover image job history before generating.'});return;}
@@ -51,9 +59,10 @@ export class StudioSession {
       const result=await this.request(submitted.engine==='comfy'?'/studio/qwen/generate':'/studio/generate',{prompt:submitted.prompt,negativePrompt:submitted.negative,steps:submitted.steps,width:submitted.size,height:submitted.size,seed:submitted.seed,clientJobId:id,...(submitted.model?{model:submitted.model}:{})});
       if(typeof result.image!=='string'||result.image.length>14000000||!/^iVBORw0KGgo[A-Za-z0-9+/=\r\n]*$/.test(result.image))throw Error('The image response is missing, invalid or exceeds the preview budget.');
       const bytes=Uint8Array.from(atob(result.image),character=>character.charCodeAt(0)),interrupted=this.state.interrupting;
-      const image:StudioImage={blob:new Blob([bytes],{type:'image/png'}),settings:submitted,seed:generatedSeed(result.info,submitted.seed),checkpoint:generatedCheckpoint(result.info),provenance:generatedProvenance(submitted,result.info,review),seconds:Math.max(.1,Math.round((performance.now()-started)/100)/10)};
+      if(bytes.byteLength>STUDIO_OUTPUT_LIMITS.previewBytes)throw Error('The PNG exceeds the 10 MiB preview budget.');
+      const image:StudioImage={id,blob:new Blob([bytes],{type:'image/png'}),settings:submitted,seed:generatedSeed(result.info,submitted.seed),checkpoint:generatedCheckpoint(result.info),provenance:generatedProvenance(submitted,result.info,review),seconds:Math.max(.1,Math.round((performance.now()-started)/100)/10)};
       this.job(id,{status:interrupted?'cancelled':'completed',detail:interrupted?'Cancellation requested; returned image may be partial.':'Engine returned a PNG. Preview bytes are kept only in this browser session.',...(typeof result.engineJobId==='string'&&/^[\w-]{1,128}$/.test(result.engineJobId)?{engineJobId:result.engineJobId}:{}),output:{seed:image.seed,checkpoint:image.checkpoint,seconds:image.seconds,preview:'session-only'}});
-      this.patch({image:interrupted&&this.state.image?this.state.image:image,note:interrupted?'Generation stopped. The engine returned a partial image; your previous completed image was preserved when available.':'Image ready. Download it before reloading or closing this browser tab.'});
+      this.patch({cleanup:undefined,image:!this.retainAcrossNavigation&&!this.viewers?null:interrupted&&this.state.image?this.state.image:image,note:interrupted?'Generation stopped. The engine returned a partial image; your previous completed image was preserved when available.':!this.retainAcrossNavigation&&!this.viewers?'Generation completed while away. Preview released by your retention choice; the job receipt is kept.':'Image ready. Save it in this app or download it before reloading or closing this browser tab.'});
     }catch(cause){
       const message=cause instanceof Error?cause.message:'Generation failed.',unknown=sent&&(cause as {outcome?:string})?.outcome==='unknown';
       const status=unknown?'interrupted':this.state.interrupting&&/interrupt|cancel/i.test(message)?'cancelled':'failed';

@@ -50,7 +50,7 @@ test("catalog sweeps reuse unchanged rows and append new uploads without droppin
   assert.equal(same[0].remote?.comments?.length, 1);
   assert.equal(firstRows[0], same[0]);
   const nextRows: LibraryVideo[] = [];
-  const newer = { ...archived, id: "yt-new-upload", name: "New upload" };
+  const newer = { ...archived, id: "yt-new-upload", name: "New upload", remote:{...archived.remote!,videoId:"yt-new-upload"} };
   const merged = mergeRemoteCatalog(same, [newer], positions, nextRows);
   assert.equal(merged.length, 2);
   assert.equal(merged[0], same[0]);

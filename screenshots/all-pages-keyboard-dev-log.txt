@@ -1,0 +1,36 @@
+locator.click: Timeout 25000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: 'Use reviewed model', exact: true })
+
+    at E:\codex\drift-brick-terra-acorn\scripts\recipe-keyboard-batch-browser-check.mjs:32:483
+locator.click: Timeout 25000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: 'Use reviewed model', exact: true })
+
+    at E:\codex\drift-brick-terra-acorn\scripts\recipe-keyboard-batch-browser-check.mjs:32:483
+{
+  "ok": false,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Searchable contextual help, modal focus trap/return, disabled shortcut conflict preference and native text keys"
+      ],
+      "helpScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-keyboard-dev-desktop-help.png",
+      "ok": false,
+      "error": "locator.click: Timeout 25000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Use reviewed model', exact: true })\u001b[22m\n\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\recipe-keyboard-batch-browser-check.mjs:32:483"
+    },
+    {
+      "viewport": "mobile",
+      "errors": [],
+      "checks": [
+        "Searchable contextual help, modal focus trap/return, disabled shortcut conflict preference and native text keys"
+      ],
+      "helpScreenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\all-pages-keyboard-dev-mobile-help.png",
+      "ok": false,
+      "error": "locator.click: Timeout 25000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Use reviewed model', exact: true })\u001b[22m\n\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\recipe-keyboard-batch-browser-check.mjs:32:483"
+    }
+  ],
+  "limitations": "Isolated Chrome desktop and mobile viewport, synthetic engine/provider responses. No real GPU generation or physical-phone/native screen-reader claim."
+}

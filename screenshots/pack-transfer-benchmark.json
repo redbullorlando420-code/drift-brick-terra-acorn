@@ -1,0 +1,17 @@
+{
+  "ok": true,
+  "records": 100000,
+  "legacy": {
+    "retainedTextBytesBeforeZip": 7253777,
+    "largestDocumentBytes": 2504955,
+    "ms": 51
+  },
+  "streaming": {
+    "fileBytes": 3695635,
+    "largestWriteBytes": 8604,
+    "maxPendingWrites": 1,
+    "writes": 808,
+    "ms": 141
+  },
+  "scope": "Synthetic personal/source metadata, not media files or a full catalog. Counts exact encoded allocations and write bounds, not sampled peak process heap or real-device timings. Streaming destination discards bytes after acknowledgement; browser Blob fallback retains final file bytes."
+}

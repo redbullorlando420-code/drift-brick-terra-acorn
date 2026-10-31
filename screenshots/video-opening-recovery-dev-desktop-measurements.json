@@ -1,0 +1,282 @@
+{
+  "version": 1,
+  "capturedAt": 1793147203877,
+  "catalogEntries": 1000,
+  "sourceCount": 0,
+  "lowMemory": false,
+  "pullsPaused": true,
+  "frames": {
+    "mountedCards": 0,
+    "lastActiveCards": 0,
+    "longFrames": 0,
+    "lastFrameMs": 0,
+    "worstFrameMs": 0,
+    "startedAt": 1793147196394,
+    "sampledFrames": 0,
+    "totalSampledFrames": 0,
+    "recentLongFrames": 0,
+    "recentWorstFrameMs": 0,
+    "sampledAt": 0,
+    "monitoring": true
+  },
+  "interactions": {
+    "navigation": {
+      "count": 10,
+      "lastMs": 12,
+      "worstMs": 46,
+      "at": 1793147203286
+    },
+    "search": {
+      "count": 3,
+      "lastMs": 21,
+      "worstMs": 21,
+      "at": 1793147199506
+    },
+    "rating": {
+      "count": 0,
+      "lastMs": 0,
+      "worstMs": 0,
+      "at": 0
+    },
+    "playback": {
+      "count": 0,
+      "lastMs": 0,
+      "worstMs": 0,
+      "at": 0
+    },
+    "queue": {
+      "count": 0,
+      "lastMs": 0,
+      "worstMs": 0,
+      "at": 0
+    }
+  },
+  "search": {
+    "status": "ready",
+    "generation": 4,
+    "pending": 0,
+    "packed": 1000,
+    "workers": 1,
+    "lastFailure": ""
+  },
+  "startup": {
+    "startedAt": 0,
+    "moduleReadyMs": 942,
+    "phases": {
+      "preferences": {
+        "startedAt": 996.1000000238419,
+        "elapsedMs": 67
+      },
+      "remoteRead": {
+        "startedAt": 1096.7000000476837,
+        "elapsedMs": 48,
+        "rows": 1000
+      },
+      "remotePrepare": {
+        "startedAt": 1145,
+        "elapsedMs": 6,
+        "rows": 1000
+      },
+      "localRead": {
+        "startedAt": 1204.5,
+        "elapsedMs": 27,
+        "rows": 0
+      },
+      "localPrepare": {
+        "startedAt": 1231.1000000238419,
+        "elapsedMs": 0,
+        "rows": 1000
+      }
+    },
+    "artwork": "deferred",
+    "homeReadyMs": 995,
+    "catalogReadyMs": 1231,
+    "firstShelfAt": 6646.399999976158,
+    "elapsedMs": 6646,
+    "cards": 4,
+    "route": "youtube",
+    "routeElapsedMs": 340,
+    "artworkWaitMs": 419
+  },
+  "artwork": {
+    "active": 0,
+    "queued": 0,
+    "inflight": 0,
+    "recalling": 0,
+    "entries": 0,
+    "bytes": 0,
+    "byteLimit": 8388608,
+    "entryLimit": 280,
+    "decodes": {
+      "active": 0,
+      "queued": 0,
+      "limit": 4,
+      "cancelled": 48,
+      "closedLate": 4,
+      "completed": 4,
+      "peak": 4
+    },
+    "admission": {
+      "active": 0,
+      "queued": 0,
+      "queuedHigh": 0,
+      "queuedLow": 0,
+      "max": 12
+    },
+    "failures": 0,
+    "hits": 0,
+    "misses": 0,
+    "evictions": 0
+  },
+  "viewer": {
+    "entries": 1,
+    "estimatedBytes": 842,
+    "maxEntries": 12,
+    "maxBytes": 512000,
+    "pending": 0,
+    "activeTranscripts": 0,
+    "subscribers": 0
+  },
+  "counters": {
+    "catalog-selectors": {
+      "hits": 57,
+      "misses": 4,
+      "errors": 0,
+      "lastAccessAt": 1793147203396
+    },
+    "thumbnail-disk": {
+      "hits": 0,
+      "misses": 0,
+      "errors": 0
+    }
+  },
+  "providers": [
+    {
+      "kind": "youtube",
+      "samples": 0,
+      "hits": 0,
+      "misses": 0,
+      "uncached": 0,
+      "sizedSamples": 0,
+      "estimatedBytes": 0,
+      "entries": 0
+    },
+    {
+      "kind": "twitch",
+      "samples": 0,
+      "hits": 0,
+      "misses": 0,
+      "uncached": 0,
+      "sizedSamples": 0,
+      "estimatedBytes": 0,
+      "entries": 0
+    }
+  ],
+  "providerBudgets": {
+    "responseBytes": 8388608,
+    "errorPrefixBytes": 65536,
+    "bodyTimeoutMs": 15000,
+    "queuedRequests": 80,
+    "youtubeTransfers": 1,
+    "youtubeFeedTransfers": 2,
+    "youtubeLiveTransfers": 8,
+    "youtubeLiveWorkers": 8,
+    "youtubeLiveRequestGapMs": 80,
+    "twitchTransfers": 6,
+    "adultTransfers": 6,
+    "refreshWorkers": 3,
+    "liveWorkers": 2,
+    "archiveWorkers": 1,
+    "importWorkers": 6,
+    "importAttempts": 2,
+    "warmCacheRows": 250,
+    "warmCacheEntryBytes": 1048576,
+    "youtubeCacheBytes": 4194304,
+    "twitchCacheBytes": 4194304,
+    "adultCacheBytes": 12582912
+  },
+  "writes": {
+    "activity": {
+      "pending": 0,
+      "pendingWeight": 0,
+      "writing": false
+    },
+    "artwork": {
+      "pending": 0,
+      "pendingWeight": 0,
+      "writing": false
+    },
+    "artworkMirror": {
+      "pending": 0,
+      "pendingWeight": 0,
+      "writing": false
+    }
+  },
+  "recurring": {
+    "tasks": 5,
+    "running": 0,
+    "paused": 3,
+    "timerCount": 1,
+    "callbacks": 2
+  },
+  "sources": {
+    "objectUrls": 0,
+    "fileHandles": 0,
+    "files": 0
+  },
+  "feedback": {
+    "lastRatingQueueMs": 0,
+    "lastPersistMs": 0,
+    "pendingWrites": 0
+  },
+  "companion": {
+    "posters": {
+      "pending": 0,
+      "pendingWeight": 0,
+      "writing": false
+    },
+    "rememberedPosters": 0
+  },
+  "scorecard": {
+    "health": "unmeasured",
+    "checks": [
+      {
+        "id": "startup",
+        "label": "Home controls",
+        "health": "healthy",
+        "detail": "995 ms from page load; catalog hydration is separate."
+      },
+      {
+        "id": "input",
+        "label": "Input to next paint",
+        "health": "healthy",
+        "detail": "21 ms slowest latest interaction in the last minute."
+      },
+      {
+        "id": "frames",
+        "label": "Frame pressure",
+        "health": "unmeasured",
+        "detail": "Browse a shelf with diagnostics enabled, then return within a minute."
+      },
+      {
+        "id": "memory",
+        "label": "Bounded media caches",
+        "health": "healthy",
+        "detail": "0% of the busiest artwork or viewer cache budget. This is not total browser RAM."
+      },
+      {
+        "id": "cards",
+        "label": "Mounted cards",
+        "health": "unmeasured",
+        "detail": "0 now · 0 last sampled on a shelf · 256 whole-page review budget."
+      },
+      {
+        "id": "storage",
+        "label": "Thumbnail disk reads",
+        "health": "healthy",
+        "detail": "0 read errors since this page loaded. Cache misses are normal."
+      }
+    ],
+    "next": "Browse and search with diagnostics enabled, then return here and refresh. Missing measurements do not pass a check."
+  }
+}
