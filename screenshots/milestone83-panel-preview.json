@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "ok": true,
+      "checks": [
+        "Counts-only preview leaves Default unchanged",
+        "Empty profile metadata creation",
+        "Consequence preview cancellation",
+        "Confirmation calls the injected switch handler",
+        "No overflow or uncaught errors"
+      ]
+    },
+    {
+      "mobile": true,
+      "ok": true,
+      "checks": [
+        "Counts-only preview leaves Default unchanged",
+        "Empty profile metadata creation",
+        "Consequence preview cancellation",
+        "Confirmation calls the injected switch handler",
+        "No overflow or uncaught errors"
+      ]
+    }
+  ],
+  "limitation": "Isolated preview of the new panel only. Switch handler is a test callback; blocked application migration remains unapplied."
+}

@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import {SetupChecklist} from './setup-checklist';
 import { ArrowRight, Box, ChevronDown, Clapperboard, Heart, LayoutDashboard, Lock, MonitorPlay, Radio, Settings2, Sparkles, Users } from 'lucide-react';
 import { useLayoutEffect, useState } from 'react';
@@ -20,7 +21,7 @@ const GROUPS = [
     ['watch-room', 'Watch room', 'Watch together & queue'], ['stream-signal', 'Stream Signal', 'Prepare going-live posts'], ['streaming', 'Streaming', 'Channel shortcuts'], ['spotify', 'Spotify', 'Music & playlists'], ['social', 'X accounts', 'Your social workspace'],
   ] },
   { id: 'tools', title: 'Manage & connect', detail: 'Devices, guidance, and app controls.', icon: Settings2, links: [
-    ['settings', 'Settings', 'Pulling, storage & playback'], ['stats', 'Stats', 'Library & viewing insights'], ['assistant', 'AI guide', 'Find a title by interest'], ['mission-plan', 'Mission plan', 'Progress & repository credits'], ['connection', 'Connection guide', 'Connect your devices'], ['remote-desktop', 'Remote desktop', 'Your remote access tools'], ['find-phone', 'Find my phone', 'Device connection help'],
+    ['accounts', 'Accounts', 'Choose a profile & preferences'], ['settings', 'Settings', 'Pulling, storage & playback'], ['stats', 'Stats', 'Library & viewing insights'], ['assistant', 'AI guide', 'Find a title by interest'], ['mission-plan', 'Mission plan', 'Progress & repository credits'], ['connection', 'Connection guide', 'Connect your devices'], ['remote-desktop', 'Remote desktop', 'Your remote access tools'], ['find-phone', 'Find my phone', 'Device connection help'],
   ] },
   { id: 'private', title: 'Private areas', detail: 'Open your private workspace.', icon: Lock, links: [
     ['adults', 'Adults', 'Private library'], ['adult-fetishes', 'Fetish Explorer', 'Private topic explorer'],

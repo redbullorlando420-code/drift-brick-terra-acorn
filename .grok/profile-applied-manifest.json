@@ -1,0 +1,355 @@
+{
+  "artifactSha256": "859695f1fca97238fde8e325a1fd855b6adc5bb2d8cdd6ad0889c4ccc96b70a3",
+  "files": [
+    {
+      "name": "src/components/library/adult-panel.tsx",
+      "before": "6a146bf769190fc30af20faf63199f3e7f2aa430acd830ca50493435a30916d9",
+      "after": "83e6a5bf5233a0e8070003dcb797123a212aadc474c50426791a59f2fd9e9e72"
+    },
+    {
+      "name": "src/components/library/browse.tsx",
+      "before": "e1d9ca6e475b2ebf622c01a2bd5263fcdd17a242b1921ded54022a98ff1472d1",
+      "after": "e3661ff95ac424b950d01397ef3c757d9bc8ef1d573f443dd452f8e87dce84dc"
+    },
+    {
+      "name": "src/components/library/companion-update-panel.tsx",
+      "before": "c31273ea0ec5c8055adb7df40fe913f3f992864fcc2df592f984f50b70922edb",
+      "after": "de809dcd80ac285dc65591550d921c8c502c64395deaf89fb547c19d18b7686b"
+    },
+    {
+      "name": "src/components/library/desktop-sidebar.tsx",
+      "before": "071a72d2b505dd1d5e7efba311863abb44a4b4fc342e1bf93facf1415fe41dba",
+      "after": "9b23d002f2825c06c01ae10b8973e3b865537467129a94edd538f035fe93fbbc"
+    },
+    {
+      "name": "src/components/library/global-search.tsx",
+      "before": "425e85a7ae29d3e8ba1a00eb70f4d78d479348399a6ba6ca5e6b614efe3781a3",
+      "after": "78e788bbfb817ff00af092b92d0fe8786617efb1439f758844a9cc02ea24c98b"
+    },
+    {
+      "name": "src/components/library/hub-shared.tsx",
+      "before": "321ea6dc7181b4759770cd92128d7e16196df4b9af48242591ab874f43ab5955",
+      "after": "915ee3f4e14181f95b5b9069c3ed1ad632753fd8d2e24abb30328432496c5cdb"
+    },
+    {
+      "name": "src/components/library/keyboard-help.tsx",
+      "before": "9b86120e5fb5795145ba139be4757bc20e1957f893aee98f46cd7915c74caa05",
+      "after": "ca77a5e18e8f65ec329829a36589abc4f15b00a36d0ed525987ee2e475b7a1e5"
+    },
+    {
+      "name": "src/components/library/library-app.tsx",
+      "before": "060141c61910f677228aa575b04e820f7738de17cf7d58ea82c7c0cbfb6554b4",
+      "after": "570773437587d71bbe73c90b142e362c029840eb03451893559d037d4fd91dbf"
+    },
+    {
+      "name": "src/components/library/light-home.tsx",
+      "before": "674bee040fc50450363d6b3d5b0005b1f45b7d5b71af87a6a81a68731487370f",
+      "after": "883e1643b4a80e46e3f95a20b77815ef1e6d4cabf5f11cb7e8cac67f6709dd4e"
+    },
+    {
+      "name": "src/components/library/live-desk.tsx",
+      "before": "fdaa56c5cc410e86085c283eeeb64b56d8741551076cb31d984b1fec0275636c",
+      "after": "3662848e969034f52e9ec60b7b4f2313495fa251e6dd118b9fcb8129401b3e3f"
+    },
+    {
+      "name": "src/components/library/mission-plan-section.tsx",
+      "before": "47c24a453874d33b57586016b7f35236c0c50a52c048b420a115bae505d6f6a3",
+      "after": "da8682af1feba31b45026233803d81f4059f8eb52212cd93d111c180e99427b6"
+    },
+    {
+      "name": "src/components/library/photos-section.tsx",
+      "before": "3ba5b251f66277011f0bdceae8cb0761ab01fb84cfa95febd4911aa8016ffd57",
+      "after": "5174083009a1d41b93c3fca17ebaab41af1ee4e6cdb25e4564f23970d0d9481b"
+    },
+    {
+      "name": "src/components/library/player.tsx",
+      "before": "f056d0c1e65ca5b39575aab197608a9973ef7642017f6435ce401c7780370501",
+      "after": "4d21d4cb0a0f4d48a2574e1ea8da6167ebd4c9dbf59dcbd0c7f65963d4bc348b"
+    },
+    {
+      "name": "src/components/library/print-save-panel.tsx",
+      "before": "2a82640c9a7b136c10e5768e186ee83f1465a9a4a870bc78d83d7baa024ee103",
+      "after": "cb76116ed149d81ac098b47205607fb26c4d7dd42c49ae13fc0abce79f4907a6"
+    },
+    {
+      "name": "src/components/library/private-web-shortcuts-section.tsx",
+      "before": "0a07f70642f2a277edf0beea82836c1d2e27728693eec9d3b89539484bfeda16",
+      "after": "fdb19bf3efd724919c8fc292b2b51e523e009ac7e5d216bf41b2b443787c65b0"
+    },
+    {
+      "name": "src/components/library/provider-recovery.tsx",
+      "before": "ae7b0e92c895e3ff9aebb7ebb1b4b8b2ca22660edae9f1f31a7625a1e9b5b6c9",
+      "after": "b10a9a16928498d930720b8f889f9263343473025a2a92c1293e413f98a0b21c"
+    },
+    {
+      "name": "src/components/library/pull-settings-panel.tsx",
+      "before": "6ff827f1cbdb048e20fe5d0b1ad081e116a07fee273a216f3c6c1c083c56ad22",
+      "after": "3ca407b1b190993170085ba2c1f1997ef14295273f4e4712c576b82dacc99609"
+    },
+    {
+      "name": "src/components/library/room-device-captions.tsx",
+      "before": "dd905a079afb23b3c3741c9ea7ce0d2b5b603ca9f71f69a02f24f6a08f5a4b85",
+      "after": "24cd68351e5fe3941217221cf4b31a5d3437c51745496058d490565ed55e6ce8"
+    },
+    {
+      "name": "src/components/library/room-invitation.tsx",
+      "before": "247dfaaad7bf733414ea15c8911734dffb0eee67351163cbd336ac556d2a6042",
+      "after": "1eaa79c7f445cc8cd09b588a6a8062cd83bc4703c81c1d280c6fb6a53ff37637"
+    },
+    {
+      "name": "src/components/library/room-playlists-panel.tsx",
+      "before": "89760a8a28832e41f6829820d33461c83e4d854947cc4e83d09ff6c84bbb92b0",
+      "after": "2545f47b1320f14efcbf87441f0620ca608dab231f796ac92c43ee63710d8e6f"
+    },
+    {
+      "name": "src/components/library/settings-section.tsx",
+      "before": "16438f67db5c5ffaa87bb4bfa217c6f7901945d3ba33883889bccda54a808a4e",
+      "after": "98f54a9c013ba35ed0305ba40178b00c31340f917386f73ba83717168a530196"
+    },
+    {
+      "name": "src/components/library/setup-checklist.tsx",
+      "before": "8d8ac538c461511256b37c18ccfcc978dd237b5c8622785ae29c3e6b13a4068a",
+      "after": "76ee4f4c4630dc07afb73e5a4b19ac5e1fb37d4d9ff71997fc91f060fc2b8204"
+    },
+    {
+      "name": "src/components/library/shop-section.tsx",
+      "before": "c90fcab2b4e897b90ebedef818d3af5521fa2f3c64fb6033df53c0491af23eea",
+      "after": "d644a5417c6a9f4df347026790bb466fe298b076541cafd13e5892befb9e2531"
+    },
+    {
+      "name": "src/components/library/sidebar.tsx",
+      "before": "046cd5587e9b648393cc507a23a400bb0ff5a6bc7b604157fafbcafdfb120598",
+      "after": "5f0c25d6e3125826501c6c7cf4850190e57e591ce38b5f3fb46f586a0ab48702"
+    },
+    {
+      "name": "src/components/library/social-section.tsx",
+      "before": "74d965b5e25126432f2ae34fc877e364b1a6b40e925bdb1d03388ec503e3b37f",
+      "after": "8f039fa7b01e21833df1a458db289837e42a8084677f515301b8a7477420401d"
+    },
+    {
+      "name": "src/components/library/spotify-section.tsx",
+      "before": "45fe5234c22dbdc9fc8496babc15499c5ff5b928dc9ae409755e31dfed7480ac",
+      "after": "f415770fd3b48abd8bcd303793c9d4e5096b8e687f3591e95eeb50eafc51f86b"
+    },
+    {
+      "name": "src/components/library/stable-diffusion-section.tsx",
+      "before": "a84080e516716cadfbd7229f50c8c5b10a2abc22ce2c03acff8e8ce151ccb003",
+      "after": "a248c7bedfee88bc8b7833aaf4e2d111102ca9671e148bacb50f9be86fc7640d"
+    },
+    {
+      "name": "src/components/library/studio-output-library.tsx",
+      "before": "e812afc710cf315fa1c47fd5652e744dfab12ee3501eafbbf9c8e46cb1d561aa",
+      "after": "82d9f2c520c290418271ee90454815e64a2f1ad75e1f6ac677d97c97c5d3889f"
+    },
+    {
+      "name": "src/components/library/studio-recipes.tsx",
+      "before": "896113b88eaaabba8fddd283d8a4164181cebeca614b7be9fc5c42573e522a80",
+      "after": "54d30dbf170e7411a01fd1e641d697fcb247d6199975b08669eb908ba4af16e3"
+    },
+    {
+      "name": "src/components/library/use-adult-pulls.ts",
+      "before": "bef9254b71313c2d6b4318fab851d7b1c426d3288a92c92d9dea7cf9582444fa",
+      "after": "a8184c841a3f24b1a96ed368124dfe193b7108f53297a3cb49ad82c5b60c2737"
+    },
+    {
+      "name": "src/components/library/use-provider-viewing.ts",
+      "before": "69b0cf25f5d9c07321d52e17ea686b8d6523cc3379e5a84a654cc3a577338ec1",
+      "after": "433b5bab01a8d7ebc931bdedbb2032b1215a1268b0211783c1f572f997f8636d"
+    },
+    {
+      "name": "src/components/library/use-stream-signal.ts",
+      "before": "d7172472c1dd24dfe3ac336e9185680a666d842cada442af21ad2f45f2fd0f5d",
+      "after": "35ab6b174a11a3bdc0637d1b1279526b7f1a00ec83e5526110f79c313f753d2e"
+    },
+    {
+      "name": "src/components/library/video-card.tsx",
+      "before": "0f8d5ee5b78cefe50c21a4805ebf745a074700bc99e17e0b0633db7d267fdcd3",
+      "after": "6f1c2bc61169c2b434b1a39ac4ba7bb5fefaf82725962da52e12c049cbb0a9f4"
+    },
+    {
+      "name": "src/components/library/watch-room-section.tsx",
+      "before": "b33e740eb728ae92bea11b9cd4acc19e7e62bb5151a7e06d795fcbeac5406a56",
+      "after": "12bcbf7c1fe3f04dc442230ca32777c1c1b31317839247c26d210f76eb0e116f"
+    },
+    {
+      "name": "src/components/library/x-timeline.tsx",
+      "before": "092304e77bc06e389d8080bbc0d64843938d2b43d1df515df13f3113433613c6",
+      "after": "a8dbe5d8f7e6050b4b43a4b7687aa75a7112ddd7d093c6bcba7e288467b6ca56"
+    },
+    {
+      "name": "src/components/library/youtube-cleanup-status.tsx",
+      "before": "9709978e6069a89a775d2d82afd26ab141d29f7b4663ec78638db838b80f1bf0",
+      "after": "dd39f8643e57fe44395450a92a5f83104ad98265c1d1134f629ee8d155fdbba6"
+    },
+    {
+      "name": "src/lib/artwork-mode.ts",
+      "before": "508a76d65fccdb23537f4aa6146b098be9412d557be6af4ab8e1023262758a0b",
+      "after": "7f91cde9563865df651ba97d6e042c072a96fce647ee205b7e954570aff7ceb9"
+    },
+    {
+      "name": "src/lib/capability-consent.ts",
+      "before": "2b8c426940d93c2cfdeae2b0456f8f1e18fde578ec325f8f2d7a96ac3dc2b497",
+      "after": "a55d17ae772d652c6b61e591dde0fa32801dbbaff03bb4939897febd087a8273"
+    },
+    {
+      "name": "src/lib/data-saver.ts",
+      "before": "9fae25ed15afe839dce91fd952f2c4ded09150627b3bbfc4aed328cc9a51f455",
+      "after": "d7c6a5d7658379c6549b41c8e8fa40e585b54f9d0257c0c38474ffbfe75e459f"
+    },
+    {
+      "name": "src/lib/game-icons.ts",
+      "before": "e16f040b4f288780dacf7e6914a11e44dca976abe3131aafbaa2f198e58773bc",
+      "after": "270e885ebd2c6ee9e8c60b58043a7e4bda7dcdb7d67ddaa77ef9af8542b09baf"
+    },
+    {
+      "name": "src/lib/media-feedback.ts",
+      "before": "e88ad207b3286f6a63bb3471a2f8b9b0b77f5d4dcdeef79567699e9dc7c7d435",
+      "after": "e51655cc7d16c159ece8275d180ab485843f514d14ed0f9abef33f94310f5063"
+    },
+    {
+      "name": "src/lib/multiplayer/room-device-captions.ts",
+      "before": "83e9ef2e36dea7583baaf4a8b15b518c3b088591e82270f1615727e4f355eabc",
+      "after": "33a14f84c43b4f174bceaca5d0c374a67a33c1602408e49351fd337d314200a0"
+    },
+    {
+      "name": "src/lib/network-presence.ts",
+      "before": "f9444f912a5664d2a0273ae9659d24f94434c1234579fabe5b73a3e3226964e2",
+      "after": "a454d842d686d0a98c89cc42208676588b6935ac71996f7637f07edf0667c046"
+    },
+    {
+      "name": "src/lib/performance-profile.ts",
+      "before": "cfbb55235c891041767576cb0a355c0bb04f6a5d03fe9a1af40d90d0ff4a472b",
+      "after": "8a8d5ead9a7561f7d374a187efa28c5ccca57b669dc0d6585f2081e7c30d1bfa"
+    },
+    {
+      "name": "src/lib/print-edit-state.ts",
+      "before": "97b1fe88218762cab9cac6ca1afeb476c17011221b44956875195c618835f4fa",
+      "after": "b4ceb0c22b77660fe907d8de261ce80fceb028cd52ac902dcede77b25392f586"
+    },
+    {
+      "name": "src/lib/print-save.ts",
+      "before": "fa1858b49a38f6e4002fc97e30752c364ecb288ab5e8641df028b48859908e63",
+      "after": "5a5a76b03764fb1e324071c51ed5e1f3abdd43e2bca452e1a40a66e62bf92233"
+    },
+    {
+      "name": "src/lib/prints-blobs.ts",
+      "before": "55012aacc82200b787998fbed69f77e3e3f614a5d018fd5dc40991bb37ffdd55",
+      "after": "a4c2643707a6108d7d52621a690cdeb276f877d9c5c55e0f67f95d37fcb473a2"
+    },
+    {
+      "name": "src/lib/provider-viewing-store.ts",
+      "before": "c03d7e91f4030fe77ea3f37f1e561c703e4f8cbe96d27e0868113c326916abfb",
+      "after": "204a0ded80257dc341a39461e38a577d089cb2b3ca5229c1e38ff3d06ffcbbd7"
+    },
+    {
+      "name": "src/lib/pull-control.ts",
+      "before": "fd2fa9b938bd5df80a5ff38462412f85a7dcbbbc74d5000331c22724f61350ee",
+      "after": "70294f8753bda34389a23ceaaed863c66a8b24e9af71af7c6a20136828aec665"
+    },
+    {
+      "name": "src/lib/pull-settings.ts",
+      "before": "d6b0a0f9592817ce96c0f7bcf763b23dbf4c509b553033951f4a3b49c0b3a085",
+      "after": "2eedd12827c4aaaaca24a1eab8ced0cb0a5e677cd1040c73e381dd802939bd9b"
+    },
+    {
+      "name": "src/lib/rating-streaks.ts",
+      "before": "f1d143537d95952d3619632bc1e22c8c0d43bab42fc53297c491416463e9cd02",
+      "after": "ea5a185729c2504697fc8b4e244b836c8d0fd163aec8daf4133927da4f7c2062"
+    },
+    {
+      "name": "src/lib/remote/adult-pull-cache.ts",
+      "before": "48da6d8988b4f772f8dcd3966f3f052ac53f99df3beadd80066eed1e2808f847",
+      "after": "11d9fbf4f4a364e37f006ee181a102d55380d773a22b4937622bd7d0ccc49e16"
+    },
+    {
+      "name": "src/lib/remote/pull-ledger.ts",
+      "before": "c1e955b0183f04349f4ad7ef841dcf724fbddfa93dfbbd79ed6763e9a50e4567",
+      "after": "fab11cf4ea4f8cc10b976190a7431c6859c8e8a6eb3682ffc2fb07bb016489ca"
+    },
+    {
+      "name": "src/lib/remote/youtube-pull-feedback.ts",
+      "before": "fda0c07bf845dcc046ecff0c44a02a6f0f2538a646293979af7f8f12b4e6db36",
+      "after": "765aceaa8ccace2f49f09755bffeb5892db8b8c89fb566ccd9519a2ee28d0d45"
+    },
+    {
+      "name": "src/lib/restore-epoch.ts",
+      "before": "03556250bde292e3cbca649a467ed3ec505daadf075e4fa021cf3864218eb173",
+      "after": "8a4a124125e121bc0eb9517d32ca978e7b479b2fb16ee388dd3bd385e8c963eb"
+    },
+    {
+      "name": "src/lib/studio-documents.ts",
+      "before": "d313834f39bc49f1e4a690926cd9a002386842fa386ee4cd1a97637ea9b373e6",
+      "after": "0e701a17520d8302536df34ef3fc24bc26ac14d8bd3896fb163a2b2a38b4b7d5"
+    },
+    {
+      "name": "src/lib/videos/adult-archive-cursors.ts",
+      "before": "0b5aae091188da73e957c366887d5cdcdc3e15d1d72199fe8fd30195173edafe",
+      "after": "47cd061479732f7a9088a6fe3ed157caa29e97b082cbaa4e299c99569122f42f"
+    },
+    {
+      "name": "src/lib/videos/adult-pull-plan.ts",
+      "before": "96528f8691893fbe0586b5dd4868cc5a6c8edc7f6762b1549539d9636c35fe24",
+      "after": "bfe6b522453cf2151fbd2e229a55e7d81e93d15eacb2753f1434a1bf088b3711"
+    },
+    {
+      "name": "src/lib/videos/adult-url-cache.ts",
+      "before": "d4684e3c99ac22fb6bd15ea6d7d4dc9c7818b88538491577ba3d866c15ff3c9c",
+      "after": "465c1090127d713e04b1767364e26392ab70781d3d4ad5eeba41b30310739bbb"
+    },
+    {
+      "name": "src/lib/videos/catalog-mutations.ts",
+      "before": "4ad1d694a44f94743111e0f2a4c976d2aefa388b751c0dd8c5e1392d8acbb2a2",
+      "after": "c7b64d938b11247773ebb8e8a5609207eba7788c70b925f461e63b039fcdc021"
+    },
+    {
+      "name": "src/lib/videos/follow-collections.ts",
+      "before": "bfc7ce9cfa6435ebf45f3a96d7bdfb919ccd9e63caac0558942f0ca5a702d054",
+      "after": "a9eb6738e553c36210288ae24e0cfa707b001854624ca24a9fb515d7f181ca1a"
+    },
+    {
+      "name": "src/lib/videos/follow-removal.ts",
+      "before": "18dfa5a9a07cca46f392c413424315cd9d754fc6a57bb940871352c8c53b0d70",
+      "after": "88de62f00606e2b88c52aff45daa106a0139a1752c27aee81c9b806c155090ea"
+    },
+    {
+      "name": "src/lib/videos/import-session-storage.ts",
+      "before": "30aae96ce68cbd963a2f4f4e63ca8b0cd9580a4a4a767c53a81eb1eb717d3a2f",
+      "after": "8172a7e1c0fa785267e374122063892c957687194b5068fdb2104ea4d7af44ba"
+    },
+    {
+      "name": "src/lib/videos/library-restore-repository.ts",
+      "before": "470762e2e25cde5afed778a2efe1c1d4fcf4643cb121ba4a42e02d7eae6f1756",
+      "after": "16f8eb8d2c0184085ea20829474620fcbd86996adb0c4ae076162d3df06b5b8d"
+    },
+    {
+      "name": "src/lib/videos/persist.ts",
+      "before": "d6669ec282ccc23caf42cc39e96a309379851ef8e0cb1f9089fce00a7dda4d66",
+      "after": "1416dde92231562e907d9b1bc2065a390b244c546573aa108b662e3d51d0c0ea"
+    },
+    {
+      "name": "src/lib/videos/storage-recovery.ts",
+      "before": "d4427ac8f956656baadcdad2ca8f3ccd4cec53e088e56f4e89ab2effcd29eb27",
+      "after": "d93231f1f965747e1fbcf80ad5a9294747e0616ed76f279486d0d5342592116d"
+    },
+    {
+      "name": "src/lib/videos/store.ts",
+      "before": "847d160449e943d4014881c0321a60329980b447bd29ac769b9ad184afae3dad",
+      "after": "e8368ed2f0f2ab6ead4a0d8b254b366c7323fb4005dbecaaef417a45a359a890"
+    },
+    {
+      "name": "src/lib/videos/thumbs.ts",
+      "before": "960221bd4413a3690ca9a401d05d43a9b13ca9fbe8ad6c023d9ec00ec8059192",
+      "after": "ce98aed039eb1fbc81a1160f328f79827499c3fbeeb5f5fa7f1444b01c88fddf"
+    },
+    {
+      "name": "src/lib/writer-lease.ts",
+      "before": "c5b1c69a43f96cf2f7f024d645e709207290f7564d5e05f4ec199a371a5ee19d",
+      "after": "18e250c2a660a72290b361b52427eeedb4fedbef25650954ef25c0b7d0db9051"
+    },
+    {
+      "name": "src/routes/__root.tsx",
+      "before": "a757f8427bde2fdabeb1340031a4ca45da00c78a3427556bd3b56d1592083d7e",
+      "after": "246034505b557b9abedaf7f6df1edf81b2534350e526434579ee66c59297be07"
+    }
+  ]
+}

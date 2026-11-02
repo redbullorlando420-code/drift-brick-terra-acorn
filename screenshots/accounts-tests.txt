@@ -1,0 +1,238 @@
+✔ Default retains legacy keys in place and excludes all other profiles from enumeration (1.7754ms)
+✔ profile storage cannot read, enumerate, overwrite or clear another profile (0.6645ms)
+✔ an old asynchronous writer keeps its original namespace after another profile is chosen (0.2795ms)
+✔ storage transport drops foreign personal changes and translates own keys without changing auth events (0.2252ms)
+✔ quota failure leaves an existing personal value intact (0.1971ms)
+✔ enumeration stays fresh when another writer replaces keys at the same total size (0.1648ms)
+✔ profile registry rejects future versions, duplicate IDs, duplicate labels and capacity overflow (0.3418ms)
+✔ switch checkpoint cancels a held catalog read, closes active views and refuses busy source work (23.384ms)
+✔ registry inventories all seven existing adapters with distinct search, media, paging and player support (3.2015ms)
+✔ embed capabilities allow only implemented HTTPS provider paths; MFC and images cannot become iframe players (0.8584ms)
+✔ unreadable envelopes and malformed identities fail; genuine empty containers remain distinguishable (0.9488ms)
+✔ all seven adapters execute redacted fixtures with real conversion, cursor and completeness diagnostics (60.4935ms)
+✔ malformed tube/short/image/feed payloads cannot confirm empty/exhausted catalogs (5.9345ms)
+✔ valid empty results remain empty without unnecessary fallback requests (2.8682ms)
+✔ a failing provider leaves healthy siblings intact and unknown sources cannot widen a request (0.8771ms)
+✔ later malformed archive pages retain accepted rows and retry the unconsumed page exactly once per walk (1.4567ms)
+✔ publication values reject absent, invalid and future dates and preserve only evidenced prior dates (0.3063ms)
+✔ completeness counters and report exports stay aggregate and bounded without private payloads (1.4094ms)
+✔ remembered official URLs strip tracking/secrets and reject arbitrary schemes, credentials, hosts and unsupported modes (0.8256ms)
+✔ viewing preferences persist only seven allowlisted choices; forgetting has a monotonic deletion boundary (0.4524ms)
+✖ 1,588-creator automatic rotation updates existing broadcasts across a 215,452-entry catalog without rewriting tags (20009.5955ms)
+✔ YouTube live cooldown survives reload through the follow ledger and leaves unrelated creators untouched (1.3083ms)
+✔ a late archive response cannot erase a newer failed live attempt with the same successful timestamp (2.0326ms)
+✔ focused partial Twitch pulls preserve saved VODs, local feedback and unrequested clip checkpoints (461.5582ms)
+✔ empty Twitch routine and live checks preserve VOD history, feedback and focused checkpoints (30.9304ms)
+✔ Twitch entry caps and first-page failures hold checkpoints and explain the stop (170.858ms)
+✔ YouTube pull commits use sparse tag updates without enumerating the existing ledgers (171.946ms)
+✔ viewer comments persist one current card without copying or notifying the 100k browse catalog (279.9493ms)
+✔ a delayed comment response after closing or switching a viewer cannot retain or write a transcript (93.313ms)
+✔ focused pulls cap memory, metadata and disk together, preserving the rejected page resume point (269.1783ms)
+✔ bulk imports use one cap across creators and persist only admitted entries (155.9812ms)
+✔ routine checks refresh stored titles at a zero cap while excluding new rows from disk and metadata (267.8885ms)
+✔ settings changed while a provider is in flight apply before admission (108.9677ms)
+✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (153.192ms)
+✔ removed cached Reddit images and confirmed unavailable photos leave Adult shelves without deleting saves (1.3499ms)
+✔ a provider-wide cooldown stops the archive queue without marking unattempted creators failed (34.0422ms)
+✔ unresolved saved stubs do not prevent a real import from resolving them (56.8002ms)
+✔ Twitch status cannot replace the YouTube cooldown or archive result (0.981ms)
+✔ manual completion returns its own counts even when another provider changes pull history (129.9977ms)
+✔ cooldown stops focused, import and live work while mixed checks still service Twitch (1.2678ms)
+✔ an import provider limit checkpoints the cooldown and leaves later batches unattempted (3.5768ms)
+✔ automatic provider detection still permits a focused Twitch URL during a YouTube cooldown (0.8354ms)
+✖ a catalog-only cooldown allows live discovery on confirmed channel IDs (1.2883ms)
+✖ scheduled archive growth checks four creators in small responses and persists new entries and cursors (510.0567ms)
+✔ manual force ignores the old timer, stops on a new rejection, and leaves automatic work waiting (35.0545ms)
+✖ healthy forced pulls resume the batch, keep entry caps, and clear obsolete restored deadlines (283.4528ms)
+✔ a recovered manual pull prevents untouched old creator failures restoring a global cooldown (125.8148ms)
+✔ YouTube feed success preserves live cards and actual offline checks persist completed streams without deleting saved media (230.3361ms)
+✖ a 70000-entry library admits 3000 new YouTube entries in six bounded creator commits (20007.3102ms)
+✔ full YouTube archive replaces at most its cleanup budget and holds partially admitted page cursors (544.589ms)
+✔ failed and duplicate-only YouTube requests never remove cached videos (145.9366ms)
+✔ focused pulls and subscription imports can make room at the cap without exceeding the per-import budget (499.0795ms)
+✔ manual cleanup rolls back failed disk commits without changing saved signals or clearing rating/history (156.5741ms)
+✔ retired identities stay suppressed and can be restored when later liked or positively rated (372.9385ms)
+✔ a rating or like received while cleanup planning yields is protected by the final commit check (3289.1896ms)
+✔ focused Twitch rotation respects combined caps, protects saves and holds partial clip/VOD checkpoints (343.1031ms)
+✔ routine Twitch and mixed refreshes share per-source budgets and do not clean on live-only checks (357.4431ms)
+✔ Adult pulls rotate at full capacity across providers, retain protected entries and stop at the whole-pull budget (980.6824ms)
+✔ Twitch imports use one replacement budget and zero caps hold all providers even with cleanup enabled (296.2632ms)
+✔ an empty Twitch cache borrows combined-cap slots from enabled YouTube cleanup without touching protected videos (468.2348ms)
+✔ shared replacement respects opt-out, disabled donors, incoming source caps and duplicate-only responses (741.5547ms)
+✔ mixed pulls reserve donated slots for the emptier source instead of spending them twice on the dense provider (408.5805ms)
+✔ lowered caps recover through bounded successful pulls and retain the rejected page until room exists (1236.9448ms)
+✔ automatic Adult replacement stays at its catalog target while manual pulls can use the larger source cap (821.9857ms)
+✔ lowering a cleanup batch during a sweep respects already spent replacements rather than resetting per page (358.7367ms)
+✔ unlocked manually authored tags and category provenance protect cached videos during cleanup (92.8473ms)
+✔ an unallocated disabled source cannot take the slots freed for an enabled source in a mixed response (370.6213ms)
+✔ offline Twitch transitions preserve the cached record on disk as well as memory instead of silently deleting saved data (96.1664ms)
+✔ a one-entry channel cache can replace its unrated representative with a new video from the same source (295.7064ms)
+✔ sole representatives remain when a partial mixed-creator page cannot guarantee replacement of every source membership (265.5535ms)
+✔ archive publication patches only incoming resume marks without enumerating or copying dense saved progress (326.1413ms)
+✔ refresh preparation rebases onto a foreground catalog edit without requesting the provider page again (16.0264ms)
+✔ explicit Twitch live reconciliation still completes while archive pulling is paused (126.5792ms)
+✖ Adult multi-window pulls save accepted rows before a later failure and retain the latest resume page (517.7833ms)
+✔ a live check during an Adult pull preserves that pull owner and newer state wins a delayed reply (108.4424ms)
+2,000 checks with 80,000 saved titles: 9208ms mocked provider/disk, catalog identity retained
+✔ 2,000 offline YouTube checks preserve an 80k catalog identity and archive ownership with bounded progress commits (9218.5943ms)
+✔ a quick live provider hold stops after the attempted batch without failing untouched creators or freezing archives (110.3468ms)
+✔ lightweight Twitch checks retain an 80k catalog identity across 2,000 follows and use only bounded live batches (2625.6318ms)
+✔ mixed live checks report provider-specific progress and first-result YouTube batches retain all targets (1.2857ms)
+✔ explicitly saved live rooms persist one descriptor with Adult isolation, without copying unrelated saved records (76.2767ms)
+✔ automatic live batches re-evaluate creators becoming due during responses and yield without false partial failures (348.3998ms)
+✔ failed live transport batches retain observations and back off without pinning the discovery prefix (1.7166ms)
+✔ pausing during an automatic live response saves that observation, releases ownership, and allows the Live page to continue (29.0724ms)
+✔ explicit Twitch content pulls queue 100 creators in small archive responses; scheduled turns stay bounded (20.7542ms)
+✔ YouTube negative checks persist a ten-minute hold through reload and positive recovery clears it (511.8461ms)
+✖ live observations and failure health publish before a 215k-entry catalog finishes reconciliation (20001.3183ms)
+✖ YouTube pipeline commits healthy creators and reaches the tail while its first batch is stalled (7742.8855ms)
+✔ movie runtime repair persists one local row while preserving source records and manual feedback (14.7966ms)
+✔ older Twitch pulls skip exhausted and cooled creators and pass each saved continuation without clipping the follow list (1099.0841ms)
+✔ cooperative YouTube preparation reuses 80k saved rows and prepared browse groups through unrelated Twitch refreshes (277.3934ms)
+✔ real cooperative YouTube preparation updates live cards while date corrections and privacy edits keep stable full ordering (51.7155ms)
+✔ clip-only recent updates preserve live and VOD observations, older clip positions, feedback and known creation dates (152.1638ms)
+✔ clip-only transport failures set their own durable retry without resetting archive diagnostics or live state (1.0008ms)
+✔ recent upload batches publish fast creators before a held batch, keep two requests in flight and retain archive checkpoints (1.7809ms)
+✔ empty recent checks preserve a 80k-entry catalog and tag references without catalog writes (4892.984ms)
+✔ recent transport failure retains saved archive progress and consumes only affected creators turn (1.1176ms)
+✔ late live response cannot erase newer recent health or archive checkpoint (0.7402ms)
+✔ unfollowing during a recent response cannot resurrect the creator or its videos (0.7408ms)
+✔ empty clip-only updates preserve 80k video and metadata references and avoid catalog writes (2471.4331ms)
+✔ clip-only partial errors persist safe positions and leave the other clip retry lane intact (76.9194ms)
+✔ Twitch live completion pipeline publishes healthy viewer counts while the first 12 creators are stalled (46.2113ms)
+✔ legacy live cards outside a watch-only proof stay live and join the follow ledger before the next bounded check (216.2226ms)
+✔ YouTube throughput records only distinct successful observations and never persists a second catalog or telemetry on follows (3.3178ms)
+✔ clip freshness warm retries advance attempts without rewriting cached cards; fresh actions respect waits (448.0903ms)
+✔ a held older clip response cannot rewind newer cards or clear a newer scoped retry at the real store boundary (233.0606ms)
+✔ Twitch type provenance upgrades exact legacy videos and persists through sparse pulls without losing personal signals (483.617ms)
+✔ Twitch automatic policies persist only effective edits, skip content without deleting history, and cannot suppress explicit or live actions (108.9591ms)
+✔ YouTube publication repairs require matching identity and preserve precision, personal signals and locks on disk (2.7351ms)
+✔ Twitch clip aliases preserve manual tags, locks, ratings, history and one durable canonical card (242.4901ms)
+✔ explicit searches from tools navigate to a desk that can render results (0.9552ms)
+✔ navigation shells and headers identify tools, providers and saved folders consistently (0.3756ms)
+✔ provider, folder, and private searches preserve their existing scope (0.2116ms)
+✔ constrained capabilities share ceilings and unknown/invalid hints retain normal defaults (1.2234ms)
+✔ low-memory windows retain catalog positions and bounded visible references at desktop/phone widths (1.7369ms)
+✔ profile labels validate trimmed length, reserved names and control characters (1.2223ms)
+✔ shared registry consumers open one subscription and reuse unchanged snapshots (0.5106ms)
+✔ an invalidation burst coalesces and cannot publish stale profile names (0.2928ms)
+✔ registry failures expose unavailable names and recover after an explicit refresh (0.3133ms)
+✔ a detached registry read cannot replace a new subscription’s snapshot (0.231ms)
+✔ registry refresh with no consumers does no background work (0.2941ms)
+✔ source-profile provenance is versioned, bounded and never accepts destination/authentication fields (1.9857ms)
+✔ configuration capture copies exactly four allowlisted fields, preserving false values and no personal signals (3.4374ms)
+✔ settings review selects only checked fields and leaves the input unchanged (0.3783ms)
+✔ unsupported settings and values fail closed rather than being copied to another profile (1.0032ms)
+✔ portable packs round-trip as version 1 and reject malformed, oversized and future input (0.4848ms)
+ℹ tests 125
+ℹ suites 0
+ℹ pass 117
+ℹ fail 5
+ℹ cancelled 3
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 112340.2637
+
+✖ failing tests:
+
+test at scripts\pull-entry-limits.test.mjs:52:1
+✖ 1,588-creator automatic rotation updates existing broadcasts across a 215,452-entry catalog without rewriting tags (20009.5955ms)
+  'test timed out after 20000ms'
+
+test at scripts\pull-entry-limits.test.mjs:348:1
+✖ a catalog-only cooldown allows live discovery on confirmed channel IDs (1.2883ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/pull-entry-limits.test.mjs:354:10)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at listOnTimeout (node:internal/timers:644:9)
+      at process.processTimers (node:internal/timers:618:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\pull-entry-limits.test.mjs:358:1
+✖ scheduled archive growth checks four creators in small responses and persists new entries and cursors (510.0567ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  5 !== 4
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/pull-entry-limits.test.mjs:368:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 5,
+    expected: 4,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\pull-entry-limits.test.mjs:393:1
+✖ healthy forced pulls resume the batch, keep entry caps, and clear obsolete restored deadlines (283.4528ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  2 !== 3
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/pull-entry-limits.test.mjs:401:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 3,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\pull-entry-limits.test.mjs:436:1
+✖ a 70000-entry library admits 3000 new YouTube entries in six bounded creator commits (20007.3102ms)
+  'test timed out after 20000ms'
+
+test at scripts\pull-entry-limits.test.mjs:744:1
+✖ Adult multi-window pulls save accepted rows before a later failure and retain the latest resume page (517.7833ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      1,
+  +   1,
+      2
+    ]
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/pull-entry-limits.test.mjs:748:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 1, 1, 2 ],
+    expected: [ 1, 2 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\pull-entry-limits.test.mjs:851:1
+✖ live observations and failure health publish before a 215k-entry catalog finishes reconciliation (20001.3183ms)
+  'test timed out after 20000ms'
+
+test at scripts\pull-entry-limits.test.mjs:861:1
+✖ YouTube pipeline commits healthy creators and reaches the tail while its first batch is stalled (7742.8855ms)
+  AssertionError [ERR_ASSERTION]: tail discovery must not wait for the first slow batch
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/pull-entry-limits.test.mjs:866:193)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

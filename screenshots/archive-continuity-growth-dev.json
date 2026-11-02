@@ -1,0 +1,20 @@
+{
+  "ok": false,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Saved mixed catalog shows 30 archived videos, 20 photos and 10 room cards without pulling while paused"
+      ],
+      "errors": [],
+      "requests": [
+        {
+          "page": 1,
+          "limit": 400
+        }
+      ],
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n1 !== 2\n\n    at file:///E:/codex/drift-brick-terra-acorn/scripts/adult-growth-browser-check.mjs:67:65"
+    }
+  ],
+  "limitation": "Provider metadata is deterministic; real provider availability and rate limits are external."
+}

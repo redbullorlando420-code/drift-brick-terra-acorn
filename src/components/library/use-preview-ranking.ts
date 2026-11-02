@@ -1,3 +1,4 @@
+import {videoCreatorSignal} from '@/lib/videos/twitch-channel-identity';
 import { getRecommendationExposure,getExposureRevision } from '@/lib/recommendation-exposure-store';
 import { createExposurePenalty } from '@/lib/videos/recommendation-exposure';
 import { canonicalTopic } from '@/lib/videos/topics';
@@ -126,7 +127,7 @@ function prepare(session: Session, inputs: Inputs) {
       const started = performance.now();
       while (offset < candidates.length && rows.length < 512) {
         const item = candidates[offset++];
-        const creator = item.remote?.channelName?.trim().toLowerCase() ?? "";
+        const creator = videoCreatorSignal(item).trim().toLowerCase();
         let taste = creators.get(creator);
         if (!taste) { taste = { rating: feedback.creatorRatings[creator] ?? 0, liked: Boolean(feedback.creatorLikes[creator]), favorite: Boolean(feedback.creatorFavorites[creator]) }; creators.set(creator, taste); }
         const adult = isAdultPullKind(item.remote?.kind) || inputs.adultFolders.has(item.folderId);

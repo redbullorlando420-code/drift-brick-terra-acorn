@@ -4,7 +4,7 @@ import type { SourceId } from './videos/types';
 export const HUB_SOURCES = new Set<string>([
   'stable-diffusion', 'remote-desktop',
   'photos', 'anime', 'spotify', 'prints', 'games', 'shop', 'streaming', 'social',
-  'watch-room', 'stream-signal', 'settings', 'stats', 'genres', 'assistant', 'mission-plan', 'connection', 'find-phone',
+  'watch-room', 'stream-signal', 'accounts', 'settings', 'stats', 'genres', 'assistant', 'mission-plan', 'connection', 'find-phone',
 ]);
 
 /** An explicit search submitted from a tool needs a visible result desk.
@@ -21,7 +21,7 @@ const SOURCE_LABELS: Record<string, string> = {
   photos: 'Photos', anime: 'Anime', spotify: 'Spotify', prints: 'Prints', games: 'Games',
   shop: 'Shop', streaming: 'Streaming', social: 'Social', 'watch-room': 'Watch Room',
   'stream-signal': 'Stream Signal',
-  settings: 'Settings', stats: 'Stats', genres: 'Topics', assistant: 'Assistant',
+  accounts: 'Accounts', settings: 'Settings', stats: 'Stats', genres: 'Topics', assistant: 'Assistant',
   'mission-plan': 'Milestones', connection: 'Connection', 'find-phone': 'Find phone',
   classics: 'Classics', all: 'All titles', demo: 'Demo library',
 };

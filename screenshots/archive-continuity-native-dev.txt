@@ -1,0 +1,2 @@
+[INEFFECTIVE_DYNAMIC_IMPORT] src/lib/videos/persist.ts is dynamically imported by src/lib/videos/adult-archive-cursors.ts but also statically imported by \0archive-native, dynamic import will not move module into another chunk.
+

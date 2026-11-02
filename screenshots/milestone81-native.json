@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "checks": [
+    "Ready-stage interruption and reopen",
+    "Atomic activation quota rollback",
+    "Committed mirror fault and replay",
+    "Old-tab epoch rejection",
+    "All-field rollback and privacy floor",
+    "Unrelated tool records retained",
+    "Interrupted staging discard and tamper detection",
+    "Future schema retention"
+  ],
+  "errors": [],
+  "limitation": "Native browser IndexedDB and localStorage in a new isolated context; no actual user data modified."
+}

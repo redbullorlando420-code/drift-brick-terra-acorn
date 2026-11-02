@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Source preview cancellation is read-only; hide survives reload; restore retains catalog and personal marks",
+        "History preview cancellation preserves events; confirmed clear keeps resume/ratings; durable rollback restores the complete previous checkpoint",
+        "Mission reset has an exact consequence preview and a preceding-plan undo slot that survives reload"
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Source preview cancellation is read-only; hide survives reload; restore retains catalog and personal marks",
+        "History preview cancellation preserves events; confirmed clear keeps resume/ratings; durable rollback restores the complete previous checkpoint",
+        "Mission reset has an exact consequence preview and a preceding-plan undo slot that survives reload"
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ],
+  "limitation": "Disposable browser profiles only. Source catalog records and personal signals are fixtures; no real native files or account data were changed."
+}

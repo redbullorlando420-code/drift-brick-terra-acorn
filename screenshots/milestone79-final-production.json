@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Selected Twitch check records public unavailability; a transient retry preserves its prior verified observation",
+        "Closing a preview cancels a held check without replacing saved evidence",
+        "Granted-source checks distinguish a readable file from an absent file and retain both bookmarks",
+        "Rescanning only the selected folder preserves missing bookmarks, history, resume, ratings and notes",
+        "Known mismatched source contents cannot autoplay in a preview or replace the original bookmark",
+        "Removal consequence preview cancels without changing the catalog or removal records",
+        "Recovery evidence and bookmark choice survive reload and are present in validated backup data",
+        "The actual exported ZIP passes preflight and reviewed import waits for durable recovery choices",
+        "Quota failures preserve recovery observations and visibility choices atomically",
+        "A second writer is refused while another owns the catalog lease; a reader sees committed choices",
+        "Temporary retry keeps earlier public-unavailability evidence",
+        "Future recovery ledgers are retained and block incompatible writes",
+        "The reconnected local file plays after reload at its retained resume position"
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Selected Twitch check records public unavailability; a transient retry preserves its prior verified observation",
+        "Closing a preview cancels a held check without replacing saved evidence",
+        "Granted-source checks distinguish a readable file from an absent file and retain both bookmarks",
+        "Rescanning only the selected folder preserves missing bookmarks, history, resume, ratings and notes",
+        "Known mismatched source contents cannot autoplay in a preview or replace the original bookmark",
+        "Removal consequence preview cancels without changing the catalog or removal records",
+        "Recovery evidence and bookmark choice survive reload and are present in validated backup data",
+        "The actual exported ZIP passes preflight and reviewed import waits for durable recovery choices",
+        "Quota failures preserve recovery observations and visibility choices atomically",
+        "A second writer is refused while another owns the catalog lease; a reader sees committed choices",
+        "Temporary retry keeps earlier public-unavailability evidence",
+        "Future recovery ledgers are retained and block incompatible writes",
+        "The reconnected local file plays after reload at its retained resume position"
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

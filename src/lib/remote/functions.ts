@@ -3,6 +3,8 @@ import { runPausablePull } from "@/lib/pull-control";
 import { getPullSettings } from '@/lib/pull-settings';
 import {
   runFetchTwitchChapters,
+  runCheckTwitchMedia,
+  runCheckTwitchAlias,
   runFetchAdultComments,
   runFetchLiveRooms,
   runFetchTwitchFollowing,
@@ -91,3 +93,7 @@ const liveRoomsRequest = createServerFn({ method: 'POST' }).validator(input).han
 export const fetchLiveRooms = (options: Parameters<typeof liveRoomsRequest>[0]) => runPausablePull(signal => liveRoomsRequest({ ...options, signal: options?.signal ? AbortSignal.any([signal, options.signal]) : signal }), { live: true, ignorePause: true });
 
 export const fetchTwitchChapters=createServerFn({method:'POST'}).validator(input).handler(({data})=>runFetchTwitchChapters(data));
+
+export const checkTwitchMedia=createServerFn({method:'POST'}).validator(input).handler(({data})=>runCheckTwitchMedia(data));
+
+export const checkTwitchAlias=createServerFn({method:'POST'}).validator(input).handler(({data})=>runCheckTwitchAlias(data));

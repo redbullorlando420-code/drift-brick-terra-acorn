@@ -1,3 +1,4 @@
+import {videoCreatorSignal} from './twitch-channel-identity';
 import type { createRankingPass } from '../ranking-budget.ts';
 import { createExposurePenalty,type ExposureLedger } from './recommendation-exposure.ts';
 import { createRejectionPenalty, type RejectionLedger } from './recommendation-rejections.ts';
@@ -52,7 +53,7 @@ export async function prepareTwitchRecommendationScore(videos: readonly LibraryV
       + (rating >= 4 ? (rating - 3) * 2 : rating === 2 ? -18 : 0)
       + (opens || watched ? -Math.min(24, 12 + watched + Math.log2(opens + 1)) : 12)
       + Math.max(0, 6 - age / 14) + Math.min(5, Math.log10(Math.max(0, video.remote?.views ?? 0) + 1))
-       - (rejectionPenalty?.(video, taste.tags[video.id], { favorite: Boolean(taste.favorites[video.id]), creatorFavorite: taste.creatorIsFavorited?.(video.remote?.channelName ?? ""), tagIsLiked: taste.tagIsLiked }) ?? 0)
-       - (exposurePenalty?.(video, { favorite: Boolean(taste.favorites[video.id]), liked: Boolean(taste.likes[video.id]), creatorFavorite: taste.creatorIsFavorited?.(video.remote?.channelName ?? ""), rating }) ?? 0);
+       - (rejectionPenalty?.(video, taste.tags[video.id], { favorite: Boolean(taste.favorites[video.id]), creatorFavorite: taste.creatorIsFavorited?.(videoCreatorSignal(video)), tagIsLiked: taste.tagIsLiked }) ?? 0)
+       - (exposurePenalty?.(video, { favorite: Boolean(taste.favorites[video.id]), liked: Boolean(taste.likes[video.id]), creatorFavorite: taste.creatorIsFavorited?.(videoCreatorSignal(video)), rating }) ?? 0);
   };
 }

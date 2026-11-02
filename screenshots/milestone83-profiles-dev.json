@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Existing Default keys and databases restore without relocation",
+        "Read-only counts preview, profile creation and cancelled switch preserve Default",
+        "Alpha starts empty and persists independent library, private tags, history, follows, draft and print bytes",
+        "Beta remains isolated after reload and its export excludes Default and Alpha",
+        "Round-trip switches preserve both profiles and original Default",
+        "Duplicate name and registry quota failures show errors and retain existing profiles",
+        "Missing selection cannot mount writable library; Return to Default preserves saved data"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Existing Default keys and databases restore without relocation",
+        "Read-only counts preview, profile creation and cancelled switch preserve Default",
+        "Alpha starts empty and persists independent library, private tags, history, follows, draft and print bytes",
+        "Beta remains isolated after reload and its export excludes Default and Alpha",
+        "Round-trip switches preserve both profiles and original Default",
+        "Duplicate name and registry quota failures show errors and retain existing profiles",
+        "Missing selection cannot mount writable library; Return to Default preserves saved data"
+      ],
+      "errors": []
+    }
+  ]
+}

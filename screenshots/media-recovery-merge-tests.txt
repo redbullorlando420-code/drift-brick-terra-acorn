@@ -1,0 +1,41 @@
+✔ only a reviewed current content mapping enters an active alias (1.1557ms)
+✔ undo reopens the raw destination while superseded locations remain fenced (0.2603ms)
+✔ future, malformed, duplicate and over-budget history fails without normalization (1.0207ms)
+✔ already-owned destinations require conflict review, including hidden and sparse signals (0.4915ms)
+✔ private recovery stays private even after its original folder disappears (0.1405ms)
+✔ inspection workers are bounded and release both slots on cancellation (1.385ms)
+✔ the server adapter performs one fixed-host item query and classifies clean null versus transport failures (27.0382ms)
+✔ only a clean typed item response proves public unavailability (0.8548ms)
+✔ temporary errors never become expired media and selected queries do not scan a creator (1.8347ms)
+✔ a failed retry keeps the last verified observation, manual choice and private boundary (0.7877ms)
+✔ backup merge chooses observations and visibility decisions independently (0.3239ms)
+✔ corrupt/future/oversized records fail closed instead of erasing recovery choices (0.5242ms)
+✔ 100k disconnected entries yield and retain at most 20 candidates per source, oldest first (2995.5963ms)
+✔ locked private source names cannot be searched through recovery results (1.2469ms)
+✔ backup preflight validates the new sidecar before any import writes (59.6273ms)
+✔ selected local checks distinguish permissions, missing entries, disconnected roots and changed sizes (0.9617ms)
+✔ routine refreshes keep historical YouTube uploads that were not repeated by the provider (2.0062ms)
+✔ a successful live check reports stale broadcast cards while marking them offline (0.1851ms)
+✔ catalog sweeps reuse unchanged rows and append new uploads without dropping saved details (0.8796ms)
+✔ an archive row with an unknown date retains a known feed publication date (0.2464ms)
+✔ compact YouTube archive rows retain known views and duration while accepting explicit fresh values (0.2196ms)
+✔ unchanged million-entry pages visit the catalog once without copying it (587.6219ms)
+✔ staged changes preserve sequential duplicates, canonical identity and newer live observations (0.9785ms)
+✔ async refreshes share unchanged arrays and preserve removals, live transitions and new rows (9.0048ms)
+✔ cancellation of staged catalog work leaves all original references intact (1.7332ms)
+✔ large change batches and late removals match sequential merge behavior without mutating the input (763.1271ms)
+✔ indexed sweep preparation yields before reads, never scans its index, and reuses unchanged catalogs (9.7739ms)
+✔ indexed sweep staging matches sequential merges, canonical aliases and duplicate page rows (0.7067ms)
+✔ cancelled indexed copies leave the original catalog and every index position intact (10.8644ms)
+✔ saved refresh preparation handles dense sparse ledgers without sorting/exporting their patch keys (165.5301ms)
+✔ routine refresh cancellation reaches prefix materialization and preserves all existing cards (1.7534ms)
+✔ idle cleanup revokes temporary blobs while keeping the current player and file access (24.5693ms)
+✔ watch room source stays playable across idle trimming until it is released (6.5323ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3540.5332

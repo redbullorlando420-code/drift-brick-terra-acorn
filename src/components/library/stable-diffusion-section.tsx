@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { StudioOutputLibrary } from './studio-output-library';
 import { StudioModelLibrary } from './studio-model-library';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';

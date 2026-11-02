@@ -78,6 +78,7 @@ try {
           .getByText("Loading this library workspace…", { exact: true })
           .waitFor({ state: "hidden" });
         await page.waitForTimeout(400);
+        await page.locator('header').getByRole('button', { name: 'Local profile: Default. Open profile controls', exact: true }).waitFor();
         const main = page.locator("main");
         if ((await main.innerText()).trim().length < 20) report.failures.push("Empty main content");
         report.headings = await main.locator("h1,h2,h3").allTextContents();

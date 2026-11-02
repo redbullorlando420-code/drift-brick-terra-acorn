@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
 import { yieldCatalogTask } from "../catalog-work.ts";
 export type StorageInventory = {
   at: number;

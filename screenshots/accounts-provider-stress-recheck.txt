@@ -1,0 +1,37 @@
+✔ a catalog-only cooldown allows live discovery on confirmed channel IDs (7.8831ms)
+✔ scheduled archive growth checks four creators in small responses and persists new entries and cursors (551.2907ms)
+✔ healthy forced pulls resume the batch, keep entry caps, and clear obsolete restored deadlines (266.6936ms)
+✖ Adult multi-window pulls save accepted rows before a later failure and retain the latest resume page (487.31ms)
+✔ YouTube pipeline commits healthy creators and reaches the tail while its first batch is stalled (13.0597ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1863.83
+
+✖ failing tests:
+
+test at scripts\pull-entry-limits.test.mjs:744:1
+✖ Adult multi-window pulls save accepted rows before a later failure and retain the latest resume page (487.31ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      1,
+  +   1,
+      2
+    ]
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/pull-entry-limits.test.mjs:748:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 1, 1, 2 ],
+    expected: [ 1, 2 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

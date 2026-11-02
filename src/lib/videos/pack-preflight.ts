@@ -1,3 +1,5 @@
+import {parseMediaHealth} from './media-health.ts';
+import { PROFILE_SOURCE_FILE, readProfileSource, type ProfileSource } from '../profile-source.ts';
 import { parseProviderViewing } from "./provider-viewing.ts";
 import { isTopicAliasLedger } from "./topic-aliases.ts";
 import { isExposureLedger } from "./recommendation-exposure.ts";
@@ -12,6 +14,7 @@ import { yieldCatalogTask } from "../catalog-work.ts";
 
 export type PackIssue = { location: string; message: string };
 export type PackReport = {
+  sourceProfile?: ProfileSource;
   ok: boolean;
   format: string;
   version: number | null;
@@ -42,6 +45,7 @@ const arrayFields: Record<string, string[]> = {
   "photos/likes.json": ["likes"],
 };
 const mapFields: Record<string, string[]> = {
+  'marks/metadata.json':['tags','metadataProvenance','categories'],
   "marks/ratings.json": [
     "ratings",
     "ratingHistory",
@@ -64,9 +68,11 @@ export const PACK_SIDECARS = new Set([
   "marks/film-reviews.json",
   "marks/anime-reviews.json",
   "marks/provider-viewing.json",
+  "marks/media-health.json",
   "marks/recommendation-rejections.json",
 ]);
 const known = new Set([
+  PROFILE_SOURCE_FILE,
   ...Object.keys(arrayFields),
   ...Object.keys(mapFields),
   ...rootMaps,
@@ -165,6 +171,11 @@ function validRecord(file: string, field: string, key: string, value: any) {
   if (["favorites", "likes"].includes(field)) return id(value);
   if (field === "ratings" || field === "creatorRatings") return finite(value) && value <= 5;
   if (field === "notes") return typeof value === "string";
+  if (file==='marks/metadata.json') {
+    if(field==='tags')return Array.isArray(value)&&value.length<=128&&value.every(t=>typeof t==='string'&&t.length<=160);
+    if(field==='categories')return typeof value==='string'&&value.length<=160;
+    if(field==='metadataProvenance')return packObject(value)&&packObject(value.tags)&&Object.values(value.tags).every(v=>(['manual','legacy','local-name','companion-inspection','local-vision','youtube-review'].includes(String(v))||/^provider:(youtube|twitch|eporner|redtube|chaturbate|myfreecams|reddit|booru|redgifs)$/.test(String(v))))&&(value.lockedFields===undefined||Array.isArray(value.lockedFields)&&value.lockedFields.every((f:unknown)=>f==='tags'||f==='category'));
+  }
   if (["creatorLikes", "creatorFavorites", "tagLikes"].includes(field)) return value === true;
   if (field === "ratingHistory")
     return (
@@ -237,6 +248,11 @@ export async function inspectPreparedPack(
   await tick();
   let budget = 0;
   for (const [file, raw] of files) {
+    if (file === PROFILE_SOURCE_FILE) {
+      try { report.sourceProfile = readProfileSource(raw); hash([file,report.sourceProfile]); }
+      catch (error) { problem(file,error instanceof Error ? error.message : 'Invalid source-profile metadata.'); }
+      continue;
+    }
     if (!known.has(file)) {
       problem(file, "Unsupported pack section.");
       continue;
@@ -252,6 +268,7 @@ export async function inspectPreparedPack(
         if (file === "marks/guide-preset.json") valid = valid && isGuidePreset(raw);
         if (file === "marks/film-reviews.json") parseFilmLedger(raw);
         if (file === "marks/anime-reviews.json") parseAnimeReviews(raw);
+        if (file === "marks/media-health.json") parseMediaHealth(raw);
         if (file === "marks/provider-viewing.json") parseProviderViewing(raw);
       } catch {
         valid = false;
@@ -406,7 +423,7 @@ export async function inspectPreparedPack(
       problem(file + ":recommendationRejections", "Malformed recommendation rejection ledger.");
     if (!recognized) problem(file, "No supported records in this section.");
   }
-  if (!files.size) problem("backup", "No supported backup records were found.");
+  if (!files.size || [...files.keys()].every(file => file === PROFILE_SOURCE_FILE)) problem("backup", "No supported backup records were found.");
   report.fingerprint = fingerprint.toString(16);
   report.ok = report.issueCount === 0;
   return { files, report };
@@ -470,6 +487,7 @@ export async function inspectLegacyFiles(
   const files = new Map<string, unknown>(),
     issues: PackIssue[] = [],
     warnings: string[] = [];
+  let manifestSource: ProfileSource | undefined;
   let bytes = 0,
     fileCount = 0,
     version: number | null = 1;
@@ -490,6 +508,11 @@ export async function inspectLegacyFiles(
         const m = JSON.parse(body);
         version = m.version;
         if (m.version !== 1) throw Error("Unsupported or future legacy pack version.");
+        if (m.sourceProfile !== undefined) {
+          const source = readProfileSource(m.sourceProfile);
+          if (manifestSource && JSON.stringify(source) !== JSON.stringify(manifestSource)) throw Error('Legacy manifests disagree about the source profile.');
+          manifestSource = source;
+        }
       } catch (e) {
         issues.push({
           location: name,
@@ -608,6 +631,15 @@ export async function inspectLegacyFiles(
       issues.push({ location: name, message: "Malformed or truncated JSON." });
     }
     await (options.turn ?? yieldCatalogTask)();
+  }
+  if (manifestSource) {
+    if (files.has(PROFILE_SOURCE_FILE)) {
+      try {
+        if (JSON.stringify(readProfileSource(files.get(PROFILE_SOURCE_FILE))) !== JSON.stringify(manifestSource))
+          issues.push({location:PROFILE_SOURCE_FILE,message:'The source profile disagrees with the legacy manifest.'});
+      } catch { issues.push({location:PROFILE_SOURCE_FILE,message:'Invalid source-profile metadata.'}); }
+    }
+    files.set(PROFILE_SOURCE_FILE,manifestSource);
   }
   const result = await inspectPreparedPack(files, current, {
     ...options,

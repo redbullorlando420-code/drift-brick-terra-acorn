@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
 /** Persist lightweight print viewer/editor transforms per model key (local only). */
 
 export type PrintEditState = {

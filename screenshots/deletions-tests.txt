@@ -1,0 +1,11 @@
+✔ canonical provider identity suppresses a different saved row ID without matching another video by title (0.5457ms)
+✔ deletion recovery rejects future, duplicate, malformed and over-budget records without normalizing them away (0.6145ms)
+✔ recovery cards omit blobs, transient URLs and provider transcripts while retaining verified clip aliases (0.5177ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 158.4182

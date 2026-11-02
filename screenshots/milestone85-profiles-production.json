@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Cross-tab rename refreshes active identity and profile pickers without reload, namespace switch or loss of an in-progress label draft",
+        "Duplicate/reserved labels and quota errors preserve the previous durable name and editable input; maximum-length labels stay within the mobile layout",
+        "Focus refresh works when cross-tab transport is unavailable; rename persists across reload and Default/Alpha/Beta personal sentinels remain unchanged",
+        "Header identity stays visible across media and editing desks; navigation indicator opens the existing profile controls on desktop/mobile",
+        "Missing profile recovery identifies the selected immutable ID, keeps the library unmounted and returns safely to Default"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Cross-tab rename refreshes active identity and profile pickers without reload, namespace switch or loss of an in-progress label draft",
+        "Duplicate/reserved labels and quota errors preserve the previous durable name and editable input; maximum-length labels stay within the mobile layout",
+        "Focus refresh works when cross-tab transport is unavailable; rename persists across reload and Default/Alpha/Beta personal sentinels remain unchanged",
+        "Header identity stays visible across media and editing desks; navigation indicator opens the existing profile controls on desktop/mobile",
+        "Missing profile recovery identifies the selected immutable ID, keeps the library unmounted and returns safely to Default"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Disposable browser contexts only. Registry failures and sentinel data are synthetic; real user profiles were not modified."
+}

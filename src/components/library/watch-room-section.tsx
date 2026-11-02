@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { companionFetch } from '@/lib/companion';
 import { RoomDeviceCaptions } from './room-device-captions';
 import { RoomLiveGuidance } from './room-live-guidance';
@@ -443,11 +444,11 @@ export function WatchRoomSection() {
   useEffect(() => {
     if (joinedAsGuest || !sharedVideo || sharedVideo.remote || !room || sharedVideo.id.startsWith("local:")) return;
     let cancelled = false;
-    const release = pinPlayUrl(sharedVideo.id);
-    void resolvePlayUrl(sharedVideo).then((url) => {
+    const release = pinPlayUrl(sharedVideo.id),sourceController=new AbortController();
+    void resolvePlayUrl(sharedVideo,sourceController.signal).then((url) => {
       if (!cancelled) setResolvedRoomSource({ id: sharedVideo.id, url });
     }).catch((error) => { if (!cancelled) setInviteNotice(error instanceof Error ? error.message : "The host could not open this local file."); });
-    return () => { cancelled = true; release(); };
+    return () => { cancelled = true; sourceController.abort(); release(); };
   }, [joinedAsGuest, sharedVideo, room]);
   const localStream = useRoomLocalStream(roomVideoRef, hostLocalSource, Boolean(room) && !joinedAsGuest, p2p.setMediaStream);
   const roomMedia = useMemo(() => {

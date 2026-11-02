@@ -1,6 +1,7 @@
 import { visitSearchCandidates } from './search-candidates.ts';
 import { forEachCatalogSlice, sortCatalogRows, yieldCatalogTask } from '../catalog-work.ts';
-import { adultFolderIds, ADULT_PULL_PROVIDERS } from './adult-providers.ts';
+import {videoIsPrivate} from './public-visibility.ts';
+import { adultFolderIds } from './adult-providers.ts';
 import { topicsForVideo } from './topics.ts';
 import type { Folder, LibraryVideo, SourceId } from './types';
 
@@ -11,7 +12,6 @@ export type SearchRankingInput = {
   viewCounts: Record<string, number>; ratingOf: (id: string) => number; ratingPreference: (rating: number) => number;
 };
 export type SearchRankingResult = { ranked: LibraryVideo[]; tags: Array<{ tag: string; count: number; score: number }> };
-const privateKinds = new Set<string>(ADULT_PULL_PROVIDERS);
 
 /** Preserve full search results and the existing taste formula while scanning,
  * scoring, sorting, and resolving cards in cancelable four-millisecond slices. */
@@ -29,7 +29,7 @@ export async function rankSearchResults(input: SearchRankingInput, signal?: Abor
   const rows: Array<{ video: LibraryVideo; score: number }> = [];
   await visitSearchCandidates(input.videos, input.ids, input.positions, video => {
     if (!input.ids.has(video.id) || video.isSample || input.hidden[video.id] || input.unavailable[video.id]) return;
-    const isPrivate = privateFolders.has(video.folderId) || privateKinds.has(video.remote?.kind ?? '');
+    const isPrivate = videoIsPrivate(privateFolders,video);
     if (inAdults !== isPrivate) return;
     if (input.sourceId === 'youtube' && video.remote?.kind !== 'youtube') return;
     if (input.sourceId === 'twitch' && video.remote?.kind !== 'twitch') return;

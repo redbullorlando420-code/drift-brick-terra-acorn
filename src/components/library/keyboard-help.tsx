@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { useEffect, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Keyboard, X } from 'lucide-react';

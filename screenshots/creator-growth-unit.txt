@@ -1,0 +1,34 @@
+✔ single-provider writes preserve other resume points and failures preserve partial offsets (2.6563ms)
+✔ a mixed 20k catalog counts real archived videos separately and yields while restoring (568.1333ms)
+✔ accepted refreshes and media reclassification update a cached snapshot without counting growth twice (13.6486ms)
+✔ larger growth reserves shared capacity and preserves explicit stops and slower custom budgets (0.8748ms)
+✔ a 10,000-entry pull walks 100-entry pages with bounded requests (7.6981ms)
+✔ partial pages retain offsets, dedupe ids and stop at exhaustion (1.5135ms)
+✔ errors retain accepted windows, cancellation prevents later requests, stuck cursors stop (1.4966ms)
+✔ million-entry reference copies yield and preserve immutable order (236.2428ms)
+✔ original image cache shares requests and retries missing originals (0.5218ms)
+✔ archive catch-up skips saved windows and spends the target on distinct new titles (0.3849ms)
+✔ duplicate-only archives and cycling continuations remain bounded and resumable (0.265ms)
+✔ bounded existing-title refresh does not consume the new-entry target (0.8373ms)
+✔ creator names stay whole across CSV, quotes and newlines (4.0576ms)
+✔ verified unique display names avoid duplicate stubs, while ambiguous names remain unresolved (1.2676ms)
+✔ Takeout CSV imports identities rather than each title and header column (0.3277ms)
+✔ names with punctuation and spacing cannot collapse distinct pending creators (0.3901ms)
+✔ legacy word IDs are held even after resolving unrelated real channels, while exact intended creators and their videos survive (1.5486ms)
+✔ explicit handle/URL whitespace lists and Twitch lists remain supported (0.6464ms)
+✔ failed Twitch imports remain retryable instead of counting as resolved follows (0.2587ms)
+✔ Twitch CSV imports logins instead of display names, IDs or headings (0.2936ms)
+✔ a verified Twitch identity remains saved when only its archive request fails (0.1978ms)
+✔ Twitch rotating batches serve never-checked import stubs first and keep settled follows rotating (1.9231ms)
+✔ legacy recovery replaces word fragments with intended names, retaining extra saved entries (0.6008ms)
+✔ stubs retain exact query case, spaces, URLs and channel IDs (0.1305ms)
+✔ an explicit correction preserves source membership and media IDs while clearing a legacy review hold (0.7368ms)
+✔ held-name catch-up is explicit, filtered, bounded and preserves exclusions, failures and verified identities (182.9035ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 871.836

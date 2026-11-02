@@ -10,7 +10,7 @@ import { BarChart3, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLibrary } from "@/lib/videos/store";
 import { exportAdultStats } from "@/lib/videos/adult-stats";
-import { importLibraryPackZip } from "@/lib/videos/library-pack";
+import {queueBackupInspection} from '@/lib/videos/backup-inspection-queue';
 import { linksFromHistoryAndResume } from "@/lib/videos/persist";
 import { exportFeedback, tagIsLiked } from "@/lib/media-feedback";
 import { getAdultPreviewHealth } from "@/lib/videos/adult-thumb-session";
@@ -83,28 +83,12 @@ export function StatsSection() {
   const importRecoveryPack = () => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".zip,.json,.csv,application/zip,application/json,text/csv";
+    input.accept = ".reelpack,.zip,.json,.csv,application/x-reelcase-library-pack,application/zip,application/json,text/csv";
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      if (!window.confirm("Merge this Realhub recovery pack? Current catalog and activity stay intact.")) return;
-      void importLibraryPackZip(file, {
-        getFollows: () => useLibrary.getState().follows,
-        setFollows: (follows) => useLibrary.setState({ follows }),
-        getHistory: () => useLibrary.getState().history,
-        setHistory: (history) => useLibrary.setState({ history }),
-        getViewCounts: () => useLibrary.getState().viewCounts,
-        getCameCounts: () => useLibrary.getState().cameCounts,
-        setMarks: (viewCounts, cameCounts) => useLibrary.setState({ viewCounts, cameCounts }),
-        getFavorites: () => Object.keys(useLibrary.getState().favorites),
-        getLikes: () => Object.keys(useLibrary.getState().likes),
-        setShelves: (favorites, likes) => useLibrary.setState({ favorites: Object.fromEntries(favorites.map((id) => [id, true as const])), likes: Object.fromEntries(likes.map((id) => [id, true as const])) }),
-        getProgress: () => useLibrary.getState().progress,
-        getResumeProgress: () => useLibrary.getState().resumeProgress,
-        setResume: (progress, resumeProgress) => useLibrary.setState({ progress, resumeProgress }),
-        getLinks: () => linksFromHistoryAndResume(useLibrary.getState().history, useLibrary.getState().resumeProgress),
-        setLinks: () => { /* Persisted by the pack importer. */ },
-      }).then((result) => setRecoveryNote(`Recovered +${result.historyMerged} activity entries · +${result.followsAdded} follows · +${result.linksMerged} saved links${result.feedbackMerged ? " · ratings and hearts merged" : ""}${result.warnings.length ? ` · ${result.warnings[0]}` : ""}.`)).catch((error) => setRecoveryNote(error instanceof Error ? error.message : "Recovery import failed."));
+      queueBackupInspection(file);useLibrary.getState().setSource('settings');
+
     };
     input.click();
   };

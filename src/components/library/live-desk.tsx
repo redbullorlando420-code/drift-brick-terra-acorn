@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { YoutubeUpcoming } from './youtube-upcoming';
 import { forEachCatalogSlice, yieldCatalogTask } from '@/lib/catalog-work';
 import { useLiveRoomPage } from './use-live-room-page';

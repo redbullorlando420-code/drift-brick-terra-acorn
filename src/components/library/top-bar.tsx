@@ -12,6 +12,7 @@ import type { SortKey } from '@/lib/videos/types';
 import { GlobalSearch } from './global-search';
 import { HeaderClock } from './header-clock';
 import { navigationSourceLabel } from '@/lib/library-navigation';
+import { ProfileIdentity } from './profile-identity';
 
 const SORTS: { key: SortKey; label: string }[] = [
   { key: "name", label: "Name" },
@@ -60,7 +61,8 @@ export const TopBar = memo(function TopBar({
           <Menu className="size-5" />
         </Button>
         <SidebarToggle />
-        <div className="min-w-0"><p className="truncate font-display text-lg leading-none text-fg">{sourceLabel}</p><p className="mt-1 text-xs text-muted">{typeof sourceCount === "number" ? `${sourceCount.toLocaleString()} indexed` : "Control room"}</p></div>
+        <div className="min-w-0 flex-1"><p className="truncate font-display text-lg leading-none text-fg">{sourceLabel}</p><p className="mt-1 text-xs text-muted">{typeof sourceCount === "number" ? `${sourceCount.toLocaleString()} indexed` : "Control room"}</p></div>
+        <ProfileIdentity />
       </div>
       <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:justify-end">
         <GlobalSearch />

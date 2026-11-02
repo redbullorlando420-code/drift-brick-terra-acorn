@@ -8,6 +8,11 @@ const input = (videos: LibraryVideo[]): SearchRankingInput => ({ videos, ids: ne
   sourceId: 'home', folders: [], hidden: {}, unavailable: {}, tags: {}, favorites: {}, likes: {}, viewCounts: {},
   ratingOf: () => 0, ratingPreference: n => n === 1 ? -3 : n >= 3 ? n - 2 : 0 });
 
+test('a recovered private title stays outside public ranking without its source folder',async()=>{
+ const row={...video('retained-private'),privateRetention:true as const};
+ assert.deepEqual((await rankSearchResults(input([row]),undefined,async()=>{})).ranked,[]);
+});
+
 test('worker positions resolve a sparse search without rescanning 100,000 catalog rows', async () => {
   const videos = Array.from({ length: 100_000 }, (_, i) => video(String(i), 'Needle', i));
   let turns = 0, scored = 0;

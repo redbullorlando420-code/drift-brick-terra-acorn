@@ -8,6 +8,9 @@ import {
   type WellKnownStart,
 } from "./types";
 import { rememberFile, rememberFileHandle } from "./sources";
+import { isCatalogDeleted } from './persist';
+import { hydrateFileIdentities, hydrateCatalogDeletions } from './persist';
+import { verifiedScannedIdentity } from './identity-scan';
 
 const MAX_DEPTH = 14;
 const MAX_DRIVE_DEPTH = 12;
@@ -93,6 +96,7 @@ export async function ingestDirectoryHandle(
   arg?: ScanOpts | ((p: ScanProgress) => void),
 ): Promise<LibraryVideo[]> {
   const opts = asOpts(arg);
+  await Promise.all([hydrateFileIdentities(),hydrateCatalogDeletions()]);
   const acc: LibraryVideo[] = [];
   const flushed = { n: 0 };
   const drive = opts.drive ?? isDriveName(dir.name);
@@ -191,7 +195,7 @@ async function walkHandle(
       try {
         const fileHandle = handle as FileSystemFileHandle;
         const file = await fileHandle.getFile();
-        pushVideo(acc, folderId, prefix + name, file, fileHandle);
+        await pushVideo(acc, folderId, prefix + name, file, fileHandle,opts.signal);
         throttleProgress(opts, progressState, {
           found: acc.length,
           looked,
@@ -224,6 +228,7 @@ export async function ingestFileList(
   arg?: ScanOpts | ((p: ScanProgress) => void),
 ): Promise<LibraryVideo[]> {
   const opts = asOpts(arg);
+  await Promise.all([hydrateFileIdentities(),hydrateCatalogDeletions()]);
   const files = Array.from(list);
   const acc: LibraryVideo[] = [];
   const flushed = { n: 0 };
@@ -239,7 +244,7 @@ export async function ingestFileList(
     const parts = rel.split("/").filter(Boolean);
     if (parts.some((p, i) => i < parts.length - 1 && shouldSkipDir(p))) continue;
     if (!isVideoFile(file.name, file.type)) continue;
-    pushVideo(acc, folderId, rel, file);
+    await pushVideo(acc, folderId, rel, file,undefined,opts.signal);
     throttleProgress(opts, progressState, {
       found: acc.length,
       looked,
@@ -301,6 +306,7 @@ export async function ingestDataTransfer(
   arg?: ScanOpts | ((p: ScanProgress) => void),
 ): Promise<LibraryVideo[]> {
   const opts = asOpts(arg);
+  await Promise.all([hydrateFileIdentities(),hydrateCatalogDeletions()]);
   const acc: LibraryVideo[] = [];
   const flushed = { n: 0 };
   const items = dt.items;
@@ -358,7 +364,7 @@ async function walkEntry(
     try {
       const file = await entryFile(entry as FsFileEntry);
       const rel = prefix ? `${prefix}${entry.name}` : entry.name;
-      pushVideo(acc, folderId, rel, file);
+      await pushVideo(acc, folderId, rel, file,undefined,opts.signal);
       if (acc.length % 40 === 0 || acc.length < 5) {
         opts.onProgress?.({ found: acc.length, looked: acc.length, folderName, current: rel });
       }
@@ -370,19 +376,17 @@ async function walkEntry(
   }
 }
 
-function pushVideo(
+async function pushVideo(
   acc: LibraryVideo[],
   folderId: string,
   relPath: string,
   file: File,
   handle?: FileSystemFileHandle,
+  signal?:AbortSignal,
 ) {
   const name = file.name;
   const id = `${folderId}:${relPath}`;
-  // Keep File blobs only when we lack a durable handle (webkitdirectory / FileList).
-  if (handle) rememberFileHandle(id, handle);
-  else rememberFile(id, file);
-  acc.push({
+  const video:LibraryVideo={
     id,
     folderId,
     name,
@@ -392,7 +396,12 @@ function pushVideo(
     size: file.size,
     addedAt: Date.now(),
     genre: inferGenre(`${relPath} ${name}`),
-  });
+  };
+  const admitted=await verifiedScannedIdentity(video,file,signal);if(!admitted||isCatalogDeleted(admitted))return;
+  // Keep File blobs only when we lack a durable handle (webkitdirectory / FileList).
+  if (handle) rememberFileHandle(admitted.id, handle);
+  else rememberFile(admitted.id, file);
+  acc.push(admitted);
 }
 
 export async function pickDirectory(

@@ -1,6 +1,7 @@
 import { visitSearchCandidates } from './search-candidates.ts';
 import { forEachCatalogSlice } from '../catalog-work.ts';
-import { adultFolderIds, ADULT_PULL_PROVIDERS } from './adult-providers.ts';
+import {videoIsPrivate} from './public-visibility.ts';
+import { adultFolderIds } from './adult-providers.ts';
 import type { Folder, LibraryVideo, SourceId } from './types';
 
 type Input = {
@@ -9,7 +10,6 @@ type Input = {
   sourceId: SourceId; adultsUnlocked: boolean; hidden: Record<string, true>; unavailable?: Record<string, true>; hideDemo: boolean;
   query: string; positions?: Uint32Array; ids: readonly string[] | null;
 };
-const privateKinds = new Set<string>(ADULT_PULL_PROVIDERS);
 
 /** Resolve six newest suggestions without a catalog-sized map or match sort.
  * Worker failures use the same bounded scan, yielding between small slices. */
@@ -24,7 +24,7 @@ export async function collectSearchSuggestions(input: Input, turn: () => Promise
   const visit = (video: LibraryVideo) => {
     if (matched && !matched.has(video.id)) return;
     if (input.hidden[video.id] || input.unavailable?.[video.id] || input.hideDemo && video.isSample) return;
-    if ((privateFolders.has(video.folderId) || privateKinds.has(video.remote?.kind ?? '')) && !canSeePrivate) return;
+    if ((videoIsPrivate(privateFolders,video)) && !canSeePrivate) return;
     if (input.sourceId === 'youtube' && video.remote?.kind !== 'youtube') return;
     if (input.sourceId === 'twitch' && video.remote?.kind !== 'twitch') return;
     if (!matched && ![video.name, video.path, video.description, video.remote?.channelName,

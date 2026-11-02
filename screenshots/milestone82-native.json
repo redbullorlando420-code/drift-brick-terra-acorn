@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "checks": [
+    "Source hide quota rollback",
+    "Catalog, grant and personal records untouched",
+    "Durable source hide and show",
+    "Future source journal preserved"
+  ],
+  "errors": [],
+  "limitation": "Native browser IndexedDB and localStorage in a new isolated context; no actual user data modified."
+}

@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { useState } from "react";
 import { ExternalLink, Music2 } from "lucide-react";
 import { Button } from "@/components/ui/button";

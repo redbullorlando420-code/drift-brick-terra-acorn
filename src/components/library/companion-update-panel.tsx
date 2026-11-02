@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import {diagnosticText} from '@/lib/diagnostic-export';
 import {DiagnosticExportPreview} from './diagnostic-export-preview';
 import { useState } from "react";

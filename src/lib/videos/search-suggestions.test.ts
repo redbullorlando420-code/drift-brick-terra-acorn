@@ -8,6 +8,11 @@ const video = (id: string, addedAt: number): LibraryVideo => ({ id, addedAt, fol
 const base = { folders: [], tags: {}, categories: {}, hidden: {}, hideDemo: true, sourceId: 'home' as const,
   adultsUnlocked: false, query: 'search', ids: null };
 
+test('a recovered private title stays absent from public suggestions without its folder',async()=>{
+ const row={...video('retained-private',1),privateRetention:true as const};
+ assert.deepEqual(await collectSearchSuggestions({...base,videos:[row]},async()=>{}),[]);
+});
+
 test('indexed suggestions visit matching positions rather than the full library', async () => {
   const videos = Array.from({ length: 100_000 }, (_, i) => video(String(i), i));
   let turns = 0;

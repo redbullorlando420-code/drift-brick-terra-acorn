@@ -1,3 +1,15 @@
+import {BACKUP_INSPECTION_EVENT,takeBackupInspection} from '@/lib/videos/backup-inspection-queue';
+import { localProfileSource } from '@/lib/local-profiles';
+import { currentProfileId } from '@/lib/local-profile-storage';
+import { useLocalProfiles } from './use-local-profiles';
+import {prepareLibraryRestore,restoreDurablePhotos} from '@/lib/videos/persist';
+import {checkpointLibraryForRestore} from '@/lib/videos/store';
+import {planLibraryRestore} from '@/lib/videos/library-restore-plan';
+import {loadPackReview,savePackReview,discardPackReview} from '@/lib/videos/persist';
+import {reviewPackConflicts,resolvePackConflicts,type ConflictReview,type ConflictChoice} from '@/lib/videos/pack-conflicts';
+import type {SavedPackReview} from '@/lib/videos/pack-review-repository';
+import {PackConflictReview} from './pack-conflict-review';
+import {hydrateMediaHealth} from '@/lib/videos/persist';
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useLibrary } from "@/lib/videos/store";
@@ -10,11 +22,9 @@ import { hydrateFilmReviews } from "@/lib/film-review-store";
 import { hydrateAnimeReviews } from "@/lib/anime-review-store";
 import { hydrateProviderViewing } from "@/lib/provider-viewing-store";
 import {
-  applyPreparedLibraryPack,
   buildLibraryPackFiles,
   downloadLibraryPackZip,
   libraryPackExtras,
-  type LibraryPackApplyHooks,
   type LibraryPackBuildInput,
   type LibraryPackMode,
 } from "@/lib/videos/library-pack";
@@ -41,6 +51,8 @@ function inputSnapshot(): LibraryPackBuildInput {
     adultVideos: state.videos,
     folders: state.folders,
     tags: state.tags,
+    metadataProvenance:state.metadataProvenance,
+    categories:state.categories,
     history: state.history,
     links: linksFromHistoryAndResume(state.history, state.resumeProgress),
     favorites: Object.keys(state.favorites),
@@ -79,47 +91,10 @@ function currentFiles() {
   }
   return { files };
 }
-function hooks(): LibraryPackApplyHooks {
-  const get = useLibrary.getState,
-    set = useLibrary.setState;
-  return {
-    getFollows: () => get().follows,
-    setFollows: (follows) => set({ follows }),
-    getHistory: () => get().history,
-    setHistory: (history) => set({ history }),
-    getViewCounts: () => get().viewCounts,
-    getCameCounts: () => get().cameCounts,
-    setMarks: (viewCounts, cameCounts) => set({ viewCounts, cameCounts }),
-    getFavorites: () => Object.keys(get().favorites),
-    getLikes: () => Object.keys(get().likes),
-    setShelves: (favorites, likes) =>
-      set({
-        favorites: Object.fromEntries(favorites.map((id) => [id, true as const])),
-        likes: Object.fromEntries(likes.map((id) => [id, true as const])),
-      }),
-    getProgress: () => get().progress,
-    getResumeProgress: () => get().resumeProgress,
-    setResume: (progress, resumeProgress) => set({ progress, resumeProgress }),
-    getLinks: () => linksFromHistoryAndResume(get().history, get().resumeProgress),
-    setLinks: () => {},
-    getPhotoSources: () => inputSnapshot().photoSources ?? [],
-    setPhotoSources: (sources) =>
-      set((s) => {
-        const byId = new Map(s.folders.map((f) => [f.id, f]));
-        for (const source of sources) {
-          const old = byId.get(source.id);
-          byId.set(
-            source.id,
-            old
-              ? { ...old, ...source }
-              : { ...source, videoCount: 0, needsPermission: true, health: "permission-needed" },
-          );
-        }
-        return { folders: [...byId.values()] };
-      }),
-  };
-}
 export function LibraryPackTransfer() {
+  const profileRegistry = useLocalProfiles();
+  const destinationName = profileRegistry.profiles.find(profile => profile.id === currentProfileId())?.name ?? 'Selected local profile';
+  const sourceId=useLibrary(s=>s.sourceId);
   const [prepared, setPrepared] = useState<PreparedPack>(),
     [name, setName] = useState(""),
     [busy, setBusy] = useState(false),
@@ -128,6 +103,13 @@ export function LibraryPackTransfer() {
   const [progress, setProgress] = useState(0),
     [reviewed, setReviewed] = useState(false),
     [page, setPage] = useState(0);
+  const [conflictReview,setConflictReview]=useState<ConflictReview>(),[choices,setChoices]=useState<Record<string,ConflictChoice>>({}),[savedReview,setSavedReview]=useState<SavedPackReview>();
+  const [reviewLoaded,setReviewLoaded]=useState(false);
+  useEffect(()=>{let alive=true;void loadPackReview().then(r=>{if(alive){setSavedReview(r);setReviewLoaded(true);}},e=>{if(alive){setNote(e instanceof Error?e.message:'Saved review could not be read.');setReviewLoaded(true);}});return()=>{alive=false;};},[]);
+  const prepareConflicts=async(value:PreparedPack,signal:AbortSignal)=>{
+    if(!value.report.ok){setConflictReview(undefined);setChoices({});return;}
+    const review=await reviewPackConflicts(value.files,currentFiles().files,signal);setConflictReview(review);setChoices({});
+  };
   const controller = useRef<AbortController | null>(null),
     latch = useRef(false),
     input = useRef<HTMLInputElement>(null);
@@ -144,10 +126,12 @@ export function LibraryPackTransfer() {
         hydrateFilmReviews(),
         hydrateAnimeReviews(),
         hydrateProviderViewing(),
+        hydrateMediaHealth(),
         hydrateTopicAliases(),
         hydrateTopicBridges(),
         hydrateRecommendationExposure(),
       ]);
+      await restoreDurablePhotos();
       active.signal.throwIfAborted();
       await work(active.signal);
     } catch (e) {
@@ -172,6 +156,7 @@ export function LibraryPackTransfer() {
       setNote("Inspecting locally. Your library is unchanged.");
       const value = await preflightPack(file, currentFiles(), { signal });
       signal.throwIfAborted();
+      await prepareConflicts(value,signal);
       setPrepared(value);
       setNote(
         value.report.ok
@@ -179,6 +164,13 @@ export function LibraryPackTransfer() {
           : "Validation failed. Nothing was imported.",
       );
     });
+  useEffect(()=>{
+    let frame=0;
+    const receive=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(useLibrary.getState().sourceId!=='settings')return;const file=takeBackupInspection();if(file)inspect(file);});};
+    window.addEventListener(BACKUP_INSPECTION_EVENT,receive);
+    if(sourceId==='settings')receive();
+    return()=>{cancelAnimationFrame(frame);window.removeEventListener(BACKUP_INSPECTION_EVENT,receive);};
+  },[sourceId]);
   const report = prepared?.report;
   const apply = () =>
     void run(async (signal) => {
@@ -206,12 +198,14 @@ export function LibraryPackTransfer() {
         setNote("Your library changed during review. Review the updated report before applying.");
         return;
       }
-      const result = applyPreparedLibraryPack(checked, hooks(), mode);
-      setPrepared(undefined);
-      setReviewed(false);
-      setNote(
-        `Import applied · ${result.followsAdded} new follows · ${result.historyMerged} history entries · ${result.linksMerged} saved links${result.warnings.length ? " · " + result.warnings[0] : ""}. Browser storage writes use the existing local persistence.`,
-      );
+      const latest=await reviewPackConflicts(checked.files,currentFiles().files,signal);
+      if(!conflictReview||latest.fingerprint!==conflictReview.fingerprint){setPrepared(checked);setConflictReview(latest);setChoices({});setReviewed(false);setNote('Saved values changed during review. Choose again against the current values.');return;}
+      const resolved=resolvePackConflicts(checked.files,latest,choices);
+      await checkpointLibraryForRestore();
+      const captured=currentFiles().files,verified=await reviewPackConflicts(checked.files,captured,signal);
+      if(verified.fingerprint!==latest.fingerprint){setConflictReview(verified);setChoices({});setReviewed(false);setNote('Personal values changed while saving. Review the current values again.');return;}
+      await prepareLibraryRestore(name,choices,verified.fingerprint,(base,restoreSignal)=>planLibraryRestore(base,captured,resolved,mode,Date.now(),restoreSignal),signal);
+      setNote('Both generations were verified. Activate the prepared restore or discard it safely.');
     });
   return (
     <section
@@ -236,7 +230,7 @@ export function LibraryPackTransfer() {
               setNote("Preparing streaming export…");
               const blob = packBlobSink();
               const stats = await exportStreamingPack(
-                libraryPackSections(inputSnapshot(), exportFeedback(), libraryPackExtras()),
+                libraryPackSections({...inputSnapshot(),sourceProfile:await localProfileSource()}, exportFeedback(), libraryPackExtras()),
                 blob.sink,
                 { signal, progress: (s) => setProgress(s.records) },
               );
@@ -307,7 +301,7 @@ export function LibraryPackTransfer() {
               disabled={busy}
               onClick={() =>
                 void run(async (signal) => {
-                  const input = inputSnapshot(),
+                  const input = {...inputSnapshot(),sourceProfile:await localProfileSource()},
                     feedback = exportFeedback();
                   let size = 0;
                   await exportStreamingPack(
@@ -360,6 +354,7 @@ export function LibraryPackTransfer() {
         compressed. Checksum validation detects damaged files; backups are unencrypted and should be
         kept private.
       </p>
+      {reviewLoaded&&savedReview&&<div aria-label="Saved backup review" className="space-y-3 rounded-md border border-border p-4"><p className="break-words text-sm">Saved review · {savedReview.name} · {new Date(savedReview.at).toLocaleString()}</p><p className="text-xs text-muted">Private backup metadata is saved locally in one review slot. Resuming rechecks every value; changed library data invalidates old choices. This is a review draft, not a rollback snapshot.</p><div className="flex flex-wrap gap-2"><Button variant="secondary" className="min-h-11" disabled={busy} onClick={()=>void run(async signal=>{const draft=await loadPackReview();if(!draft)throw Error('The saved review was removed.');setSavedReview(draft);const value=await inspectPreparedPack(new Map(draft.files),currentFiles(),{signal});const review=await reviewPackConflicts(value.files,currentFiles().files,signal);setPrepared(value);setName(draft.name);setConflictReview(review);setChoices(review.fingerprint===draft.fingerprint?draft.choices:{});setReviewed(false);setNote(review.fingerprint===draft.fingerprint?'Saved review resumed. Choices were preserved.':'Library data changed. The backup is retained; review choices again.');})}>Resume saved review</Button><Button variant="ghost" className="min-h-11" disabled={busy} onClick={()=>void run(async()=>{await discardPackReview(savedReview);setSavedReview(undefined);setNote('Saved review discarded. Active library data was unchanged.');})}>Discard saved review</Button></div></div>}
       {report && (
         <div
           aria-label="Backup preflight report"
@@ -372,6 +367,11 @@ export function LibraryPackTransfer() {
             <p className="mt-1 break-words text-sm text-muted">
               {name} · {report.format} · version {report.version ?? "unknown"}
             </p>
+            <div data-backup-profile-context className="mt-3 space-y-2 rounded-md border border-border p-3 text-sm">
+              <p>Source profile: <strong>{report.sourceProfile?.name ?? 'Unknown · legacy backup without a profile label'}</strong>{report.sourceProfile && <span className="block break-all text-xs text-muted">Recorded source ID: {report.sourceProfile.id}</span>}</p>
+              <p>Restore destination: <strong>{destinationName}</strong></p>
+              <p className="text-xs leading-5 text-muted">The source label is descriptive. This review targets the profile currently open in this tab; it never selects, renames or switches to the source profile.</p>
+            </div>
           </div>
           <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
@@ -462,6 +462,7 @@ export function LibraryPackTransfer() {
               Discard blocked report
             </Button>
           )}
+          {report.ok&&conflictReview&&<PackConflictReview review={conflictReview} choices={choices} disabled={busy} onChange={next=>{setChoices(next);setReviewed(false);}}/>}
           {report.ok && (
             <>
               <label className="block text-sm text-fg">
@@ -483,9 +484,10 @@ export function LibraryPackTransfer() {
                 {mode === "replace-follows"
                   ? `The current ${report.currentFollows} YouTube/Twitch follows will be replaced by the pack’s ${report.sources.youtube ?? 0} YouTube and ${report.sources.twitch ?? 0} Twitch entries. Saved media and personal records remain.`
                   : "New follows are added; existing source observations retain the newer checkpoint."}{" "}
-                History and favorites are combined; counters keep the maximum. Imported ratings,
-                notes and resume entries can replace matching personal values. Review ledgers use
-                their existing merge rules. There is no rollback in this import screen.
+                History and favorites are combined; counters keep the maximum. Differing ratings,
+                notes, resume positions and metadata require explicit choices below. Feature ledgers use
+                their existing merge rules. Preparing verifies a separate generation without replacing the current library.
+                Activation retains one recovery slot; another activated restore replaces that earlier slot.
               </p>
               <label className="flex min-h-11 items-center gap-3 text-sm text-fg">
                 <input
@@ -493,12 +495,16 @@ export function LibraryPackTransfer() {
                   checked={reviewed}
                   onChange={(e) => setReviewed(e.target.checked)}
                 />
-                I reviewed the differing records and import policy
+                I reviewed the source, current destination, differing records and import policy
               </label>
               <div className="flex flex-wrap gap-2">
-                <Button disabled={busy || !reviewed} onClick={apply}>
-                  Apply reviewed import
+                <Button disabled={busy || !reviewed || !conflictReview || conflictReview.conflicts.some(c=>!choices[c.id])} onClick={apply}>
+                  Prepare reviewed restore
                 </Button>
+                <Button variant="secondary" className="min-h-11" disabled={busy||!conflictReview||!reviewLoaded} onClick={()=>void run(async signal=>{
+                  const latest=await reviewPackConflicts(prepared!.files,currentFiles().files,signal);if(latest.fingerprint!==conflictReview?.fingerprint){setConflictReview(latest);setChoices({});setReviewed(false);throw Error('Library data changed. Review the updated fields before saving choices.');}
+                  const next=await savePackReview(savedReview,{version:1,id:savedReview?.id??crypto.randomUUID(),name:name.slice(0,256),at:Date.now(),fingerprint:latest.fingerprint,files:[...prepared!.files],choices});setSavedReview(next);setNote('Backup review saved locally. Resume it after a reload; your active library was unchanged.');
+                })}>Save review for later</Button>
                 <Button
                   variant="secondary"
                   disabled={busy}

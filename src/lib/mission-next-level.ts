@@ -51,7 +51,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Atomic restore with recovery slot",
         "An interrupted restore must not leave half of a new library installed.",
-        "src/lib/videos/persist.ts|src/lib/videos/store.ts",
+        "src/lib/videos/library-restore-repository.ts|src/lib/videos/library-restore-plan.ts|src/lib/videos/restore-snapshot.ts|src/lib/restore-epoch.ts|src/components/library/restore-boundary.tsx",
         "Build on backup preflight and stage incoming data under a temporary restore generation.|Switch the active generation only after verification; retain one bounded recovery manifest of the previous generation.|Resume or discard an interrupted staging operation and provide explicit rollback before old data is reclaimed.",
         "Crash at staging and activation boundaries; reload selects one complete generation.|Rollback restores follows, tags, ratings and resume marks together without reopening remote providers.",
         [1, 3],
@@ -75,7 +75,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Deletion and undo tombstones",
         "Late provider responses can revive intentionally removed media across sessions.",
-        "src/lib/videos/store.ts|src/lib/videos/persist.ts",
+        "src/lib/videos/deletion-tombstones.ts|src/lib/videos/store.ts|src/lib/videos/persist.ts|src/components/library/removed-titles-panel.tsx",
         "Audit every remote admission path against removal and existing cleanup suppression.|Persist bounded deletion tombstones by canonical identity with reason and explicit restore action.|Apply tombstones during pull, backup merge and recovery; distinguish cleanup retirement from deliberate removal.",
         "Remove a title while its provider response is held; no late response or reload revives it.|Explicit restore clears only the chosen tombstone and retains unrelated saved feedback.",
         [1, 6],
@@ -83,7 +83,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Backup conflict review",
         "Import merging needs explainable choices when two backups disagree about personal metadata.",
-        "src/lib/videos/persist.ts|src/lib/videos/types.ts",
+        "src/lib/videos/pack-conflicts.ts|src/lib/videos/pack-review-repository.ts|src/components/library/library-pack-transfer.tsx|src/lib/videos/library-restore-repository.ts",
         "Define field-level conflict policy for ratings, tags, locks, categories and resume timestamps.|Show a bounded review queue with keep-current, use-imported and merge-safe choices; preserve provenance.|Journal choices and apply them through the restore transaction path.",
         "Opposing manual tags or ratings are never silently overwritten.|Interrupted review resumes with identical decisions and deterministic merged output.",
         [3, 4],
@@ -91,7 +91,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "File identity migration ledger",
         "Renamed or moved local files need verified identity continuity without guessing by filename.",
-        "src/lib/videos/types.ts|src/lib/videos/store.ts|companion/reelcase-companion.mjs",
+        "src/lib/videos/local-identity.ts|src/lib/videos/identity-repository.ts|src/lib/videos/file-fingerprint.worker.ts|src/components/library/file-identity-panel.tsx|src/lib/videos/scan.ts|src/lib/videos/store.ts",
         "Map current path/fingerprint matching and define confidence tiers using approved-root metadata.|Present ambiguous matches for review; record approved alias migrations without copying source media.|Move personal signals through a journaled identity update and retain reversible alias history.",
         "Two files with the same name but different fingerprints never merge automatically.|An approved move preserves rating, history and resume across reload; undo restores the prior mapping.",
         [1, 7],
@@ -99,7 +99,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Portable profile boundaries",
         "Optional multiple local profiles require explicit isolation of personal and private state.",
-        "src/lib/videos/store.ts|src/lib/videos/persist.ts",
+        "src/lib/local-profile-storage.ts|src/lib/local-profiles.ts|src/components/library/local-profiles-panel.tsx|src/components/library/profile-boundary.tsx|src/lib/videos/store.ts|src/lib/videos/persist.ts|scripts/local-profiles-browser-check.mjs|scripts/profile-switch-store.test.mjs",
         "Inventory all localStorage and IndexedDB keys and document which may be shared as disposable cache.|Implement an opt-in local profile namespace and migration preview for the current profile.|Switch profiles only after flushing writers and releasing active detail/provider state; preserve a default profile.",
         "Profile A history, private tags and drafts do not appear in Profile B or its exports.|Switch during a pending read and confirm no late result writes into the other profile.",
         [4, 6],
@@ -137,7 +137,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "IndexedDB cursor backpressure",
         "Paged hydration should pause when UI admission is busy rather than accumulating unread pages.",
-        "src/lib/videos/persist.ts|src/lib/videos/store.ts",
+        "src/lib/videos/catalog-page-reader.ts|src/lib/videos/persist.ts|src/lib/videos/store.ts|src/lib/navigation-work.ts",
         "Trace hydration page production, queue depth and commit cost under slow-device settings.|Introduce consumer acknowledgements with a strict pending-page ceiling and cancellation on profile change.|Resume from the last committed position without repeating or dropping catalog records.",
         "Artificially slow rendering holds pending pages at the configured bound.|A 100k-record restore remains complete after pause/resume and a mid-page cancellation.",
         [10],
@@ -309,15 +309,15 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Twitch channel rename evidence",
         "Renamed channels should keep their history only when a stable Twitch identity proves continuity.",
-        "src/lib/remote/api.ts|src/lib/videos/store.ts|src/components/library/follow-manager.tsx",
-        "Compare resolved stable user IDs before treating a new login as an existing creator.|Offer a reviewable alias update and migrate source references through the identity journal.|Retain old bookmarks as aliases while detecting a recycled login belonging to another user.",
+        "src/lib/videos/twitch-channel-identity.ts|src/lib/videos/twitch-alias-repository.ts|src/lib/remote/api.ts|src/lib/videos/store.ts|src/components/library/twitch-alias-review.tsx",
+        "Compare resolved stable user IDs before treating a new login as an existing creator.|Offer a reviewable alias update through a fenced identity journal; retain canonical source IDs and bind future live/VOD/clip results to them.|Retain old bookmarks as aliases while detecting a recycled login belonging to another user.",
         "A renamed stable user retains VODs, clips, ratings and live policy.|A reused login with a different user ID remains separate and cannot inherit personal signals silently.",
         [9],
       ],
       [
         "Expired Twitch media recovery",
         "Expired VODs and removed clips need a non-destructive unavailable workflow.",
-        "src/lib/videos/store.ts|src/components/library/pre-video.tsx",
+        "src/lib/remote/twitch-media-health.ts|src/lib/videos/media-health.ts|src/lib/videos/media-health-repository.ts|src/components/library/media-recovery-panel.tsx|src/lib/videos/store.ts|src/components/library/pre-video.tsx",
         "Record verified unavailability separately from temporary fetch/embed errors.|Provide a scoped review queue to hide, retain as a bookmark or explicitly remove unavailable media.|Preserve favorites, ratings and notes and avoid automatically rechecking the entire library.",
         "A transient 503 never marks a saved VOD permanently expired.|A confirmed removed clip remains recoverable with its personal signals after reload and backup.",
         [7],
@@ -654,7 +654,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Local media health remediation",
         "Disconnected files need grouped repair actions with verified matching and no destructive guesses.",
-        "src/lib/videos/local-runtime.ts|src/lib/videos/store.ts|companion/reelcase-companion.mjs",
+        "src/lib/videos/local-media-health.ts|src/lib/videos/media-recovery-groups.ts|src/components/library/media-recovery-panel.tsx|src/lib/videos/store.ts|src/lib/videos/sources.ts",
         "Group unavailable local entries by approved source and distinguish missing permission from missing files.|Offer reconnect, rescan selected folder and reviewed identity match using the migration ledger.|Update only verified matches and preserve bookmarks for unresolved entries.",
         "A disconnected drive is never treated as proof that all its files were deleted.|A reviewed reconnect restores playback and progress without a whole-disk scan.",
         [9, 73],
@@ -828,7 +828,7 @@ const tracks: Array<{ track: string; offset: number; rows: Row[] }> = [
       [
         "Destructive action recovery design",
         "Removal, reset and replacement actions need consistent previews and meaningful undo limits.",
-        "src/lib/videos/store.ts|src/components/library/settings-section.tsx|src/components/library/mission-plan-section.tsx",
+        "src/components/library/consequence-action.tsx|src/lib/videos/source-visibility.ts|src/components/library/hidden-sources-panel.tsx|src/lib/videos/history-reset.ts|src/components/library/mission-plan-section.tsx",
         "Inventory irreversible versus reversible mutations and distinguish hiding a card from deleting source files.|Apply a shared consequence preview and recoverable transaction where supported.|State undo scope/expiry and retain failure recovery information without adding confirmations to ordinary navigation.",
         "Reset/import/delete previews accurately name affected records before mutation.|Cancellation changes nothing and undo restores all promised fields without deleting source media.",
         [1, 4, 7],
@@ -959,13 +959,13 @@ export function formatMissionBrief(
     "Changed files; baseline/reproduction; validation commands and results; artifact paths; remaining external checks; resulting milestone status.",
   ].join("\n");
 }
-export function formatNextLevelRoadmap(missions: readonly Mission[] = NEXT_LEVEL_MISSIONS): string {
+export function formatNextLevelRoadmap(missions: readonly Mission[] = NEXT_LEVEL_MISSIONS, context: readonly Mission[] = missions): string {
   return (
     [
-      "# Realhub — 100 next-level milestones",
+      "# Realhub — " + missions.length + " next-level milestones",
       "Status lines reflect verified defaults or the supplied in-app snapshot. Existing completion decisions are retained. P0 denotes foundational correctness/reliability risk; P1 denotes core workflow quality; P2 denotes capability and polish. Dependencies take precedence over priority.",
       "This file is generated from verified defaults. Use the current in-app status when executing; later manual status decisions remain local.",
-      ...missions.map((m) => formatMissionBrief(m, missions)),
+      ...missions.map((m) => formatMissionBrief(m, context)),
     ].join("\n\n---\n\n") + "\n"
   );
 }

@@ -1,0 +1,14 @@
+✔ display names resolve through exact search, never guessed @handles; ambiguous names stay pending (29.157ms)
+✔ an exact real channel remains verified when its public uploads are unavailable (5.0821ms)
+✔ identity-only name catch-up makes no uploads, archive or detail requests and rejects ambiguous names (2.3515ms)
+✔ explicit handles require a channel endpoint and preserve channel ID case (1.9139ms)
+✔ Twitch identity-only checks request user metadata without VOD or clip archives (1.9109ms)
+✔ live checks follow actual Streams params and retain multiple simultaneous broadcasts, excluding upcoming/recorded (85.7007ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 413.1495

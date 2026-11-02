@@ -15,7 +15,7 @@ test('tiny saved edits survive failures, acknowledge only committed values and c
   const matches = (key, range) => !range || (key > range.lower || key === range.lower && !range.lowerOpen)
     && (key < range.upper || key === range.upper && !range.upperOpen);
   const db = { close() {}, transaction(name, mode) {
-    assert.equal(name, 'activity'); const tx = {}; let pending = 0, aborted = false, scheduled = false;
+    assert(name==='activity'||Array.isArray(name)&&name.includes('activity')&&name.includes('remote-cache')); const tx = {}; let pending = 0, aborted = false, scheduled = false;
     const writes = [];
     const complete = () => {
       if (scheduled) return; scheduled = true;
@@ -36,7 +36,7 @@ test('tiny saved edits survive failures, acknowledge only committed values and c
       getAll: (range, count) => request(() => [...disk.keys()].sort().filter(key => matches(key, range)).slice(0, count).map(key => structuredClone(disk.get(key)))),
       getAllKeys: (range, count) => request(() => [...disk.keys()].sort().filter(key => matches(key, range)).slice(0, count)),
     };
-    tx.objectStore = () => store; complete(); return tx;
+    tx.objectStore = name => name==='remote-cache'?{get:key=>request(()=>undefined)}:store; complete(); return tx;
   } };
   Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: { open() {
     const req = {}; setImmediate(() => { req.result = db; req.onsuccess(); }); return req;

@@ -1,0 +1,16 @@
+✔ canonical provider identity suppresses a different saved row ID without matching another video by title (0.6813ms)
+✔ deletion recovery rejects future, duplicate, malformed and over-budget records without normalizing them away (0.924ms)
+✔ recovery cards omit blobs, transient URLs and provider transcripts while retaining verified clip aliases (0.3198ms)
+✔ only a reviewed current content mapping enters an active alias (1.042ms)
+✔ undo reopens the raw destination while superseded locations remain fenced (0.2026ms)
+✔ future, malformed, duplicate and over-budget history fails without normalization (1.074ms)
+✔ already-owned destinations require conflict review, including hidden and sparse signals (0.5801ms)
+✔ private recovery stays private even after its original folder disappears (0.1856ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 178.3959

@@ -1,3 +1,4 @@
+import {profileSessionStorage as sessionStorage} from "../../lib/local-profile-storage.ts";
 import { PullDispatchPanel } from './pull-dispatch-panel';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
@@ -15,9 +16,9 @@ const fields: Array<[keyof PullSettings, string, number, number, number]> = [
   ['youtubeBatchVideos', 'YouTube entries per creator batch (target)', 30, 500, 10],
   ['youtubeSourcesPerSweep', 'YouTube sources per archive sweep', 1, 1024, 1],
   ['youtubeIntervalSeconds', 'YouTube automatic sweep interval (seconds)', 60, 3600, 30],
-  ['adultBatchVideos', 'Adult entries per pull, across selected providers', 20, 10000, 100],
+  ['adultBatchVideos', 'Adult entries per pull, across selected providers', 20, 50000, 100],
   ['adultIntervalSeconds', 'Adult automatic pull interval (seconds)', 30, 3600, 30],
-  ['adultCatalogTarget', 'Adult automatic catalog target', 1000, 1000000, 1000],
+  ['adultCatalogTarget', 'Adult automatic archived-video target', 1000, 1000000, 1000],
 ];
 export function PullSettingsPanel() {
   const settings = useSyncExternalStore(subscribePullSettings, getPullSettings, () => DEFAULT_PULL_SETTINGS);
@@ -35,7 +36,7 @@ export function PullSettingsPanel() {
   return <section className="mt-6 rounded-xl border border-border bg-elevated p-5 shadow-border" aria-labelledby="pull-settings-title">
     <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Pull management</p>
     <h2 id="pull-settings-title" className="mt-2 font-display text-2xl text-fg">Control the pace of your catalog.</h2>
-    <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Larger pulls walk saved archive pages through small requests. YouTube archive page pacing is separate from the gap between pull jobs and defaults to 80ms. Set it to zero for no added wait between completed requests, or raise it when you want slower pulling. Live checks use their own 80ms pacing and up to eight concurrent metadata reads; the archive delay does not slow them. Adult pulls default to 2,000 entries and can target up to 10,000. Provider availability and duplicate results can reduce the number of new entries.</p>
+    <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Larger pulls walk saved archive pages through small requests. YouTube archive page pacing is separate from the gap between pull jobs and defaults to 80ms. Set it to zero for no added wait between completed requests, or raise it when you want slower pulling. Live checks use their own 80ms pacing and up to eight concurrent metadata reads; the archive delay does not slow them. Adult pulls default to 10,000 entries and can target up to 50,000. The automatic goal counts archived videos separately from photos and live rooms. Provider availability and duplicate results can reduce the number of new entries.</p>
     <div className="mt-4 flex flex-wrap items-center gap-2">
       <Button onClick={() => setPullsPaused(!paused)}>{paused ? 'Resume pulling' : 'Pause pulling'}</Button>
       <Button variant="secondary" disabled={!processing && !queue.active && !queue.waiting} onClick={cancelQueuedPulls}>Cancel current pull queue</Button>

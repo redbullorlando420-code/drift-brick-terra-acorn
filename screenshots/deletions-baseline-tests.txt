@@ -1,0 +1,23 @@
+✔ versioned operations accept bounded deltas, not future or oversized batches (1.972ms)
+✔ manual records validate paired tags, provenance, field clocks and category shape (0.2987ms)
+✔ unknown and corrupt control generations remain rejected instead of reset (0.1514ms)
+✔ explicit snapshot retry invalidates only the slice writer reference cache (0.1631ms)
+✔ field clocks restore category separately from newer automatic tags without walking base dictionaries (4.6192ms)
+✔ official clip forms and VOD routes derive typed case-sensitive identities (1.8028ms)
+✔ a numeric provider ID aliases a slug only with the explicit response pair (81.1844ms)
+✔ all admission merges retain the saved ID and union source edges, never title-match (195.0225ms)
+✔ aliases consume one entry slot, refresh at the cap and share one room identity (55.5959ms)
+✔ one temporary result survives a long run without retaining prior blobs or writing their bytes into job receipts (13.6146ms)
+✔ preview cleanup is reviewable, cancellable and cannot clear a newer result (0.4667ms)
+✔ explicit clear-on-navigation releases the buffer including a result completed after navigation (0.3053ms)
+✔ expired preview cleanup leaves the completed image intact (0.1804ms)
+✔ oversized engine PNG does not replace the last completed preview (725.296ms)
+✔ older clip pages may add verified aliases and memberships without replacing fresh observations (37.5766ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1318.3039

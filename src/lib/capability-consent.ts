@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
 export const BROWSER_PERMISSION_KEY = "reelcase.optional-permissions.v1";
 export const BROWSER_SCOPES = ["draft-composer", "local-vision"] as const;
 export type BrowserScope = (typeof BROWSER_SCOPES)[number];
@@ -154,10 +155,10 @@ const noStorage = {
 };
 export const browserConsent = createBrowserConsent({
   getItem: (key) =>
-    typeof window === "undefined" ? noStorage.getItem() : window.localStorage.getItem(key),
+    typeof window === "undefined" ? noStorage.getItem() : localStorage.getItem(key),
   setItem: (key, value) => {
     if (typeof window === "undefined") return noStorage.setItem();
-    window.localStorage.setItem(key, value);
+    localStorage.setItem(key, value);
   },
 });
 export function refreshBrowserConsent() {

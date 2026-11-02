@@ -1,0 +1,34 @@
+✔ heart and like actions do not enumerate/copy large saved records and preserve old snapshots (1.0835ms)
+✔ idle retirement keeps exact active page rows and releases inactive provider/activity scopes (10.3362ms)
+✖ cooperative recovery selectors preserve aliases, privacy, history recovery, stable order and visible sorting (18.8497ms)
+✔ cancelled Continue preparation never primes a partial selection and private results exclude public titles (17.2998ms)
+✔ real playback actions do not enumerate full activity maps and progress history stays bounded (6.5321ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 475.4759
+
+✖ failing tests:
+
+test at scripts\activity-store.test.mjs:65:1
+✖ cooperative recovery selectors preserve aliases, privacy, history recovery, stable order and visible sorting (18.8497ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'alias-a'
+  - 'evicted'
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/activity-store.test.mjs:83:34)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'alias-a',
+    expected: 'evicted',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

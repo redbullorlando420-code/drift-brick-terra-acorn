@@ -1,0 +1,6 @@
+start false
+reload
+{"mobile":false,"ok":true}
+start true
+reload
+{"mobile":true,"ok":true}

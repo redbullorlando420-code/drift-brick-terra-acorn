@@ -5,7 +5,7 @@ import type { LibraryVideo } from './types';
 export async function readLocalRuntime(video: LibraryVideo, signal: AbortSignal): Promise<number> {
   signal.throwIfAborted();
   if (video.remote) throw new Error('Choose a local video file.');
-  const url = await resolvePlayUrl(video);
+  const url = await resolvePlayUrl(video,signal);
   signal.throwIfAborted();
   return new Promise((resolve, reject) => {
     const element = document.createElement('video');

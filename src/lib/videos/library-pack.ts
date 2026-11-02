@@ -1,3 +1,7 @@
+import {separateTwitchIdentity,retainTwitchSourceIdentity} from './twitch-channel-identity';
+import { readProfileSource, type ProfileSource } from '../profile-source.ts';
+import {emptyMediaHealth,parseMediaHealth} from './media-health.ts';
+import {hydrateMediaHealth,mediaHealthSnapshot,importMediaHealth} from './persist';
 import { dedupeFollows } from './follow-identity';
 import { preflightPack, type PreparedPack } from './pack-preflight';
 import {getProviderViewing,importProviderViewing} from '../provider-viewing-store';
@@ -45,6 +49,7 @@ export const LIBRARY_PACK_ROOT = "reelcase-library-pack";
 export type LibraryPackMode = "merge" | "replace-follows";
 
 export type LibraryPackBuildInput = {
+  sourceProfile?: ProfileSource;
   follows: FollowedChannel[];
   history: HistoryEntry[];
   links: SavedVideoLink[];
@@ -57,6 +62,8 @@ export type LibraryPackBuildInput = {
   adultVideos?: LibraryVideo[];
   folders?: Folder[];
   tags?: Record<string, string[]>;
+  metadataProvenance?: Record<string, import('./types').VideoMetadataProvenance>;
+  categories?:Record<string,string>;
   adultStats?: AdultStatsSnapshot;
   photoSources?: DurablePhotoSource[];
   photoMeta?: Record<string, DurablePhotoMeta>;
@@ -64,6 +71,7 @@ export type LibraryPackBuildInput = {
 };
 
 export type LibraryPackImportResult = {
+  pendingRecovery?:Promise<void>;
   followsAdded: number;
   historyMerged: number;
   linksMerged: number;
@@ -284,6 +292,7 @@ export function buildLibraryPackFiles(input: LibraryPackBuildInput): Record<stri
     [`${LIBRARY_PACK_ROOT}/README.md`]: packReadme(),
     [`${LIBRARY_PACK_ROOT}/manifest.json`]: JSON.stringify({
       version: LIBRARY_PACK_VERSION,
+      ...(input.sourceProfile ? { sourceProfile: readProfileSource(input.sourceProfile) } : {}),
       exportedAt: new Date().toISOString(),
       note: "Realhub local library pack. Metadata only — no media files.",
       counts: engagementSummary(input),
@@ -305,11 +314,13 @@ export function buildLibraryPackFiles(input: LibraryPackBuildInput): Record<stri
       ["id", "url", "title", "kind", "savedAt", "source"],
       ...input.links.map((l) => [l.id, l.url, l.title ?? "", l.kind ?? "", l.savedAt, l.source]),
     ]),
+    [`${LIBRARY_PACK_ROOT}/marks/metadata.json`]: JSON.stringify({tags:input.tags??{},metadataProvenance:input.metadataProvenance??{},categories:input.categories??{}}),
     [`${LIBRARY_PACK_ROOT}/marks/view-counts.json`]: JSON.stringify(input.viewCounts, null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/came-counts.json`]: JSON.stringify(input.cameCounts, null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/shelves.json`]: JSON.stringify({ favorites: input.favorites, likes: input.likes }, null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/ratings.json`]: JSON.stringify({ ratings: feedback.ratings, ratingHistory: feedback.ratingHistory, notes: feedback.notes, creatorRatings: feedback.creatorRatings, creatorLikes: feedback.creatorLikes, creatorFavorites: feedback.creatorFavorites, watchTime: feedback.watchTime, recommendationRejections: feedback.recommendationRejections }, null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/topic-aliases.json`]: JSON.stringify(getTopicAliases(), null, 2),
+    [`${LIBRARY_PACK_ROOT}/marks/media-health.json`]: JSON.stringify(mediaHealthSnapshot()??emptyMediaHealth(),null,2),
     [`${LIBRARY_PACK_ROOT}/marks/provider-viewing.json`]: JSON.stringify(getProviderViewing().ledger,null,2),
     [`${LIBRARY_PACK_ROOT}/marks/anime-reviews.json`]: JSON.stringify(getAnimeReviews().ledger,null,2),
     [`${LIBRARY_PACK_ROOT}/marks/film-reviews.json`]: JSON.stringify(getFilmReviews().ledger,null,2),
@@ -489,6 +500,7 @@ function asCountMap(raw: unknown): Record<string, number> {
 
 export type LibraryPackApplyHooks = {
   getFollows: () => FollowedChannel[];
+  setMetadata?:(data:{tags?:Record<string,string[]>;metadataProvenance?:Record<string,import('./types').VideoMetadataProvenance>;categories?:Record<string,string>})=>void|Promise<void>;
   setFollows: (follows: FollowedChannel[]) => void;
   getHistory: () => HistoryEntry[];
   setHistory: (history: HistoryEntry[]) => void;
@@ -530,12 +542,21 @@ export function applyLibraryPackFiles(
   mode: LibraryPackMode = "merge",
   parsedFiles?: ReadonlyMap<string, unknown>,
 ): LibraryPackImportResult {
+  if(typeof document!=='undefined')throw Error('Direct backup application is disabled. Use the reviewed restore workflow in Settings.');
   // Compatibility callers receive syntax/version validation before their first
   // write too. Interactive imports always use the fully inspected parsed path.
   if(!parsedFiles)for(const [name,body] of Object.entries(files))if(name.endsWith('.json')){
-    const value=JSON.parse(body);if(name.endsWith('manifest.json')&&value.version!==1)throw Error('Unsupported library pack version.');
+    const value=JSON.parse(body);if(name.endsWith('media-health.json'))parseMediaHealth(value);if(name.endsWith('manifest.json')&&value.version!==1)throw Error('Unsupported library pack version.');
   }
   const warnings: string[] = [];
+  let pendingRecovery:Promise<void>|undefined;
+  for(const [name,body]of Object.entries(files))if(fileEndsWith(name,'marks/metadata.json')){
+    const value=parsedFiles?.has(name)?parsedFiles.get(name):JSON.parse(body);
+    const meta=value as Parameters<NonNullable<LibraryPackApplyHooks['setMetadata']>>[0];
+    if(!Object.values(meta).some(v=>v&&Object.keys(v).length))continue;
+    if(!hooks.setMetadata)throw Error('This importer cannot restore metadata safely. Use Settings backup review.');
+    pendingRecovery=Promise.resolve().then(()=>hooks.setMetadata!(meta));void pendingRecovery.catch(()=>undefined);
+  }
   const filesRead = Object.keys(files);
   const incomingFollows = collectFollows(files, parsedFiles);
   const incomingHistory = collectHistory(files, parsedFiles);
@@ -544,7 +565,8 @@ export function applyLibraryPackFiles(
   let followsAdded = 0;
   if (incomingFollows.length || mode === "replace-follows" && filesRead.some(name=>/follows\/(?:youtube|twitch)\.json$/.test(name))) {
     const current = hooks.getFollows();
-    const next = mode === "replace-follows" ? dedupeFollows(incomingFollows) : dedupeFollows(mergeFollowRecovery({ channels: incomingFollows, savedAt: 0 }, { channels: current, savedAt: 0 }));
+    const safeIncoming=incomingFollows.map(row=>{const owner=row.kind==='twitch'&&row.channelId?current.find(c=>c.kind==='twitch'&&c.channelId===row.channelId):undefined;return owner?retainTwitchSourceIdentity(owner,row):separateTwitchIdentity(current,row);});
+    const next = mode === "replace-follows" ? dedupeFollows(safeIncoming) : dedupeFollows(mergeFollowRecovery({ channels: safeIncoming, savedAt: 0 }, { channels: current, savedAt: 0 }));
     followsAdded = Math.max(0, next.length - current.length);
     hooks.setFollows(next);
     saveFollows(next);
@@ -651,6 +673,7 @@ export function applyLibraryPackFiles(
   for(const [name,body] of Object.entries(files))if(fileEndsWith(name,'recommendation-rejections.json')){
     const value=parsedFiles?.has(name)?parsedFiles.get(name):JSON.parse(body);importFeedback({recommendationRejections:value as DurableFeedback['recommendationRejections']});
   }
+  for(const [name,body]of Object.entries(files)){if(!fileEndsWith(name,'media-health.json'))continue;const ledger=parseMediaHealth(parsedFiles?.has(name)?parsedFiles.get(name):JSON.parse(body));if(!Object.keys(ledger.entries).length)continue;pendingRecovery=Promise.resolve(pendingRecovery).then(()=>importMediaHealth(ledger)).then(async()=>{if(typeof window!=='undefined'){const {useLibrary}=await import('./store');useLibrary.getState().reconcileMediaRecovery();}}).catch(error=>{warnings.push('Media recovery choices could not be saved. Retry the reviewed import.');throw error;});void pendingRecovery.catch(()=>undefined);}
   let feedbackMerged = false;
   let feedbackPartial: Partial<DurableFeedback> = {};
   for (const [name, body] of Object.entries(files)) {
@@ -712,7 +735,7 @@ export function applyLibraryPackFiles(
     warnings.push("No recognized pack files were found. Expect follows/, history/, links/, marks/, resume/, or photos/ paths.");
   }
 
-  return { followsAdded, historyMerged, linksMerged, marksMerged, shelvesMerged, feedbackMerged, photosMerged, collectionsMerged, filesRead, warnings };
+  return { pendingRecovery, followsAdded, historyMerged, linksMerged, marksMerged, shelvesMerged, feedbackMerged, photosMerged, collectionsMerged, filesRead, warnings };
 }
 
 export async function importLibraryPackZip(
@@ -721,7 +744,7 @@ export async function importLibraryPackZip(
   mode: LibraryPackMode = "merge",
 ): Promise<LibraryPackImportResult> {
   const prepared = await preflightPack(file);
-  return applyPreparedLibraryPack(prepared,hooks,mode);
+  const result=applyPreparedLibraryPack(prepared,hooks,mode);await result.pendingRecovery;return result;
 }
 
 export function applyPreparedLibraryPack(prepared: PreparedPack,hooks:LibraryPackApplyHooks,mode:LibraryPackMode='merge'){
@@ -736,6 +759,7 @@ export function libraryPackExtras():Record<string,unknown>{return {
  'marks/guide-preset.json':getGuidePreset(),'marks/recommendation-exposure.json':getRecommendationExposure(),
  'marks/film-reviews.json':getFilmReviews().ledger,'marks/anime-reviews.json':getAnimeReviews().ledger,
  'marks/provider-viewing.json':getProviderViewing().ledger,
+ 'marks/media-health.json':mediaHealthSnapshot()??emptyMediaHealth(),
 };}
 
 export function downloadLibraryPackTemplates(){

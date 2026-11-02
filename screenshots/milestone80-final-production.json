@@ -1,0 +1,42 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Twitch identity check, cancellation, provider failure and verified rename retain canonical source, policy and original alias",
+        "Alias journal, creator rating and pull policy survive reload",
+        "Backup inspection blocks unresolved fields; explicit choices and private draft resume across reload",
+        "A relevant edit invalidates saved choices; the backup remains available for a fresh review",
+        "Reviewed import and real ZIP export preserve chosen rating, imported note, newer resume, tag union, locks and alias after reload"
+      ],
+      "errors": [],
+      "storage": [
+        "Atomic alias journal/follow commit and quota abort",
+        "Personal marks untouched",
+        "Review revision CAS, quota recovery and future schema retention",
+        "Cross-tab writer exclusion"
+      ],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Twitch identity check, cancellation, provider failure and verified rename retain canonical source, policy and original alias",
+        "Alias journal, creator rating and pull policy survive reload",
+        "Backup inspection blocks unresolved fields; explicit choices and private draft resume across reload",
+        "A relevant edit invalidates saved choices; the backup remains available for a fresh review",
+        "Reviewed import and real ZIP export preserve chosen rating, imported note, newer resume, tag union, locks and alias after reload"
+      ],
+      "errors": [],
+      "storage": [
+        "Atomic alias journal/follow commit and quota abort",
+        "Personal marks untouched",
+        "Review revision CAS, quota recovery and future schema retention",
+        "Cross-tab writer exclusion"
+      ],
+      "ok": true
+    }
+  ],
+  "limitations": "Isolated desktop/mobile Chrome profiles, controlled Twitch responses and native browser IndexedDB. No real provider account or user library was changed. Whole-library atomic restore remains open."
+}

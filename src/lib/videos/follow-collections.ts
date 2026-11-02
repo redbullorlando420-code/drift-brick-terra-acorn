@@ -1,3 +1,5 @@
+import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+import {assertRestoreWritable} from '../restore-epoch';
 export const FOLLOW_COLLECTIONS_KEY = "reelcase.follow-collections.v1";
 export const FOLLOW_COLLECTIONS_CHANGED = "reelcase:follow-collections-change";
 
@@ -24,6 +26,7 @@ export function loadCreatorCollections(): CreatorCollection[] {
 }
 
 export function saveCreatorCollections(collections: CreatorCollection[]): void {
+  assertRestoreWritable();
   const normalized = normalizeCreatorCollections(collections);
   try {
     localStorage.setItem(FOLLOW_COLLECTIONS_KEY, JSON.stringify(normalized));

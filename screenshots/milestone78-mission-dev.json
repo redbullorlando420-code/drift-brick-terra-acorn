@@ -1,0 +1,12 @@
+{
+  "ok": false,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [],
+      "errors": [],
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n18 !== 20\n\n    at file:///E:/codex/drift-brick-terra-acorn/scripts/mission100-browser-check.mjs:17:2762"
+    }
+  ],
+  "limitation": "Isolated browser-local plan fixtures; actual user statuses and library were not modified."
+}

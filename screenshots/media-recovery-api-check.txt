@@ -1,0 +1,9 @@
+✔ the server adapter performs one fixed-host item query and classifies clean null versus transport failures (20.1598ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 252.3142

@@ -1,0 +1,14 @@
+✔ consumer acknowledgement prevents a second read while admission is slow (3.4225ms)
+✔ 100k records pause, cancel mid-page and resume from the last acknowledged cursor exactly once (9.76ms)
+✔ cancellation while waiting for permission to read creates no new page (0.2163ms)
+✔ invalid pages and stalled cursors reject instead of spinning (0.1578ms)
+✔ watch history reset preserves all unrelated personal fields and does not mutate its recovery snapshot (0.2322ms)
+✔ hidden source ledger rejects future versions, duplicate identities and oversized journals (0.2071ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 110.5747

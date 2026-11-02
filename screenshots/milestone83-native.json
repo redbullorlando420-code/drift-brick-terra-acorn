@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "checks": [
+    "Serialized registry creation",
+    "Duplicate label rejection",
+    "Registry quota rollback",
+    "Native profile Storage separation",
+    "Frozen late-writer routing",
+    "Legacy Default preservation",
+    "Future registry retention"
+  ],
+  "errors": [],
+  "limitation": "New adapter and registry only; no broad application migration was applied. Disposable browser context and database."
+}

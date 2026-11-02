@@ -1,3 +1,15 @@
+import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+import {yieldNavigationTask} from '../navigation-work';
+import {RESTORE_EVENT,RESTORE_HEAD} from '../restore-epoch';
+import {hideLocalSource,hiddenSourceFolders,loadHiddenSources} from './persist';
+import {assertRestoreWritable,restoreWritable} from '../restore-epoch';
+import {assertTwitchContinuity,bindTwitchSource,separateTwitchIdentity,twitchObservationCurrent,retainTwitchSourceIdentity} from './twitch-channel-identity';
+import {applyTwitchAliasReview} from './persist';
+import {mediaBasis,type MediaChoice} from './media-health';
+import {hydrateMediaHealth,mediaHealthSnapshot,saveMediaObservation,chooseMediaRecovery} from './persist';
+import type {FileFingerprint} from './file-fingerprint';
+import {sameFileFingerprint,fingerprintFile} from './file-fingerprint';
+import {sourceIsPinned,forgetLocalSource,rememberVerifiedIdentityFile,resolveLocalFile} from './sources';
 import { reconcilePlaylistWalks } from './youtube-playlist-walk';
 import { youtubeEventNotices } from './youtube-events';
 import { videoIsPrivate } from './public-visibility.ts';
@@ -48,7 +60,7 @@ import {
   isAdultPullKind,
   type AdultPullProvider,
 } from "./adult-sites";
-import { loadAdultArchiveCursors, saveAdultArchiveCursors, recordAdultArchiveFailure } from "./adult-archive-cursors";
+import { loadAdultArchiveCursors, hydrateAdultArchiveCursors, prepareAdultArchiveCheckpoint, commitAdultArchiveWindow, saveAdultArchiveFailure, adultArchiveResumeStatus } from "./adult-archive-cursors";
 import { adultFolderIds } from './adult-providers';
 import { movieEvidence } from './content-classification';
 import { restorePhotoFolders } from './folder-privacy';
@@ -59,12 +71,13 @@ import {
   rememberAdultPullFingerprint,
 } from "@/lib/remote/adult-pull-cache";
 import { mergeRemoteCatalog, prepareIndexedRemoteCatalog, prepareRefreshSavedIds, mergeRemoteRefreshAsync, remoteVideoIndexAsync, mergeRemoteCatalogAsync } from "./remote-merge";
-import { entryGroup, admitRemoteEntries, holdEntryLimitCursors, remoteEntryCounts, remainingEntrySlots, rememberEntryCounts } from './entry-limits';
+import { entryGroup, admitRemoteEntries, holdEntryLimitCursors, remoteEntryCounts, remainingEntrySlots, rememberEntryCounts, EMPTY_ENTRY_COUNTS } from './entry-limits';
 import { CLEANUP_GROUPS, adultAdmissionPolicy, cleanupBudgets, cleanupBudgetAvailable, consumeCleanupBudget, canRotateForGroup, replacementRequestBudget, cleanupLabel, cleanupPolicy, rotationAvailable, cleanupKey, cleanupSourceKeys, emptyYoutubeCleanup, planYoutubeCleanup, recordYoutubeCleanup, retiredYoutubeKeys, youtubeCleanupProtected, type CleanupBudgets, type CleanupGroup, type YoutubeCleanupJournal } from './youtube-cleanup';
 import { mergeTwitchClipObservation, retainNewerTwitchClipFollow } from "./twitch-clip-freshness";
-import { canonicalFollowHandle, dedupeFollows, mergeResolvedFollow } from "./follow-identity";
+import { canonicalFollowHandle, confirmedYoutubeChannelId, dedupeFollows, mergeResolvedFollow } from "./follow-identity";
 import { youtubeIdentityReviews } from "./youtube-identity-review";
 import { importedFollowStub, repairYoutubeImport, resolvedFollowQueries, reviewYoutubeImport, bindYoutubeCorrection } from './follow-import';
+import { adultGrowthCounts, adultVideoGoalRemaining, rememberAdultGrowthChanges } from './adult-growth';
 import { selectTwitchRefreshBatch, selectTwitchPolicyBatch } from './twitch-refresh-selection';
 import { normalizeTwitchPullPolicy, twitchPolicyAllows, twitchPullPolicy, type TwitchPullPolicy } from './twitch-pull-policy.ts';
 import { retainYoutubeLiveFollow, YOUTUBE_LIVE_HOLD_MS } from './live-retention';
@@ -95,6 +108,8 @@ import {
   loadRemoteSnapshot,
   withCatalogRead,
   removeRemoteSnapshotVideos,
+  hydrateCatalogDeletions, catalogDeletionSnapshot, isCatalogDeleted, saveCatalogDeletion, restoreCatalogDeletion,
+  hydrateFileIdentities, fileIdentitySnapshot, applyFileIdentityMove, undoFileIdentityMove,
   saveRemoteSnapshot,
   saveYoutubeCleanup,
   clearFolderVideos,
@@ -308,7 +323,10 @@ export type LibraryState = {
   openPreview: (id: string, card?: LibraryVideo) => void;
   closePreview: () => void;
   closePlayer: () => void;
-  removeVideo: (id: string) => void;
+  removeVideo: (id: string) => Promise<void>;
+  restoreRemovedVideo:(id:string)=>Promise<void>;
+  applyLocalIdentityMove:(id:string,target:LibraryVideo,proof:FileFingerprint,revision:number,file:File)=>Promise<void>;
+  undoLocalIdentityMove:(moveId:string,revision:number)=>Promise<void>;
   hideVideo: (id: string) => void;
   unhideVideo: (id: string) => void;
   playRelative: (delta: number, playlist: string[]) => void;
@@ -333,6 +351,7 @@ export type LibraryState = {
   followRemoteQuery: (query: string, kind?: "auto" | "youtube" | "twitch", opts?: { restartPlaylist?: boolean; freshTwitchClips?: boolean; clipLimit?: number; twitchVodLimit?: number; twitchClipMode?: "recent" | "archive"; correctFollowId?: string }) => Promise<void>;
   importBatch: (
     items: { query: string; kind: "youtube" | "twitch" }[],
+    opts?: { identityOnly?: boolean },
   ) => Promise<{ ok: number; failed: number; failedQueries: string[]; failedReasons: Record<string, string> }>;
   unfollow: (id: string) => void;
   unfollowMany: (ids: string[]) => void;
@@ -340,23 +359,40 @@ export type LibraryState = {
   setTwitchPullPolicy: (id: string, policy: TwitchPullPolicy) => void;
   updateFollowProfiles: (profiles: Array<{ id: string; thumb?: string; description?: string }>) => void;
   retainLiveRoom: (video: LibraryVideo) => Promise<boolean>;
+  applyTwitchAlias: (id:string,evidence:import('./twitch-channel-identity').TwitchAlias)=>Promise<void>;
   refreshFollows: (kind?: "twitch" | "youtube", options?: { youtubeFeedRepair?: boolean; catalog?: boolean; force?: boolean; scheduled?: boolean; youtubeLiveOnly?: boolean; twitchLiveOnly?: boolean; liveSweep?: boolean; liveDemand?: boolean; twitchRoutine?: boolean; twitchContinueArchive?: boolean; channelIds?: string[] }) => Promise<RefreshFollowsResult>;
   pushNotice: (n: Omit<AppNotice, "id" | "at" | "read">) => void;
   markNoticesRead: () => void;
   setNotifyPush: (on: boolean) => void;
   markUnavailable: (id: string, reason: string) => void;
+  checkMediaHealth:(video:LibraryVideo,signal?:AbortSignal)=>Promise<void>;
+  chooseMediaRecovery:(id:string,choice:MediaChoice)=>Promise<void>;
+  reconnectMediaSource:(folderId:string)=>Promise<void>;
+  reconcileMediaRecovery:()=>void;
 };
 
+let localReadCancellation:AbortController|undefined;
+export function cancelCatalogHydration(){localReadCancellation?.abort(new DOMException('Catalog admission was interrupted.','AbortError'));}
 let preferencesRestored = false;
 let restoreCompletion:Promise<void>|undefined;
 let personalRestoreCompletion:Promise<void>=Promise.resolve();
 let savedShelfRevision = 0;
 const durableSliceWriter = new SliceWriter();
+async function applyIdentityCatalogView(get:()=>LibraryState,set:(value:Partial<LibraryState>)=>void,canonical:LibraryVideo,targetId:string,restoreTarget?:LibraryVideo){
+  for(let attempt=0;attempt<3;attempt++){const base=get(),rows:LibraryVideo[]=[];let placed=false;const counts=new Map<string,number>();
+    await forEachCatalogSlice(base.videos,row=>{if(row.id===targetId)return;const next=row.id===canonical.id?canonical:row;if(row.id===canonical.id)placed=true;rows.push(next);counts.set(next.folderId,(counts.get(next.folderId)??0)+1);},yieldCatalogTask);
+    if(!placed){rows.push(canonical);counts.set(canonical.folderId,(counts.get(canonical.folderId)??0)+1);}if(restoreTarget){rows.push(restoreTarget);counts.set(restoreTarget.folderId,(counts.get(restoreTarget.folderId)??0)+1);}
+    if(get().videos!==base.videos)continue;
+    set({videos:rows,folders:base.folders.map(folder=>folder.kind==='directory'||folder.kind==='files'?{...folder,videoCount:counts.get(folder.id)??0}:folder),previewId:base.previewId===canonical.id||base.previewId===targetId?null:base.previewId});return;
+  }
+  throw Error('The mapping was saved while this catalog changed. Reload to display the committed identity and its saved marks.');
+}
 function journalManualMetadata(id:string,field:"tags"|"category",get:()=>LibraryState,set:(patch:Partial<LibraryState>)=>void){
   const state=get(),saved=saveCatalogMetadataEdit({id,field,tags:state.tags[id]??[],provenance:state.metadataProvenance[id]??{tags:{}},category:state.categories[id]});
   if(saved?.provenance)set({metadataProvenance:patchSparseRecord(state.metadataProvenance,[[id,saved.provenance]])});
 }
 function persistNow(get: () => LibraryState) {
+  if(!restoreWritable())return;
   if (!preferencesRestored) return;
   const s = get();
   const prefs: Prefs = {
@@ -375,7 +411,7 @@ function persistNow(get: () => LibraryState) {
     hideDemo: s.hideDemo,
     sourceId: s.sourceId === "adults" || s.sourceId === "adult-fetishes" ? "home" : s.sourceId,
     hardwareAccel: s.hardwareAccel,
-    privateFolderIds: s.folders.filter((f) => f.adult).map((f) => f.id),
+    privateFolderIds: [...new Set([...s.folders,...hiddenSourceFolders()].filter(f=>f.adult).map(f=>f.id))],
     adultPinHash: s.adultPinHash,
     sortDir: "asc",
     extFilter: "all",
@@ -393,7 +429,7 @@ function persistNow(get: () => LibraryState) {
   durableSliceWriter.write('follows', [s.follows], () => saveFollows(s.follows));
   persistActivityNow(get, true);
   durableSliceWriter.write('shelves', [s.favorites, s.likes], () => saveDurableShelves(Object.keys(s.favorites), Object.keys(s.likes)));
-  const photoFolders = s.folders.filter(folder => folder.kind === 'directory' || folder.kind === 'files');
+  const photoFolders = [...s.folders.filter(folder => folder.kind === 'directory' || folder.kind === 'files'),...hiddenSourceFolders()];
   durableSliceWriter.write('photos', photoFolders, () => {
     const photoSources = photoFolders.map(folder => ({
       id: folder.id,
@@ -408,6 +444,7 @@ function persistNow(get: () => LibraryState) {
 }
 
 function persistActivityNow(get: () => LibraryState, snapshot = false) {
+  if(!restoreWritable())return;
   if (!preferencesRestored) return;
   const s = get();
   durableSliceWriter.write('history', [s.history], () => saveDurableHistory(s.history));
@@ -464,7 +501,7 @@ function normalizeResumeMark(mark: ProgressMark | undefined): ResumeMark | undef
   return { t: Math.min(mark.t, mark.d), d: mark.d, at: mark.at };
 }
 function stableResumeKeys(video: LibraryVideo): string[] {
-  return [...new Set([`id:${video.id}`, video.remote?.watchUrl, video.remote?.embedUrl, video.src, video.path].filter((key): key is string => Boolean(key)))];
+  return [...new Set([`id:${video.id}`, video.remote?.watchUrl, video.remote?.embedUrl, video.src, video.path, ...(video.localIdentity?.previousPaths??[])].filter((key): key is string => Boolean(key)))];
 }
 function newestResume(...marks: Array<ProgressMark | undefined>): ResumeMark | undefined {
   return marks.reduce<ResumeMark | undefined>((best, mark) => {
@@ -503,6 +540,7 @@ function reconcileResumeForVideos(videos: LibraryVideo[], progress: Record<strin
 }
 function queueResumeReplay(records: Record<string, ResumeMark>) {
   try {
+    assertRestoreWritable();
     const existing = JSON.parse(localStorage.getItem(RESUME_QUEUE_KEY) ?? "{}") as Record<string, ResumeMark>;
     const next = { ...existing, ...records };
     const kept = Object.entries(next).filter(([, mark]) => validResumeMark(mark)).sort((a, b) => b[1].at - a[1].at).slice(0, 600);
@@ -745,7 +783,9 @@ function enrichRemoteTags(existing: Record<string, string[]>, existingProvenance
 const unchangedPullPolicy = (settings: Readonly<PullSettings>) => settings;
 type PullPolicySelector = typeof unchangedPullPolicy;
 async function prepareRemotePull(get: () => LibraryState, incoming: LibraryVideo[], known?: ReadonlyMap<string, unknown>, merge = false, policyFor: PullPolicySelector = unchangedPullPolicy) {
+  await hydrateCatalogDeletions();
   for (;;) {
+    const deletionRevision=(catalogDeletionSnapshot()?.revision??0);
     const base = get(), globalPolicy = getPullSettings(), policy = policyFor(globalPolicy);
     const retired = retiredYoutubeKeys(base.youtubeCleanup);
     const signals = { favorites: base.favorites, likes: base.likes, activeId: base.activeId, previewId: base.previewId, rating: getRating };
@@ -753,6 +793,7 @@ async function prepareRemotePull(get: () => LibraryState, incoming: LibraryVideo
     const filtered: LibraryVideo[] = [];
     const revived = new Set<string>();
     await forEachCatalogSlice(incoming, video => {
+      if (isCatalogDeleted(video)) return;
       if (video.remote && retired.has(cleanupKey(video))) {
         if (!youtubeCleanupProtected(video, signals)) return;
         revived.add(cleanupKey(video));
@@ -783,7 +824,7 @@ async function prepareRemotePull(get: () => LibraryState, incoming: LibraryVideo
     const folderCounts = new Map<string, number>();
     const merged = merge ? await mergeRemoteCatalogAsync(base.videos, admission.videos.map(catalogCard)) : base.videos;
     if (merge) await forEachCatalogSlice(merged, video => { folderCounts.set(video.folderId, (folderCounts.get(video.folderId) ?? 0) + 1); }, yieldCatalogTask);
-    if (get().videos === base.videos && get().tags === base.tags && get().metadataProvenance === base.metadataProvenance && getPullSettings() === globalPolicy && get().youtubeCleanup === base.youtubeCleanup
+    if ((catalogDeletionSnapshot()?.revision??0)===deletionRevision && get().videos === base.videos && get().tags === base.tags && get().metadataProvenance === base.metadataProvenance && getPullSettings() === globalPolicy && get().youtubeCleanup === base.youtubeCleanup
       && (!retired.size || get().favorites === base.favorites && get().likes === base.likes && getFeedbackRevision() === feedbackRevision))
       return { base, admission, merged, folderCounts, enriched: { tags, metadataProvenance } };
     known = undefined;
@@ -1571,6 +1612,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     measureInteraction("playback");
     const s = get();
     const video = lookupVideo(s.videos, activeId);
+    if(video&&isCatalogDeleted(video)){get().pushNotice({title:'Title is removed',body:'Restore the chosen title in Settings → Removed titles before opening it.',kind:'system'});return;}
     if (video && isAdultVideo(video, s.folders) && !s.adultsUnlocked) {
       set({ sourceId: "adults" });
       persistNow(get);
@@ -1585,8 +1627,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     else openedPlays.push(activeId);
   },
   openPreview: (previewId, card) => {
-    if (card?.id === previewId) rememberVideo(get().videos, card);
     const state = get(), selected = card ?? lookupVideo(state.videos, previewId);
+    if(selected&&isCatalogDeleted(selected)){get().pushNotice({title:'Title is removed',body:'Restore the chosen title in Settings → Removed titles before opening it.',kind:'system'});return;}
+    if (card?.id === previewId) rememberVideo(get().videos, card);
     if (selected && !isAdultVideo(selected, state.folders)) markRecommendationOpened(selected);
     setPullViewerOpen(true);
     measureInteraction("navigation");
@@ -1596,44 +1639,40 @@ export const useLibrary = create<LibraryState>((set, get) => ({
   closePlayer: () => { measureInteraction('playback'); set({ activeId: null }); },
   hideVideo: (id) => {
     set((s) => ({ hiddenVideos: { ...s.hiddenVideos, [id]: true }, activeId: s.activeId === id ? null : s.activeId, previewId: s.previewId === id ? null : s.previewId }));
+    if(mediaHealthSnapshot()?.entries[id])void chooseMediaRecovery(id,'hidden').catch(()=>undefined);
     persistNow(get);
   },
   unhideVideo: (id) => {
     set((s) => { const hiddenVideos = { ...s.hiddenVideos }; delete hiddenVideos[id]; return { hiddenVideos }; });
+    if(mediaHealthSnapshot()?.entries[id])void chooseMediaRecovery(id,'bookmark').catch(()=>undefined);
     persistNow(get);
   },
-  removeVideo: (id) => {
-    set((s) => {
-      const favorites = { ...s.favorites };
-      const likes = { ...s.likes };
-      const tags = { ...s.tags };
-      const metadataProvenance = { ...s.metadataProvenance };
-      const categories = { ...s.categories };
-      const progress = { ...s.progress };
-      const viewCounts = { ...s.viewCounts };
-      delete favorites[id];
-      delete likes[id];
-      delete tags[id];
-      delete metadataProvenance[id];
-      delete categories[id];
-      delete progress[id];
-      delete viewCounts[id];
-      return {
-        videos: s.videos.filter((video) => video.id !== id),
-        activeId: s.activeId === id ? null : s.activeId,
-        previewId: s.previewId === id ? null : s.previewId,
-        favorites,
-        likes,
-        tags,
-        metadataProvenance,
-        categories,
-        progress,
-        viewCounts,
-        history: s.history.filter((h) => h.id !== id),
-      };
-    });
-    void removeEnrichmentRows([id]).catch(() => undefined);
-    persistNow(get);
+  removeVideo: async (id) => {
+    const video=lookupVideo(get().videos,id);if(!video)return;
+    try{await saveCatalogDeletion(video,isAdultVideo(video,get().folders));set(state=>({videos:state.videos.filter(row=>!isCatalogDeleted(row)),activeId:state.activeId===id?null:state.activeId,previewId:state.previewId===id?null:state.previewId}));get().pushNotice({title:'Title removed',body:'Saved marks are retained. Restore this title from Settings → Removed titles.',kind:'system'});}
+    catch(error){get().pushNotice({title:'Removal was not saved',body:error instanceof Error?error.message:'Existing data was kept.',kind:'system'});}
+  },
+  restoreRemovedVideo:async(id)=>{
+    const chosen=catalogDeletionSnapshot().entries.find(row=>row.id===id);if(!chosen)return;
+    await restoreCatalogDeletion(id);
+    set(state=>({videos:state.videos.some(row=>row.id===id)?state.videos:[...state.videos,chosen.video]}));
+  },
+  applyLocalIdentityMove:async(id,target,proof,revision,file)=>{
+    if(get().scanning)throw Error('Finish the local source scan before changing file identities.');
+    if(get().activeId===id||get().activeId===target.id||sourceIsPinned(id)||sourceIsPinned(target.id))throw Error('Close playback and release these files from Watch Room before changing their identity.');
+    const fresh=await resolveLocalFile(target);if(fresh.size!==proof.size||fresh.lastModified!==proof.lastModified||file.size!==proof.size||file.lastModified!==proof.lastModified)throw Error('The destination changed after verification. Inspect it again.');
+    const inspected=await fingerprintFile(file,new AbortController().signal);if(!sameFileFingerprint(inspected,proof))throw Error('The selected file no longer matches its verified fingerprint.');
+    persistNow(get);await Promise.all([waitForPrefsWrites(),waitForDurableWrites()]);
+    const result=await applyFileIdentityMove(id,target,proof,revision),move=result.moves.find(row=>row.active&&row.canonicalId===id)!;
+    forgetLocalSource(id);rememberVerifiedIdentityFile(id,file);
+    await applyIdentityCatalogView(get,set,move.after,target.id);
+    get().pushNotice({title:'Verified file location applied',body:'The original media ID and all its saved marks were retained. No media files were moved or copied.',kind:'system'});
+  },
+  undoLocalIdentityMove:async(moveId,revision)=>{
+    const chosen=fileIdentitySnapshot().moves.find(row=>row.id===moveId&&row.active);if(!chosen)throw Error('This move is no longer active.');
+    if(get().scanning||get().activeId===chosen.canonicalId||sourceIsPinned(chosen.canonicalId)||sourceIsPinned(chosen.target.id))throw Error('Finish scanning and release playback or room sessions before Undo.');
+    const result=await undoFileIdentityMove(moveId,revision);forgetLocalSource(chosen.canonicalId);
+    await applyIdentityCatalogView(get,set,result.fingerprints[chosen.canonicalId]!.video,chosen.target.id,chosen.target);
   },
   playRelative: (delta, playlist) => {
     const { activeId } = get();
@@ -1679,17 +1718,19 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const providerList = providers === 'all' ? [...ADULT_PULL_PROVIDERS] : [...new Set(providers)];
     const startedAt = Date.now(), pullId = makePullId(), cancellation = getPullCancellationRevision();
     const targets = providerList.map(provider => ADULT_FOLDER_BY_PROVIDER[provider].name);
+    await hydrateAdultArchiveCursors(true);
     const initialCounts = await remoteEntryCounts(get().videos);
+    const initialGrowth = await adultGrowthCounts(get().videos);
     const cleanupRemaining = cleanupBudgets(policy);
     const requestCapacity = replacementRequestBudget(initialCounts, policy, 'adult', cleanupRemaining);
     if (!requestCapacity) throw new Error(ENTRY_LIMIT_MESSAGE);
     if (get().remoteBusy || get().refreshing) throw new Error("A catalog pull is already running.");
-    const maxVideos = Math.min(requestCapacity, policy.adultBatchVideos, Math.max(1, opts?.maxVideos ?? policy.adultBatchVideos));
+    const maxVideos = Math.min(requestCapacity, policy.adultBatchVideos, Math.max(1, opts?.maxVideos ?? policy.adultBatchVideos), opts?.automatic ? adultVideoGoalRemaining(initialGrowth, policy.adultCatalogTarget) : Infinity);
+    if (!maxVideos) return initialCounts.adult;
     const pendingProviders=[...providerList],visitedProviders=new Set<AdultPullProvider>();
     const cursors=loadAdultArchiveCursors(query,order);
-    const checkpoint=(pages:Partial<Record<AdultPullProvider,number|null>>,offsets:Partial<Record<AdultPullProvider,number>>)=>{saveAdultArchiveCursors(query,order,pages,offsets);for(const provider of providerList){const page=pages[provider];if(page!=null)cursors[provider]={page,offset:offsets[provider]??0,query,order,updatedAt:Date.now()};}};
-    const maxWindows=Math.max(providerList.length,Math.ceil(maxVideos/400)+providerList.length*2);
-    const deadline=Date.now()+(opts?.automatic?45_000:120_000);
+    const maxWindows=Math.max(providerList.length,Math.ceil(maxVideos/400)+providerList.length*4);
+    const deadline=Date.now()+(opts?.automatic?90_000:300_000);
     let received = 0, added = 0, done = 0, carryBudget = 0;
     const diagnostics: AdultPullDiagnostic[] = [];
     const counts = new Map<string, number>();
@@ -1727,7 +1768,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             const response = await searchAdultVideos({ data: { query, order, page: nextPage, maxVideos: limit, append: true, providers: [provider], providerPages: { [provider]: nextPage }, providerOffsets: { [provider]: nextOffset }, redditSources: opts?.redditSources } });
             return { ...response, nextPage: response.providerNextPages[provider] ?? null, nextOffset: response.providerNextOffsets[provider] ?? 0 };
           }, turn, { known: provider === 'chaturbate' || provider === 'myfreecams' ? undefined : knownAdultIds, refreshLimit: 32,
-            maxRequests: opts?.automatic ? 4 : 12, maxMs: Math.min(deadline-Date.now(),opts?.automatic ? 12_000 : 20_000) });
+            maxRequests: opts?.automatic ? 12 : 40, maxMs: Math.min(deadline-Date.now(),opts?.automatic ? 20_000 : 40_000) });
           if (!walked.latest) {
             carryBudget += budget;
 
@@ -1744,13 +1785,17 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           fetched = await rotateRemotePull(get, fetched, cleanupRemaining, policyFor);
           let admission = (await prepareRemotePull(get, fetched, undefined, false, policyFor)).admission;
           let videos = admission.videos;
-          if (admission.skipped) result.providerDiagnostics.push({ provider, status: 'empty', titles: 0, detail: ENTRY_LIMIT_MESSAGE });
+          if (admission.skipped) {continueProvider=false;result.providerDiagnostics.push({ provider, status: 'empty', titles: 0, detail: ENTRY_LIMIT_MESSAGE });}
+          const pointFor=(rows:LibraryVideo[],newCount:number)=>{
+            const point=prepareAdultArchiveCheckpoint(query,order,provider,admission.skipped?page:result.providerNextPages[provider]??null,admission.skipped?offset:result.providerNextOffsets[provider]??0,{added:newCount,duplicates:walked.duplicates,received:rows.length},rows.map(row=>row.id));
+            if(walked.error||result.providerDiagnostics.some(row=>row.status==='failed'))point.cursor={...point.cursor,state:'failed',retryAt:Date.now()+5*60000};
+            return point;
+          };
           if (!videos.length) {
             // Empty windows still advance/cool down, without copying the entire
             // catalog and its metadata just to publish an unchanged shelf.
             diagnostics.push(...result.providerDiagnostics);
-            if (!admission.skipped) checkpoint(result.providerNextPages, result.providerNextOffsets);
-            if (walked.error) recordAdultArchiveFailure(query, order, provider);
+            Object.assign(cursors,await commitAdultArchiveWindow([],pointFor([],0)));
             if(continueProvider&&!admission.skipped)pendingProviders.push(provider);
             if (!admission.skipped) carryBudget += budget;
 
@@ -1797,13 +1842,16 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             const nextTags = sparseRecordBuilder(base.tags);
             const nextMetadata = sparseRecordBuilder(base.metadataProvenance);
             const nextVideos = await copyCatalogArray(base.videos, turn);
+            const growthChanges: Array<{ before?: LibraryVideo; after: LibraryVideo }> = [];
             let batchAdded = 0;
             await forEachCatalogSlice(videos, (video, index) => {
               const position = positions.get(video.id);
+              const before = position === undefined ? undefined : base.videos[position];
               if (position === undefined) {
                 positions.set(video.id, nextVideos.length); nextVideos.push(catalogCard(video)); batchAdded++;
                 counts.set(video.folderId, (counts.get(video.folderId) ?? 0) + 1);
               } else {video=retainAdultRefreshEvidence(base.videos[position],video,base.metadataProvenance[video.id]);videos[index]=video;nextVideos[position] = catalogCard(video);}
+              growthChanges.push({ before, after: video });
               const current = base.tags[video.id] ?? [];
               if (tagsLocked(base.metadataProvenance[video.id])) return;
               const inferred = inferredTags.get(video.id) ?? [];
@@ -1816,7 +1864,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             if (latest.videos !== base.videos || latest.tags !== base.tags || latest.metadataProvenance !== base.metadataProvenance || getPullSettings() !== entryPolicy) continue;
             // Save rows before publishing their resume point. Once this write
             // starts it is accepted work, even if Cancel arrives mid-transaction.
-            await appendCatalogVideos(videos);
+            Object.assign(cursors,await commitAdultArchiveWindow(videos,pointFor(videos,batchAdded)));
             await waitForCatalogCommit(cancellation).catch(error => {
               if (getPullCancellationRevision() === cancellation) throw error;
             });
@@ -1831,6 +1879,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
               folders: afterSave.folders.some(row => row.id === folder.id) ? afterSave.folders.map(row => row.id === folder.id ? nextFolder : row) : [...afterSave.folders, nextFolder],
               tags: nextTags.finish(), metadataProvenance: nextMetadata.finish(), adultsUnlocked: true });
             rememberEntryCounts(nextVideos, admission.counts);
+            rememberAdultGrowthChanges(base.videos, nextVideos, growthChanges);
             added += batchAdded; received += fetched.length;
             committed = true;
           }
@@ -1838,13 +1887,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           cacheAdultVideoUrls(videos);
           for (const video of videos) knownAdultIds.add(video.id);
           diagnostics.push(...result.providerDiagnostics);
-          if (!admission.skipped) checkpoint(result.providerNextPages, result.providerNextOffsets);
-          for (const diagnostic of result.providerDiagnostics) if (diagnostic.status === 'failed' && (ADULT_PULL_PROVIDERS as readonly string[]).includes(diagnostic.provider)) recordAdultArchiveFailure(query, order, diagnostic.provider as AdultPullProvider);
           if (!admission.skipped) carryBudget += Math.max(0, budget - admission.added);
         } catch (error) {
           continueProvider=false;
           if (getPullCancellationRevision() !== cancellation) break;
-          recordAdultArchiveFailure(query, order, provider);
+          if(adultArchiveResumeStatus().phase==='error')throw error;
+          Object.assign(cursors,await saveAdultArchiveFailure(query,order,provider));
           diagnostics.push({ provider, status: 'failed', titles: 0, detail: error instanceof Error ? error.message : String(error) });
           carryBudget += Math.max(0, budget - (added - providerAddedBefore));
         }
@@ -1859,6 +1907,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       set({ adultPullStatus: { note: cancelled ? 'Pull cancelled. Accepted entries and archive resume points are saved.' : `${added.toLocaleString()} new entries · ${received.toLocaleString()} received. Archive pages are saved after each small window.${resumable?' More pages remain; use Continue archive.':''}`, diagnostics } });
       get().finishPull({ id: pullId, provider: 'adult', action: 'Catalog pull', startedAt, finishedAt: Date.now(), targets, done, total: providerList.length, received, added, failed: failed.length, status: cancelled || resumable ? 'partial' : failed.length ? received ? 'partial' : 'failed' : received ? 'success' : 'partial', errors: cancelled ? ['Pull cancelled. Accepted entries and archive resume points are saved.'] : failed.map(row => `${row.provider}: ${row.detail}`).slice(0, 12) });
       return [...counts.values()].reduce((sum, count) => sum + count, 0);
+    } catch(error) {
+      const message=error instanceof Error?error.message:String(error);
+      set({adultPullStatus:{note:'Pull stopped. Accepted entries were kept; retry archive recovery before continuing.',diagnostics}});
+      get().finishPull({id:pullId,provider:'adult',action:'Catalog pull',startedAt,finishedAt:Date.now(),targets,done,total:providerList.length,received,added,failed:1,status:received?'partial':'failed',errors:[message]});
+      throw error;
     } finally { set({ remoteBusy: false, importProgress: null }); }
   },
   addFolder: async (inputEl, startIn, opts) => {
@@ -2038,6 +2091,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
 
 
     beginStartupPhase('preferences');
+    await Promise.all([hydrateCatalogDeletions(),hydrateFileIdentities(),hydrateMediaHealth(),loadHiddenSources()]).catch(()=>undefined);
     set({ pullHistory: loadPullHistory() });
     await recoverCatalogMutations().catch(() => undefined);
     await restoreDurablePrefs().catch(() => undefined);
@@ -2064,6 +2118,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     // Restore preferences without replacing that newer navigation decision.
     preferencesRestored = true;
     set((s) => ({ ...prefsState, ...(navigationChanged ? { sourceId: s.sourceId } : {}) }));
+    get().reconcileMediaRecovery();
     finishStartupPhase('preferences');
     // Keep the durable activity journal separate from broad preferences. It
     // merges after first paint, so a massive tag payload cannot wipe history
@@ -2236,7 +2291,13 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     // single background refresh, avoiding two competing refreshes and rail flicker.
     beginStartupPhase('localRead');
     try {
-      const [storedCatalog, healthRows] = await Promise.all([loadCatalogVideos(), loadSourceHealth()]);
+      const controller=new AbortController();localReadCancellation=controller;
+      const changed=()=>{if(!restoreWritable())controller.abort(new DOMException('The workspace generation changed. Reload before reading more catalog pages.','AbortError'));};
+      const storage=(event:StorageEvent)=>{if(event.key===RESTORE_HEAD)changed();};
+      if(typeof window!=='undefined'){window.addEventListener(RESTORE_EVENT,changed);window.addEventListener('storage',storage);}
+      let storedCatalog:LibraryVideo[],healthRows:Awaited<ReturnType<typeof loadSourceHealth>>;
+      try{[storedCatalog,healthRows]=await Promise.all([loadCatalogVideos({signal:controller.signal,beforeRead:()=>yieldNavigationTask(controller.signal)}),loadSourceHealth()]);}
+      finally{if(localReadCancellation===controller)localReadCancellation=undefined;if(typeof window!=='undefined'){window.removeEventListener(RESTORE_EVENT,changed);window.removeEventListener('storage',storage);}}
       finishStartupPhase('localRead', storedCatalog.length);
       beginStartupPhase('localPrepare');
       savedHealth = new Map(healthRows.map((entry) => [entry.id, entry]));
@@ -2398,66 +2459,37 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     return restoreCompletion;
   },
   restoreOne: async (folderId) => {
-    const handle = getDirHandle(folderId);
-    if (!handle) return;
-    const ok = await requestDirPermission(handle);
-    if (!ok) return;
-    const folder = get().folders.find((f) => f.id === folderId);
-    const name = folder?.name ?? handle.name;
-    const resumeByPath = new Map(get().videos.filter((video) => video.folderId === folderId).map((video) => [video.path, get().progress[video.id]]));
-    const retainedRecoveryIds = new Set([
-      ...get().history.map((entry) => entry.id),
-      ...Object.keys(get().favorites),
-      ...Object.keys(get().likes),
-    ]);
-    set((s) => ({
-      scanning: { found: 0, looked: 0, folderName: name },
-      // Keep history, favorites, and likes visible while a folder is being
-      // rebuilt. A scan must never make the recovery views look empty merely
-      // because their source is between batches.
-      videos: s.videos.filter((v) => v.folderId !== folderId || retainedRecoveryIds.has(v.id)),
-      unavailable: Object.fromEntries(Object.entries(s.unavailable).filter(([id]) => !s.videos.some((video) => video.id === id && video.folderId === folderId))),
-      folders: s.folders.map((f) =>
-        f.id === folderId ? { ...f, videoCount: 0, needsPermission: false } : f,
-      ),
-    }));
-    let writeChain: Promise<void> = clearFolderVideos(folderId).catch(() => undefined);
-    const videos = await ingestDirectoryHandle(handle, folderId, {
-      onProgress: (p) => set({ scanning: p }),
-      onBatch: (batch) => {
-        if (!batch.length) return;
-        set((s) => ({
-          videos: s.videos.concat(batch.filter((video) => !s.videos.some((existing) => existing.id === video.id))),
-          folders: s.folders.map((f) =>
-            f.id === folderId
-              ? { ...f, videoCount: (f.videoCount ?? 0) + batch.length }
-              : f,
-          ),
-        }));
-        writeChain = writeChain.then(() => appendCatalogVideos(batch)).catch(() => undefined);
-      },
-    });
-    await writeChain;
-    const recoveredProgress = videos.reduce<Record<string, ProgressMark>>((next, video) => {
-      const mark = resumeByPath.get(video.path);
-      if (mark) next[video.id] = mark;
-      return next;
-    }, {});
-    set((s) => ({
-      folders: s.folders.map((f) =>
-        f.id === folderId ? { ...f, videoCount: videos.length, needsPermission: false } : f,
-      ),
-      scanning: null,
-      progress: { ...s.progress, ...recoveredProgress },
-    }));
-    if (videos.length) await saveFolderVideos(folderId, videos).catch(() => undefined);
+    if(get().scanning)throw Error('Finish the current source scan before rescanning another folder.');
+    const handle=getDirHandle(folderId);if(!handle)throw Error('Reconnect this saved source or add its destination for verified identity review.');
+    if(!await requestDirPermission(handle))throw Error('Permission was not granted. Existing bookmarks were kept.');
+    const folder=get().folders.find(f=>f.id===folderId),name=folder?.name??handle.name;
+    set({scanning:{found:0,looked:0,folderName:name}});
+    let writeChain:Promise<void>=Promise.resolve();
+    try{
+      const scanned=await ingestDirectoryHandle(handle,folderId,{onProgress:p=>set({scanning:p})}),candidates=new Map(scanned.map(video=>[video.id,video])),oldRows=new Map<string,LibraryVideo>();
+      await forEachCatalogSlice(get().videos,video=>{if(candidates.has(video.id))oldRows.set(video.id,video);},yieldCatalogTask);
+      const videos:LibraryVideo[]=[];
+      for(const video of scanned){const old=oldRows.get(video.id);if(old&&!video.localIdentity&&(old.size!==video.size||(fileIdentitySnapshot()?.fingerprints??{})[old.id])){const {inspectLocalMedia}=await import('./local-media-health');const inspected=await inspectLocalMedia(old,new AbortController().signal);if(inspected.status!=='available'){await saveMediaObservation({video:old,private:isAdultVideo(old,get().folders),basis:mediaBasis(old)!,...inspected,at:Date.now()});continue;}}videos.push(video);}
+      writeChain=appendCatalogVideos(videos);await writeChain;
+      const byId=new Map(videos.map(video=>[video.id,video]));let admitted=false;
+      for(let attempt=0;attempt<3&&!admitted;attempt++){const base=get().videos,rows:LibraryVideo[]=[],seen=new Set<string>();await forEachCatalogSlice(base,video=>{const next=byId.get(video.id)??video;if(!isCatalogDeleted(next)){rows.push(next);seen.add(next.id);}},yieldCatalogTask);await forEachCatalogSlice(videos,video=>{if(!seen.has(video.id)&&!isCatalogDeleted(video))rows.push(video);},yieldCatalogTask);if(get().videos!==base)continue;set({videos:rows});admitted=true;}
+      if(!admitted)throw Error('The checked catalog was saved while this library changed. Refresh the shared catalog to display it.');
+      const found=new Set(videos.map(video=>video.id));
+      set(state=>({unavailable:Object.fromEntries(Object.entries(state.unavailable).filter(([id])=>!found.has(id))),folders:state.folders.map(f=>f.id===folderId?{...f,needsPermission:false,health:'healthy',lastCheckedAt:Date.now(),videoCount:state.videos.filter(video=>video.folderId===folderId).length}:f)}));
+      // An absent directory entry is not proof of deletion. All prior bookmarks,
+      // IDs and personal marks stay put; approved aliases verify their contents.
+      for(const video of videos){if(!mediaHealthSnapshot()?.entries[video.id])continue;await saveMediaObservation({video,private:isAdultVideo(video,get().folders),basis:mediaBasis(video)!,status:'available',code:video.localIdentity?'verified-contents':'readable-granted-file',at:Date.now()});}
+      flushPersist(get);
+    }catch(error){await writeChain.catch(()=>undefined);const permission=await queryDirPermission(handle).catch(()=>null);set(state=>({folders:state.folders.map(f=>f.id===folderId?{...f,health:'cached',needsPermission:permission!=='granted'}:f)}));throw error;}
+    finally{set({scanning:null});}
   },
   repairArtworkSource: async (folderId) => {
     const handle = getDirHandle(folderId);
     // Never surprise the user with a folder-permission prompt while cards are
     // rendering. A granted companion/browser handle can be safely rescanned.
     if (!handle || (await queryDirPermission(handle)) !== "granted") return false;
-    await get().restoreOne(folderId);
+    // The selected-card retry resolves its file directly through this grant.
+    // Artwork must not start a directory rebuild or full fingerprint reads.
     return true;
   },
   refreshSourcePhotos: async (folderId) => {
@@ -2484,51 +2516,17 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     }
   },
   removeFolder: async (folderId) => {
-    if (folderId === "demo") {
-      get().setHideDemo(true);
-      return;
-    }
-    const ids = get()
-      .videos.filter((v) => v.folderId === folderId)
-      .map((v) => v.id);
-    forgetFolder(folderId, ids);
-    set((s) => {
-      const favorites = { ...s.favorites };
-      const likes = { ...s.likes };
-      const tags = { ...s.tags };
-      const metadataProvenance = { ...s.metadataProvenance };
-      const categories = { ...s.categories };
-      const progress = { ...s.progress };
-      for (const id of ids) {
-        delete favorites[id];
-        delete likes[id];
-        delete tags[id];
-        delete metadataProvenance[id];
-        delete categories[id];
-        delete progress[id];
-      }
-      return {
-        folders: s.folders.filter((f) => f.id !== folderId),
-        videos: s.videos.filter((v) => v.folderId !== folderId),
-        favorites,
-        likes,
-        tags,
-        metadataProvenance,
-        categories,
-        progress,
-        history: s.history.filter((h) => !ids.includes(h.id)),
-        sourceId: s.sourceId === folderId ? "home" : s.sourceId,
-        activeId: s.activeId && ids.includes(s.activeId) ? null : s.activeId,
-        previewId: s.previewId && ids.includes(s.previewId) ? null : s.previewId,
-      };
-    });
+    const state=get(),folder=state.folders.find(row=>row.id===folderId);
+    if(folderId==='demo'){get().setHideDemo(true);return;}
+    if(!folder||!['directory','files'].includes(folder.kind??''))throw Error('Only local sources can be hidden here.');
+    if(state.scanning)throw Error('Finish the current source scan before hiding a source.');
+    if(state.activeId||state.previewId)throw Error('Close the player and preview before hiding a source.');
+    const ids=state.videos.filter(row=>row.folderId===folderId).map(row=>row.id);
+    if(ids.some(sourceIsPinned))throw Error('Release this source from Watch Room before hiding it.');
+    await hideLocalSource(folder);
+    forgetFolder(folderId,ids);
+    set(s=>({folders:s.folders.filter(row=>row.id!==folderId),videos:s.videos.filter(row=>row.folderId!==folderId),sourceId:s.sourceId===folderId?'home':s.sourceId}));
     persistNow(get);
-    try {
-      await removeEnrichmentRows(ids).catch(() => undefined);
-      await deleteDirHandle(folderId);
-    } catch {
-      // ignore
-    }
   },
   followRemoteQuery: async (query, kind = "auto", opts) => {
     if (get().remoteBusy || get().refreshing) throw new Error("A catalog pull is already running.");
@@ -2556,6 +2554,11 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       requested = true;
       const fetched = await followRemote({ data: { query, kind, ...(opts?.freshTwitchClips ? {freshTwitchClips:true} : {}), ...(opts?.twitchClipMode ? { twitchClipMode: opts.twitchClipMode } : {}), ...(opts?.clipLimit !== undefined ? { clipLimit: opts.clipLimit } : {}), ...(opts?.twitchVodLimit ? { twitchVodLimit: opts.twitchVodLimit } : {}), ...(knownYoutube && !opts?.restartPlaylist ? { catalogCursor: knownYoutube.catalogCursor, playlistWalk: knownYoutube.playlistWalk } : {}), ...(knownTwitch?.twitchArchiveCursor ? { twitchArchiveCursor: knownTwitch.twitchArchiveCursor } : {}), ...(knownTwitch?.twitchClipCursor ? { twitchClipCursor: knownTwitch.twitchClipCursor } : {}) } });
       const result = correction ? bindYoutubeCorrection(fetched, correction, query) : fetched;
+      if(result.channel.kind==='twitch'){
+        if(knownTwitch){assertTwitchContinuity(knownTwitch,result.channel);if(!twitchObservationCurrent(get().follows.find(c=>c.id===knownTwitch.id)??knownTwitch,knownTwitch))throw Error('The Twitch identity changed while this pull was running. Retry.');result.channel={...result.channel,id:knownTwitch.id,twitchAliasRevision:knownTwitch.twitchAliasRevision,twitchAliases:knownTwitch.twitchAliases,twitchCreatorKey:knownTwitch.twitchCreatorKey};}
+        else {const owner=get().follows.find(c=>c.kind==='twitch'&&c.channelId&&c.channelId===result.channel.channelId);if(owner&&canonicalFollowHandle('twitch',owner.handle)!==canonicalFollowHandle('twitch',result.channel.handle))throw Error('This Twitch user already has a saved follow. Review its new login in Manage creator.');result.channel=separateTwitchIdentity(get().follows,result.channel);}
+        result.videos=result.videos.map(v=>bindTwitchSource(v,result.channel));
+      }
       const received = result.videos.length;
       if (clipsOnly && !received) {
         set(s => {
@@ -2624,7 +2627,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       throw err;
     }
   },
-  importBatch: async (items) => {
+  importBatch: async (items, opts) => {
     if (get().remoteBusy || get().refreshing) throw new Error("A catalog pull is already running.");
     if (items.some(item => item.kind === 'youtube') && (get().youtubeRefreshStatus?.retryAt ?? 0) > Date.now()) throw new Error(youtubeCooldownMessage(get().youtubeRefreshStatus!.retryAt!));
     const savedHandles = new Set(['youtube','twitch'].flatMap(kind => [...resolvedFollowQueries(get().follows, kind as 'youtube' | 'twitch')].map(key => `${kind}:${key}`)));
@@ -2667,19 +2670,19 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     // Provider requests inside each import now honor the configured gap too.
     // Size a job for its network budget instead of letting 20 display-name
     // lookups overrun the connection timeout at slow pacing settings.
-    const chunk = unique.some(item => item.kind === 'youtube') ? 1 : 20;
+    const chunk = unique.some(item => item.kind === 'youtube') ? opts?.identityOnly ? 4 : 1 : 20;
     try {
       for (let i = 0; i < unique.length; i += chunk) {
         if (getPullCancellationRevision() !== cancellation) break;
-        const counts = await remoteEntryCounts(get().videos);
+        const counts = opts?.identityOnly ? EMPTY_ENTRY_COUNTS : await remoteEntryCounts(get().videos);
         const slice = unique.slice(i, i + chunk).filter(item => {
-          if (remainingEntrySlots(counts, getPullSettings(), item.kind) || canRotateForGroup(counts, getPullSettings(), item.kind, cleanupRemaining)) return true;
+          if (opts?.identityOnly || remainingEntrySlots(counts, getPullSettings(), item.kind) || canRotateForGroup(counts, getPullSettings(), item.kind, cleanupRemaining)) return true;
           failed++; failedQueries.push(item.query); failedReasons[item.query] = ENTRY_LIMIT_MESSAGE; return false;
         });
         if (!slice.length) continue;
         let result: Awaited<ReturnType<typeof importChannels>>;
         try {
-          result = await importChannels({ data: { items: slice } });
+          result = await importChannels({ data: { items: slice, ...(opts?.identityOnly ? {identityOnly:true} : {}) } });
         } catch (error) {
           if (getPullCancellationRevision() !== cancellation) break;
           failed += slice.length;
@@ -2712,6 +2715,34 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             const cooldown = { retryAt: importRetryAt, error: Object.values(result.failedReasons ?? {})[0] ?? youtubeCooldownMessage(importRetryAt), cooldownScope: result.providerCooldownScope === 'all' ? 'all' as const : 'catalog' as const };
             saveYoutubeCooldown(cooldown);
             set(s => ({ youtubeRefreshStatus: { ...(s.youtubeRefreshStatus ?? { at: Date.now(), checked: 0, refreshed: 0, failed: 0, youtube: 0, twitch: 0 }), ...cooldown } }));
+            break;
+          }
+          continue;
+        }
+        result.ok=result.ok.filter(row=>{
+          if(row.channel.kind!=='twitch'){
+            if(opts?.identityOnly){const owner=get().follows.find(c=>c.kind==='youtube'&&confirmedYoutubeChannelId(c)===row.channel.channelId);if(owner)row.channel={...owner,...row.channel,id:owner.id,importNeedsReview:undefined};}
+            return true;
+          }
+          const owner=get().follows.find(c=>c.kind==='twitch'&&c.channelId&&c.channelId===row.channel.channelId);
+          if(owner&&canonicalFollowHandle('twitch',owner.handle)!==canonicalFollowHandle('twitch',row.channel.handle)){failed++;ok--;failedQueries.push(row.channel.handle);failedReasons[row.channel.handle]='Review this saved creator’s new login before importing it.';return false;}
+          row.channel=owner?retainTwitchSourceIdentity(owner,row.channel):separateTwitchIdentity(get().follows,row.channel);row.videos=row.videos.map(v=>bindTwitchSource(v,row.channel));return true;
+        });
+        if (opts?.identityOnly) {
+          // Identity verification has no media admission or cleanup. In
+          // particular, do not traverse/rewrite a 100k catalog for each name.
+          set(s => {
+            let follows = s.follows;
+            for (const row of result.ok) follows = mergeResolvedFollow(follows, row.channel);
+            return { follows: dedupeFollows(follows), importProgress: {done:Math.min(i+slice.length,unique.length),total:unique.length,label:'Matching creator identities'} };
+          });
+          saveFollows(get().follows);
+          get().updatePull({done:Math.min(i+slice.length,unique.length),received:0,added:0,failed});
+          if (result.providerRetryAt) {
+            importRetryAt = result.providerRetryAt;
+            const cooldown = {retryAt:importRetryAt,error:Object.values(result.failedReasons??{})[0]??youtubeCooldownMessage(importRetryAt),cooldownScope:result.providerCooldownScope==='all'?'all' as const:'catalog' as const};
+            saveYoutubeCooldown(cooldown);
+            set(s=>({youtubeRefreshStatus:{...(s.youtubeRefreshStatus??{at:Date.now(),checked:0,refreshed:0,failed:0,youtube:0,twitch:0}),...cooldown}}));
             break;
           }
           continue;
@@ -2774,7 +2805,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       const added = get().follows.filter((f) => !existing.has(f.id)).length;
       if (getPullCancellationRevision() === cancellation) get().pushNotice({
         title: `Imported ${added || ok} channel${(added || ok) === 1 ? "" : "s"}`,
-        body: importRetryAt ? `${ok + failed} of ${unique.length} checked. ${youtubeCooldownMessage(importRetryAt)}` : failed ? `${failed} need attention. Open the importer for the saved reason list.` : "Latest uploads are on the shelves.",
+        body: importRetryAt ? `${ok + failed} of ${unique.length} checked. ${youtubeCooldownMessage(importRetryAt)}` : failed ? `${failed} need attention. Open the importer for the saved reason list.` : opts?.identityOnly ? 'Creator identities verified. Use the normal archive controls to pull their videos.' : "Latest uploads are on the shelves.",
         kind: unique[0]?.kind === "twitch" ? "twitch" : "youtube",
       });
       set({
@@ -2838,6 +2869,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       folders: [...prepared.base.folders.filter(row => row.id !== folder.id), { ...folder, videoCount: prepared.folderCounts.get(folder.id) ?? 1 }] });
     await appendCatalogVideos(prepared.admission.videos.map(catalogCard),prepared.enriched);
     persistNow(get); return true;
+  },
+  applyTwitchAlias:async(id,evidence)=>{
+    if(get().remoteBusy||get().refreshing||get().scanning)throw Error('Wait for the current library operation before applying an alias.');
+    const source=get().follows.find(c=>c.id===id&&c.kind==='twitch');if(!source)throw Error('This follow is no longer saved.');
+    set({remoteBusy:true});try{persistNow(get);await waitForDurableWrites();
+    const follows=await applyTwitchAliasReview(source,evidence);set({follows});persistNow(get);await waitForDurableWrites();}finally{set({remoteBusy:false});}
   },
   refreshFollows: async (kind, options) => {
     const liveOnly = Boolean(options?.youtubeLiveOnly || options?.twitchLiveOnly);
@@ -3163,7 +3200,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         });
       }
       const stillFollowed = new Set(get().follows.map(channel => channel.id));
-      result.channels = result.channels.filter(channel => stillFollowed.has(channel.id));
+      const currentFollows=new Map(get().follows.map(c=>[c.id,c]));
+      const acceptedIdentities=new Set(result.channels.filter(c=>currentFollows.has(c.id)&&twitchObservationCurrent(currentFollows.get(c.id)!,c)).map(c=>c.id));
+      result.channels = result.channels.filter(channel => stillFollowed.has(channel.id)&&acceptedIdentities.has(channel.id));
+      result.videos=result.videos.filter(v=>acceptedIdentities.has(v.folderId));
+      result.refreshedIds=result.refreshedIds.filter(id=>acceptedIdentities.has(id));
+      if(result.liveCheckedIds)result.liveCheckedIds=result.liveCheckedIds.filter(id=>acceptedIdentities.has(id));
       result.videos = result.videos.filter(video => stillFollowed.has(video.folderId));
       result.refreshedIds = result.refreshedIds.filter(id => stillFollowed.has(id));
       const providerReceived = result.videos.length;
@@ -3485,9 +3527,27 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     set({ notifyPush });
     persistNow(get);
   },
+  reconcileMediaRecovery:()=>{set(state=>{const hiddenVideos={...state.hiddenVideos},unavailable={...state.unavailable};for(const row of Object.values(mediaHealthSnapshot()?.entries??{})){if(row.choice==='hidden')hiddenVideos[row.video.id]=true;if(row.choice==='bookmark'||row.status==='available')delete unavailable[row.video.id];}return {hiddenVideos,unavailable};});},
+  reconnectMediaSource:async(folderId)=>{const handle=getDirHandle(folderId);if(!handle)throw Error('No saved directory grant is available. Add the destination folder, then use verified identity review; filenames alone cannot reconnect it.');if(!await requestDirPermission(handle))throw Error('Folder permission was not granted. Existing bookmarks were kept.');set(state=>({folders:state.folders.map(folder=>folder.id===folderId?{...folder,needsPermission:false}:folder)}));},
+  checkMediaHealth:async(video,signal=new AbortController().signal)=>{
+    signal.throwIfAborted();if(isAdultVideo(video,get().folders)&&!get().adultsUnlocked)throw Error('Unlock private media before checking this title.');if(isCatalogDeleted(video))throw Error('Restore this deliberately removed title before checking it.');
+    const basis=mediaBasis(video);if(!basis)throw Error('Choose a local file, Twitch VOD or clip.');
+    let observation:{status:import('./media-health').MediaStatus;code:string};
+    if(video.remote){const identity=video.remote.kind==='twitch'?await import('./twitch-identity').then(m=>m.twitchIdentity(video.remote!,video.extension)):undefined;if(!identity||identity.kind==='live')throw Error('Live channels use the Live checker.');const url=identity.kind==='vod'?'https://www.twitch.tv/videos/'+identity.value:'https://clips.twitch.tv/'+identity.value;const {checkTwitchMedia}=await import('../remote/functions');const report=await checkTwitchMedia({data:{url}});signal.throwIfAborted();if(report.identity.kind!==identity.kind||report.identity.value!==identity.value)throw Error('Twitch returned a different media identity. Existing observation was kept.');observation={status:report.state,code:report.code};}
+    else {const {inspectLocalMedia}=await import('./local-media-health');observation=await inspectLocalMedia(video,signal);}
+    signal.throwIfAborted();const current=lookupVideo(get().videos,video.id);if(current&&mediaBasis(current)!==basis)throw Error('The title changed while its check was running. Review it again.');if(isCatalogDeleted(video))throw Error('The removed title was kept excluded.');
+    await saveMediaObservation({video:current??video,private:isAdultVideo(current??video,get().folders),basis,...observation,at:Date.now()});
+    if(observation.status==='available')set(state=>{const unavailable={...state.unavailable};delete unavailable[video.id];return {unavailable};});persistNow(get);
+  },
+  chooseMediaRecovery:async(id,choice)=>{await hydrateMediaHealth();const row=mediaHealthSnapshot().entries[id];if(!row)throw Error('Check this title before choosing its recovery action.');if(isCatalogDeleted(row.video))throw Error('Restore this title from Removed titles first.');
+    if(choice==='bookmark'){if(row.video.remote)await saveRemoteSnapshot({videos:[row.video],folders:[],checkedAt:Date.now()},false,true);else await appendCatalogVideos([row.video]);}
+    await chooseMediaRecovery(id,choice);set(state=>{const hiddenVideos={...state.hiddenVideos},unavailable={...state.unavailable};if(choice==='hidden')hiddenVideos[id]=true;else if(choice==='bookmark'){delete hiddenVideos[id];delete unavailable[id];}return {hiddenVideos,unavailable,videos:state.videos.some(v=>v.id===id)?state.videos:[...state.videos,row.video]};});persistNow(get);
+  },
   markUnavailable: (id, reason) => {
     const video = lookupVideo(get().videos, id);
-    if (!video || (video.remote && video.remote.kind !== "reddit")) return;
+    if(!video)return;
+    if(!video.remote||video.remote.kind==='twitch'){const basis=mediaBasis(video);const old=mediaHealthSnapshot()?.entries[video.id];if(old?.status==='content-mismatch')return;if(basis&&(!old||old.status!=='playback-error'||Date.now()-old.at>60_000))void saveMediaObservation({video,private:isAdultVideo(video,get().folders),basis,status:'playback-error',at:Date.now(),code:'player-error'}).catch(()=>get().pushNotice({title:'Recovery observation was not saved',body:'Your title and saved marks were kept. Retry from Settings → Media recovery.',kind:'system'}));return;}
+    if(video.remote.kind!=='reddit')return;
     if (get().unavailable[id]) return;
     set((s) => ({ unavailable: { ...s.unavailable, [id]: true } }));
     get().pushNotice({ title: "Hidden unavailable video", body: `${video.name} · ${reason}`, kind: "system" });
@@ -3525,6 +3585,7 @@ let youtubeSelectorSnapshot: {
 // A visibility event with no edits must not write another full library snapshot.
 if (typeof window !== 'undefined') {
   const flushPending = () => {
+    if(!restoreWritable())return;
     openedPlays.flush();
     if (persistTimer != null || cancelPrefsSave) flushPersist(useLibrary.getState);
     else if (cancelActivitySave) {
@@ -3744,7 +3805,7 @@ function historyResolver(state: LibraryState, adult: boolean, byId: ReadonlyMap<
       if (cached) return cached;
       const live = byId.get(h.id)?.[0];
       if (live) {
-        if (state.hiddenVideos[live.id] || state.hideDemo && live.isSample) return null;
+        if (isCatalogDeleted(live) || state.hiddenVideos[live.id] || state.hideDemo && live.isSample) return null;
         const isAdult = videoIsPrivate(adultIds,live);
         if (adult === isAdult) return live;
         if (!adult && isAdult) return null;
@@ -3771,7 +3832,7 @@ function historyResolver(state: LibraryState, adult: boolean, byId: ReadonlyMap<
       if (adult && !adultKind) return null;
       const signature = `${h.at}:${h.url}:${h.position ?? ""}:${h.duration ?? ""}:${h.title ?? ""}`;
       const cachedRecovery = historyRecoveryCardCache.get(h.id);
-      if (cachedRecovery?.signature === signature) return cachedRecovery.video;
+      if (cachedRecovery?.signature === signature) return isCatalogDeleted(cachedRecovery.video)?null:cachedRecovery.video;
       const recovered = {
         id: h.id,
         folderId: adultKind ? `history:recovery:${adultKind}` : "history:recovery",
@@ -3792,6 +3853,7 @@ function historyResolver(state: LibraryState, adult: boolean, byId: ReadonlyMap<
           watchUrl: h.url,
         } : undefined,
       } as LibraryVideo;
+      if(isCatalogDeleted(recovered))return null;
       historyRecoveryCardCache.set(h.id, { signature, video: recovered });
       // History itself is intentionally limitless; this render-only cache is
       // bounded so an old provider link cannot keep every past card in memory.
@@ -4142,6 +4204,7 @@ export async function rebaseSharedCatalog(){
  if(!useLibrary.getState().hydrated)throw Error('Wait for library recovery before refreshing another tab’s changes.');
  if(useLibrary.getState().scanning)throw Error('Wait for this tab’s local import to finish before refreshing shared catalog changes.');
  return withCatalogRead(async()=>{
+   await hydrateCatalogDeletions();
   await recoverCatalogMutations();
   for(let attempt=0;attempt<3;attempt++){
    const base=useLibrary.getState();
@@ -4160,4 +4223,34 @@ export async function rebaseSharedCatalog(){
   }
   throw Error('This tab is still changing. Retry the cross-tab refresh after current work settles.');
  });
+}
+
+/** Explicit restore boundary: finish current personal checkpoints before freezing a generation. */
+export async function checkpointLibraryForRestore(){
+ if(restoreCompletion)await restoreCompletion;const s=useLibrary.getState();
+ if(!s.hydrated||!preferencesRestored)throw Error('Wait for the saved library to finish loading.');
+ if(s.remoteBusy||s.refreshing||s.scanning||s.activeId||s.previewId)throw Error('Finish the current pull, import or player before restoring.');
+ const {flushFeedbackForRestore}=await import('../media-feedback');flushFeedbackForRestore();
+ await recoverCatalogMutations();durableSliceWriter.reset();flushPersist(useLibrary.getState);persistNow(useLibrary.getState);
+ await Promise.all([waitForDurableWrites(),waitForPrefsWrites(),waitForFollowsWrites()]);
+}
+
+/** Explicit recoverable History reset. The shared restore receipt owns failure recovery. */
+export async function clearWatchHistoryWithRecovery(){
+ await checkpointLibraryForRestore();
+ const {prepareLibraryRestore,activateLibraryRestore}=await import('./persist');
+ const {withoutWatchHistory}=await import('./history-reset');
+ await prepareLibraryRestore('Clear watching history',{},'0'.repeat(64),async base=>withoutWatchHistory(base));
+ await activateLibraryRestore();location.reload();
+}
+
+/** Flush the old namespace before full reload; late transactions remain in its DB. */
+export async function checkpointLibraryForProfileSwitch(){
+ const current=useLibrary.getState();
+ if(current.remoteBusy||current.refreshing||current.scanning)throw Error('Finish the active pull or source scan before switching profiles.');
+ cancelCatalogHydration();current.closePlayer();current.closePreview();
+ if(restoreCompletion)await restoreCompletion;
+ await checkpointLibraryForRestore();
+ const {catalogWriter}=await import('./persist');
+ if(catalogWriter.current())throw Error('A catalog write is still finishing. The current profile was kept; retry when it completes.');
 }

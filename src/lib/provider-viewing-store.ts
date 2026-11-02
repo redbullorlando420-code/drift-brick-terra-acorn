@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
 import {loadProviderViewingSync,restoreProviderViewing,saveProviderViewing} from './videos/persist';
 import {EMPTY_PROVIDER_VIEWING,newestProviderViewing,normalizeProviderViewing,parseProviderViewing,type ProviderViewing} from './videos/provider-viewing.ts';
 type Snapshot={ledger:ProviderViewing;status:'saved'|'pending'|'failed';ready:boolean;legacyMfc:boolean};

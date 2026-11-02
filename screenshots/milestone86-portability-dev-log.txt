@@ -1,0 +1,37 @@
+{"mobile":false,"check":"Actual settings export contains only allowlisted fields; reviewed import creates a new profile with checked fields only and no automatic switch; the chosen view is applied on activation"}
+{"mobile":false,"check":"Real streaming and ZIP downloads identify Alpha; inspection in Beta names the current destination and cannot prepare a restore before explicit review"}
+{"mobile":false,"check":"Unlabelled legacy backups retain their existing inspection path; future source-profile metadata is blocked without selecting or changing a destination"}
+{"mobile":false,"check":"Malformed/future/oversized settings, duplicate destination and storage quota fail safely; retry creates a distinct profile without touching the current profile or Default sentinel"}
+{"mobile":false,"check":"Imported settings and selected profile survive reload; discard is read-only; desktop/mobile layouts have no overflow or uncaught errors"}
+{"mobile":true,"check":"Actual settings export contains only allowlisted fields; reviewed import creates a new profile with checked fields only and no automatic switch; the chosen view is applied on activation"}
+{"mobile":true,"check":"Real streaming and ZIP downloads identify Alpha; inspection in Beta names the current destination and cannot prepare a restore before explicit review"}
+{"mobile":true,"check":"Unlabelled legacy backups retain their existing inspection path; future source-profile metadata is blocked without selecting or changing a destination"}
+{"mobile":true,"check":"Malformed/future/oversized settings, duplicate destination and storage quota fail safely; retry creates a distinct profile without touching the current profile or Default sentinel"}
+{"mobile":true,"check":"Imported settings and selected profile survive reload; discard is read-only; desktop/mobile layouts have no overflow or uncaught errors"}
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Actual settings export contains only allowlisted fields; reviewed import creates a new profile with checked fields only and no automatic switch; the chosen view is applied on activation",
+        "Real streaming and ZIP downloads identify Alpha; inspection in Beta names the current destination and cannot prepare a restore before explicit review",
+        "Unlabelled legacy backups retain their existing inspection path; future source-profile metadata is blocked without selecting or changing a destination",
+        "Malformed/future/oversized settings, duplicate destination and storage quota fail safely; retry creates a distinct profile without touching the current profile or Default sentinel",
+        "Imported settings and selected profile survive reload; discard is read-only; desktop/mobile layouts have no overflow or uncaught errors"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Actual settings export contains only allowlisted fields; reviewed import creates a new profile with checked fields only and no automatic switch; the chosen view is applied on activation",
+        "Real streaming and ZIP downloads identify Alpha; inspection in Beta names the current destination and cannot prepare a restore before explicit review",
+        "Unlabelled legacy backups retain their existing inspection path; future source-profile metadata is blocked without selecting or changing a destination",
+        "Malformed/future/oversized settings, duplicate destination and storage quota fail safely; retry creates a distinct profile without touching the current profile or Default sentinel",
+        "Imported settings and selected profile survive reload; discard is read-only; desktop/mobile layouts have no overflow or uncaught errors"
+      ],
+      "errors": []
+    }
+  ]
+}

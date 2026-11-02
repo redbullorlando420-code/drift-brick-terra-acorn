@@ -116,6 +116,11 @@ try {
       throw new Error('HTML contains literal null bytes that can truncate the client hydration script');
     }
     await page.waitForTimeout(1000);
+    // A recovery/loading gate is visible content, but it is not a ready app.
+    // Wait for bootstrap instead of accepting its short status text as Home.
+    if (await page.locator('[data-workspace-loading]').count()) {
+      await page.locator('[data-workspace-loading]').waitFor({state:'detached',timeout:timeoutMs});
+    }
     let hydrationVerified = null;
     if (await page.locator('[data-home-ready]').count()) {
       await page.locator('[data-home-ready="true"]').waitFor({ timeout: timeoutMs });

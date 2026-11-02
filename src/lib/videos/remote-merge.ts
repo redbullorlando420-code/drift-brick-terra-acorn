@@ -45,6 +45,7 @@ function sameRemote(left: LibraryVideo["remote"], right: LibraryVideo["remote"])
     && left.views === right.views
     && left.embedUrl === right.embedUrl
     && left.watchUrl === right.watchUrl
+    && left.twitchCreatorKey === right.twitchCreatorKey
     && left.previewUrl === right.previewUrl
     && sameList(left.sourceKinds, right.sourceKinds)
     && sameList(left.sourceIds, right.sourceIds)
@@ -66,6 +67,13 @@ function sameVideo(left: LibraryVideo, right: LibraryVideo) {
     && left.duration === right.duration
     && left.addedAt === right.addedAt
     && left.isSample === right.isSample
+    && left.privateRetention === right.privateRetention
+    && left.localIdentity?.canonicalId === right.localIdentity?.canonicalId
+    && left.localIdentity?.targetId === right.localIdentity?.targetId
+    && left.localIdentity?.proof.digest === right.localIdentity?.proof.digest
+    && left.localIdentity?.proof.size === right.localIdentity?.proof.size
+    && left.localIdentity?.revision === right.localIdentity?.revision
+    && sameList(left.localIdentity?.previousPaths,right.localIdentity?.previousPaths)
     && left.src === right.src
     && left.year === right.year
     && left.genre === right.genre
@@ -223,7 +231,7 @@ export async function mergeRemoteCatalogAsync(existing: LibraryVideo[], incoming
       next = { ...next, id: previous.id, folderId: previous.folderId };
     }
     if (olderRemoteObservation(previous, next)) next = retainTwitchIdentity(next, previous);
-    else if (previous && sameVideo(previous, next)) next = previous;
+    if (previous && sameVideo(previous, next)) next = previous;
     if (index === undefined) {
       const position = existing.length + appended.length;
       positions.set(next.id, position);
@@ -254,7 +262,7 @@ export function mergeRemoteCatalog(existing: LibraryVideo[], incoming: LibraryVi
     const previous = index === undefined ? undefined : merged[index];
     let next = retainDurableRemoteFields(previous, video);
     if (olderRemoteObservation(previous, next)) next = retainTwitchIdentity(next, previous);
-    else if (previous && sameVideo(previous, next)) next = previous;
+    if (previous && sameVideo(previous, next)) next = previous;
     if (index === undefined) {
       if (merged === existing) merged = existing.slice();
       positions.set(next.id, merged.length);
@@ -290,7 +298,7 @@ export async function prepareIndexedRemoteCatalog(existing: LibraryVideo[], inco
       ? replacements.get(position) ?? (videos ?? existing)[position] : appended[position - existing.length];
     let next = retainDurableRemoteFields(previous, video);
     if (olderRemoteObservation(previous, next)) next = retainTwitchIdentity(next, previous);
-    else if (previous && sameVideo(previous, next)) next = previous;
+    if (previous && sameVideo(previous, next)) next = previous;
     if (position === undefined) {
       const addedPosition = existing.length + appended.length;
       positionChanges.set(next.id, addedPosition);
@@ -347,7 +355,7 @@ function remoteRefreshPlan(existing: LibraryVideo[], incoming: LibraryVideo[], r
     const previous = lookupCatalogIdentity(existingById, video);
     let next = retainDurableRemoteFields(previous, video);
     if (olderRemoteObservation(previous, next)) next = retainTwitchIdentity(next, previous);
-    else if (previous && sameVideo(previous, next)) next = previous;
+    if (previous && sameVideo(previous, next)) next = previous;
     fresh.set(next.id, next);
   }
   const visit = (video: LibraryVideo): LibraryVideo | undefined => {

@@ -1,0 +1,35 @@
+{"mobile":false,"check":"Accounts navigation, create/cancel/switch, rename, duplicate/quota recovery and reload work; a new account has no foreign history, follows, catalog or tags"}
+{"mobile":false,"check":"Account preferences persist independently; returning to Default preserves its settings, existing library and authentication sentinel"}
+{"mobile":false,"check":"YouTube begins collapsed without mounting tools; saved video shelves remain visible, management/pulls/diagnostics open on demand and closing retains input drafts"}
+{"mobile":false,"check":"Twitch begins collapsed without mounting tools; saved video shelves remain visible, management/pulls/diagnostics open on demand and closing retains input drafts"}
+{"mobile":true,"check":"Accounts navigation, create/cancel/switch, rename, duplicate/quota recovery and reload work; a new account has no foreign history, follows, catalog or tags"}
+{"mobile":true,"check":"Account preferences persist independently; returning to Default preserves its settings, existing library and authentication sentinel"}
+{"mobile":true,"check":"YouTube begins collapsed without mounting tools; saved video shelves remain visible, management/pulls/diagnostics open on demand and closing retains input drafts"}
+{"mobile":true,"check":"Twitch begins collapsed without mounting tools; saved video shelves remain visible, management/pulls/diagnostics open on demand and closing retains input drafts"}
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Accounts navigation, create/cancel/switch, rename, duplicate/quota recovery and reload work; a new account has no foreign history, follows, catalog or tags",
+        "Account preferences persist independently; returning to Default preserves its settings, existing library and authentication sentinel",
+        "YouTube begins collapsed without mounting tools; saved video shelves remain visible, management/pulls/diagnostics open on demand and closing retains input drafts",
+        "Twitch begins collapsed without mounting tools; saved video shelves remain visible, management/pulls/diagnostics open on demand and closing retains input drafts"
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Accounts navigation, create/cancel/switch, rename, duplicate/quota recovery and reload work; a new account has no foreign history, follows, catalog or tags",
+        "Account preferences persist independently; returning to Default preserves its settings, existing library and authentication sentinel",
+        "YouTube begins collapsed without mounting tools; saved video shelves remain visible, management/pulls/diagnostics open on demand and closing retains input drafts",
+        "Twitch begins collapsed without mounting tools; saved video shelves remain visible, management/pulls/diagnostics open on demand and closing retains input drafts"
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

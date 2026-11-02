@@ -70,19 +70,19 @@ try {
       const data = find(input, (value) => Array.isArray(value.items));
       let result = { profiles: [], channels: [] };
       if (data) {
-        requests.push(...data.items);
+        requests.push(...data.items.map(item=>({...item,identityOnly:data.identityOnly===true})));
         assert(data.items.length <= 50);
-        const source = {
-          id: "yt:UC0000000000000000000001",
-          channelId: "UC0000000000000000000001",
-          kind: "youtube",
-          handle: "@reviewfixture",
-          title: data.items[0].query,
-          importQuery: data.items[0].query,
+        const sources = data.items.map(item=>({
+          id: item.kind==='twitch'?'tw:'+item.query:"yt:UC" + String(Number(item.query.match(/\d+$/)?.[0]??1)).padStart(22,'0'),
+          channelId: item.kind==='twitch'?String(10000+Number(item.query.match(/\d+$/)?.[0]??1)):"UC" + String(Number(item.query.match(/\d+$/)?.[0]??1)).padStart(22,'0'),
+          kind: item.kind,
+          handle: item.kind==='twitch'?item.query:'@reviewfixture'+item.query.match(/\d+$/)?.[0],
+          title: item.query,
+          importQuery: item.query,
           lastCheckedAt: Date.now(),
-        };
+        }));
         result = accept
-          ? { ok: [{ channel: source, videos: [] }], failed: 0, failedQueries: [] }
+          ? { ok: sources.map(channel=>({channel,videos:[]})), failed: 0, failedQueries: [] }
           : {
               ok: [],
               failed: data.items.length,
@@ -99,12 +99,14 @@ try {
         .fulfill({ contentType: "application/json", body: JSON.stringify({ result, context: {} }) })
         .catch(() => {});
     });
-    const nav = async () => {
+    const nav = async (kind='YouTube') => {
       if (mobile) await page.getByRole("button", { name: "Open menu", exact: true }).click();
       await page
         .getByRole("navigation", { name: "Library navigation" })
-        .getByRole("button", { name: /^YouTube(?:\s+\d+)?$/ })
+        .getByRole("button", { name: new RegExp('^'+kind+'(?:\\s+\\d+)?$') })
         .click();
+      const tools = page.getByRole('button', {name:kind+' creators and imports',exact:true});
+      if (await tools.getAttribute('aria-expanded') === 'false') await tools.click();
     };
     try {
       await page.goto(url);
@@ -225,6 +227,14 @@ try {
       await list.focus();
       await list.press("End");
       assert((await review.locator("[data-import-review-row]").count()) <= 10);
+      await review.getByRole('textbox', {name:'Search import review',exact:true}).fill('Name 9998');
+      await review.getByRole('button', {name:'Match next 1 held names',exact:true}).click();
+      await review.getByText(/Batch finished/).waitFor();
+      assert.equal(requests.length,3);
+      assert.equal(requests.at(-1).identityOnly,true);
+      await review.getByRole('combobox', {name:'Import review status',exact:true}).selectOption('saved');
+      await review.locator('[data-query="Creator Name 9998"]').getByText('Already verified',{exact:true}).waitFor();
+      checks.push('A held name can be matched directly without individual selection or pulling a video archive');
       await review.scrollIntoViewIfNeeded();
       await page.screenshot({
         path: output.replace(".json", mobile ? "-mobile.png" : "-desktop.png"),
@@ -233,6 +243,16 @@ try {
         await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
         false,
       );
+      assert.deepEqual(errors, []);
+      await nav('Twitch');
+      await page.getByRole('textbox',{name:'Twitch channels to import',exact:true}).fill('user_id,user_login,display_name\n123,fixture101,Fixture One\n456,fixture102,Fixture Two');
+      await review.getByRole('button',{name:'Verify next 2 identities only',exact:true}).click();
+      await review.getByText(/Batch finished/).waitFor();
+      assert.equal(requests.length,5);assert(requests.slice(-2).every(item=>item.kind==='twitch'&&item.identityOnly));
+      await review.getByRole('combobox',{name:'Import review status',exact:true}).selectOption('saved');
+      await review.locator('[data-query="fixture101"]').getByText('Already verified',{exact:true}).waitFor();
+      await review.locator('[data-query="fixture102"]').getByText('Already verified',{exact:true}).waitFor();
+      checks.push('Twitch CSV resolves both login identities in a lightweight batch and preserves the separate YouTube list');
       assert.deepEqual(errors, []);
       report.requests = requests.length;
     } catch (error) {

@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
 import { getTopicAliasRevision } from './videos/topic-aliases';
 import { canonicalTopic } from './videos/topics';
 import { recordRatingForStreak } from "./rating-streaks";
@@ -33,6 +34,7 @@ let feedbackSaveState: "saved" | "pending" | "failed" = "saved";
 let saveAttempt = 0;
 function savedState(state: typeof feedbackSaveState) { if (feedbackSaveState === state) return; feedbackSaveState = state; if (typeof window !== "undefined") window.dispatchEvent(new Event("reelcase:feedback-save")); }
 export function getFeedbackSaveState() { return feedbackSaveState; }
+export function flushFeedbackForRestore(){flush();}
 export function retryFeedbackSave() { pendingWrites = 1; flush(); }
 const ratingSignal = createKeyedSignal();
 export const subscribeRating = ratingSignal.subscribe;

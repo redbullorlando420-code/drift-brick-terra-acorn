@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
 export const ROOM_CAPTIONS_KEY = "reelcase.watch-room.captions.v1";
 export type RoomCaptionPreference = { enabled: boolean; language: string };
 export const DEFAULT_ROOM_CAPTIONS: RoomCaptionPreference = { enabled: false, language: "" };

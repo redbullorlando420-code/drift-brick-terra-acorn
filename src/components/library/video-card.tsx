@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { dataSaverActive } from '@/lib/data-saver';
 import { useRecommendationExposure } from './use-recommendation-exposure';
 import { twitchContentLabel } from '@/lib/videos/twitch-content';
@@ -348,8 +349,8 @@ export const VideoCard = memo(function VideoCard({
     if (textFirst || !failed || video.remote || artworkRepairRequested.has(video.folderId)) return;
     artworkRepairRequested.add(video.folderId);
     // A stale local file handle is a common cause of missing artwork. If the
-    // source remains approved, refresh its index once in the background and
-    // retry the specific card afterwards; otherwise leave the visible retry.
+    // source remains approved, retry this file through the grant without a
+    // folder rebuild; otherwise leave the visible retry.
     void repairArtworkSource(video.folderId).then((rescanned) => {
       if (rescanned) retry(video);
     });
@@ -496,7 +497,7 @@ export const VideoCard = memo(function VideoCard({
   return (
     <div
       data-video-card
-      data-public-touch-card={video.remote?.kind === "youtube" || video.remote?.kind === "twitch" ? "true" : undefined}
+      data-public-touch-card={!adult ? "true" : undefined}
       className={cn("group relative", animate && "card-appear", isPoster && "poster-hit", live && "rounded-lg border border-border bg-surface p-2 shadow-border", className)}
     >
       <button
@@ -662,7 +663,7 @@ export const VideoCard = memo(function VideoCard({
       >
         <Download className="size-3.5" />
       </button>}
-      {(video.remote?.kind === 'youtube' || video.remote?.kind === 'twitch') && <div data-touch-card-actions className="mt-2 hidden flex-wrap items-center gap-1" aria-label={'Actions for ' + video.name}>
+      {!adult && <div data-touch-card-actions className="mt-2 hidden flex-wrap items-center gap-1" aria-label={'Actions for ' + video.name}>
         <button type="button" className={cn("flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-md bg-elevated px-2 text-xs text-fg", fav && "text-accent")} aria-label={fav ? 'Remove from favorites' : 'Add to favorites'} aria-pressed={fav} onClick={() => toggleFavorite(video.id)}><Heart className={cn("size-4", fav && "fill-current")} />Save</button>
         <button type="button" className={cn("flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-md bg-elevated px-2 text-xs text-fg", liked && "text-accent")} aria-label={liked ? 'Remove like' : 'Like'} aria-pressed={liked} onClick={() => toggleLike(video.id)}><ThumbsUp className={cn("size-4", liked && "fill-current")} />Like</button>
         <button type="button" className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-md bg-elevated px-2 text-xs text-fg" aria-label={'Watch ' + video.name + ' together'} onClick={() => { localStorage.setItem('reelcase.watch-room.pending-video', video.id); setSource('watch-room'); }}><Users className="size-4" />Together</button>

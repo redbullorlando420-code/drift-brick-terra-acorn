@@ -102,12 +102,10 @@ export function replacementRequestBudget(counts: EntryCounts, settings: Readonly
   return capacity + Math.max(own, Math.min(own + shared, sourceRoom));
 }
 export const canRotateForGroup = (counts: EntryCounts, settings: Readonly<PullSettings>, group: CleanupGroup, budgets = cleanupBudgets(settings)) => replacementRequestBudget(counts, settings, group, budgets) > remainingEntrySlots(counts, settings, group);
-const adultPolicies = new WeakMap<Readonly<PullSettings>, Readonly<PullSettings>>();
 export function adultAdmissionPolicy(settings: Readonly<PullSettings>, automatic = false): Readonly<PullSettings> {
-  if (!automatic || settings.adultCatalogTarget >= settings.adultMaxEntries) return settings;
-  let policy = adultPolicies.get(settings);
-  if (!policy) { policy = Object.freeze({ ...settings, adultMaxEntries: Math.min(settings.adultMaxEntries, settings.adultCatalogTarget) }); adultPolicies.set(settings, policy); }
-  return policy;
+  // The automatic video goal is checked against media-class counts by its
+  // owner. It must not turn photos/live rooms into an artificial video cap.
+  return settings;
 }
 export const youtubeRotationAvailable = (counts: EntryCounts, settings: Readonly<PullSettings>, remaining = settings.youtubeCleanupBatch) => rotationAvailable(counts, settings, 'youtube', remaining);
 export function cleanupAge(video: LibraryVideo) {

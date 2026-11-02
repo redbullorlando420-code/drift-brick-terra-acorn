@@ -1,0 +1,48 @@
+✔ normalizes whitespace before hashing (1.5889ms)
+✔ nullish and blank body text normalize to the empty string (0.1457ms)
+✔ body text prefix is normalized and capped (0.1078ms)
+✔ identical runs do not diverge (0.695ms)
+✔ status change diverges (0.2657ms)
+✔ title change diverges (0.1338ms)
+✔ title comparison is skipped when either side lacks one (0.2606ms)
+✔ canvas disappearing diverges; canvas appearing does not (0.5341ms)
+✔ horizontal overflow appearing diverges; clearing does not (0.245ms)
+✔ new console errors diverge (0.23ms)
+✔ errors already present in the baseline do not re-diverge (0.1784ms)
+✔ body text collapse diverges (0.0891ms)
+✔ body text dropping to zero reports collapse (0.1034ms)
+✔ zero-length baseline reports growth via the hash branch, not collapse (0.1713ms)
+✔ hash mismatch with a trivial length delta and same page start is tolerated (0.0625ms)
+✔ hash mismatch with a trivial length delta but changed page start diverges (0.0453ms)
+✔ prefix check is skipped when either side lacks a prefix (0.0727ms)
+✔ length-delta tolerance boundary: 50 tolerated, 51 diverges (500-char baseline) (0.0421ms)
+✔ length-delta floor dominates small baselines: 20 tolerated, 21 diverges (100-char baseline) (0.0532ms)
+✔ collapse boundary: exactly half is 'changed', one below is 'collapsed' (0.1224ms)
+✔ missing baseline viewport diverges (0.0754ms)
+✔ empty or null baseline diverges for every viewport (0.1238ms)
+✔ degenerate current verdict fails closed (0.2109ms)
+✔ multiple signals across viewports all accumulate (0.1088ms)
+✔ baselineComparison round-trips a valid baseline (0.1504ms)
+✔ baselineComparison fails closed on malformed or wrong-shape baselines (0.2074ms)
+✔ parseSmokeArgs defaults (0.172ms)
+✔ parseSmokeArgs consumes --baseline without shifting positionals (0.3822ms)
+✔ parseSmokeArgs rejects a trailing --baseline flag (0.09ms)
+✔ parseSmokeArgs supports the --baseline= form (0.0619ms)
+✔ parseSmokeArgs rejects unknown flags instead of treating them as positionals (0.1324ms)
+✔ parseSmokeArgs env fallback and flag precedence (0.0814ms)
+✔ derivedPaths handles .png, .PNG, and extensionless inputs (1.0468ms)
+✔ exitCodeFor: clean run exits 0 (0.2718ms)
+✔ exitCodeFor: errors in any single viewport exit 2 (0.1677ms)
+✔ exitCodeFor: navigation failure in any viewport exits 1, beating errors (0.5058ms)
+✔ exitCodeFor: 4xx boundary and missing status (0.1ms)
+✔ exitCodeFor: no viewport data is a failure (0.0636ms)
+✔ browser-smoke wires the guard and verdict helpers (0.8136ms)
+✔ browser-smoke file I/O only touches guarded paths (0.5745ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 134.2217

@@ -10,6 +10,8 @@ test('navigation shells and headers identify tools, providers and saved folders 
   assert.equal(navigationSourceLabel('my-local-folder', folders), 'Travel films');
   assert.equal(navigationSourceLabel('youtube', folders), 'YouTube');
   assert.equal(navigationSourceLabel('settings', folders), 'Settings');
+  assert.equal(navigationSourceLabel('accounts', folders), 'Accounts');
+  assert.equal(searchResultSource('accounts'), 'home');
   assert.equal(navigationSourceLabel('mission-plan', folders), 'Milestones');
   assert.equal(navigationSourceLabel('adults', folders), 'Adults');
   for (const source of HUB_SOURCES) assert.notEqual(navigationSourceLabel(source, folders), 'Library', source);

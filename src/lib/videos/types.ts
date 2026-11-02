@@ -91,6 +91,10 @@ export type Folder = {
 };
 
 export type LibraryVideo = {
+  /** Recovery retains the original private boundary even if its folder is absent. */
+  privateRetention?: true;
+  /** Verified metadata alias; media bytes and personal signals keep their original ID. */
+  localIdentity?: import('./local-identity').LocalIdentityRef;
   id: string;
   folderId: string;
   name: string;
@@ -155,6 +159,7 @@ export type ProviderFailure = {
 };
 
 export type RemoteRef = {
+  twitchCreatorKey?:string;
   /** Exact Twitch media identity and the public shelf that supplied its subtype. */
   twitchClipIdentity?: import('./twitch-identity').TwitchClipIdentity;
   twitchContent?: import('./twitch-content').TwitchContentEvidence;
@@ -248,6 +253,9 @@ export type RecentPullState = {
   failure?: ProviderFailure; newestVideoId?: string; gap?: import('./youtube-feed-gap').YoutubeFeedGap;
 };
 export type FollowedChannel = {
+  twitchCreatorKey?: string;
+  twitchAliases?: string[];
+  twitchAliasRevision?: number;
   /** Optional user-owned automatic content settings. Legacy follows include both at normal priority. */
   twitchPullPolicy?: import('./twitch-pull-policy').TwitchPullPolicy;
   youtubeLiveEvidence?: import('../remote/youtube-live-evidence').YoutubeLiveEvidence;
@@ -359,6 +367,7 @@ export type SourceId =
   | "stream-signal"
   | "social"
   | "watch-room"
+  | "accounts"
   | "settings"
   | "assistant"
   | string;
@@ -510,5 +519,6 @@ export const SYSTEM_SOURCES = new Set([
   'remote-desktop',
   "social",
   "watch-room",
+  "accounts",
   "settings",
 ]);

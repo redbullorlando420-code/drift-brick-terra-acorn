@@ -94,6 +94,17 @@ export function reviewedImportBatch(
   }
   return rows;
 }
+/** An explicit catch-up action can inspect names in bulk without selecting
+ * exclusions, retrying failures, or treating a fuzzy search result as proof. */
+export function heldImportBatch(kind: FollowKind, queries: readonly string[], state: ImportReviewState, resolved: ReadonlySet<string>) {
+  const rows: Array<{ query: string; kind: FollowKind }> = [];
+  for (const query of queries) {
+    const row = importReviewRow(kind, query, state, resolved);
+    if (row.status === 'held' && (!state.filter || query.toLowerCase().includes(state.filter.toLowerCase()))) rows.push({ query, kind });
+    if (rows.length === 50) break;
+  }
+  return rows;
+}
 export function importReviewWindow(length: number, scrollTop: number, height = 448) {
   const rowHeight = 112,
     first = Math.max(0, Math.floor(scrollTop / rowHeight) - 3);

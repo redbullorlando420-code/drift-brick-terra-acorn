@@ -4,6 +4,7 @@ import { admitRemoteEntries, remoteEntryCounts, holdEntryLimitCursors } from './
 import { mergeRemoteCatalogAsync } from './remote-merge.ts';
 import { DEFAULT_PULL_SETTINGS, normalizePullSettings } from '../pull-settings.ts';
 import type { LibraryVideo, FollowedChannel } from './types';
+import { adultGrowthCounts } from './adult-growth.ts';
 const card = (id: string, kind = 'youtube', videoId = id): LibraryVideo => ({ id, folderId: `${kind}:creator`, name: id, addedAt: 1, extension: 'mp4', mime: 'video/mp4', remote: { kind, videoId } } as LibraryVideo);
 
 test('source and combined caps apply together, including images, live and hidden retained entries', async () => {
@@ -75,6 +76,14 @@ test('large catalog counting shares concurrent work and yields to UI tasks', asy
   assert.equal(await remoteEntryCounts(videos), counts);
   const changed = [...videos, card('new', 'booru')];
   assert.equal((await remoteEntryCounts(changed)).adult, 1);
+});
+test('media growth reuses the retention scan without reading the catalog a second time', async () => {
+  let forbidReads = false;
+  const rows = new Proxy([card('video','eporner'), {...card('photo','booru'),mime:'image/jpeg',extension:'image'}, card('room','myfreecams')], {
+    get(target,key,receiver) { if(forbidReads && typeof key==='string' && /^\d+$/.test(key)) throw Error('a redundant catalog scan ran'); return Reflect.get(target,key,receiver); }
+  });
+  assert.equal((await remoteEntryCounts(rows)).adult,3);forbidReads=true;
+  assert.deepEqual(await adultGrowthCounts(rows),{archivedVideos:1,photos:1,liveRooms:1,unknown:0});
 });
 
 test('legacy pull preferences migrate without resetting pacing; limits accept zero and clamp malformed values', () => {

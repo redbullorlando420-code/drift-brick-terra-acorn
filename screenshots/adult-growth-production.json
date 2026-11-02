@@ -1,0 +1,74 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Quota failure preserves saved limits and clearly labels the higher goal as tab-only",
+        "10k saved goal/cap are visible; explicit growth action retains shared limit, pace and disabled automatic pulls",
+        "Real store adds 600 distinct records above 10k in 400/200 windows and preserves other sort positions",
+        "Reload retains accepted records/cursors; failed continuation retains depth and shows retry state"
+      ],
+      "errors": [],
+      "requests": [
+        {
+          "page": 11,
+          "offset": 50,
+          "limit": 400,
+          "order": "latest",
+          "fail": false
+        },
+        {
+          "page": 11,
+          "offset": 450,
+          "limit": 200,
+          "order": "latest",
+          "fail": false
+        },
+        {
+          "page": 11,
+          "offset": 650,
+          "limit": 400,
+          "order": "latest",
+          "fail": true
+        }
+      ],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Quota failure preserves saved limits and clearly labels the higher goal as tab-only",
+        "10k saved goal/cap are visible; explicit growth action retains shared limit, pace and disabled automatic pulls",
+        "Real store adds 600 distinct records above 10k in 400/200 windows and preserves other sort positions",
+        "Reload retains accepted records/cursors; failed continuation retains depth and shows retry state"
+      ],
+      "errors": [],
+      "requests": [
+        {
+          "page": 11,
+          "offset": 50,
+          "limit": 400,
+          "order": "latest",
+          "fail": false
+        },
+        {
+          "page": 11,
+          "offset": 450,
+          "limit": 200,
+          "order": "latest",
+          "fail": false
+        },
+        {
+          "page": 11,
+          "offset": 650,
+          "limit": 400,
+          "order": "latest",
+          "fail": true
+        }
+      ],
+      "ok": true
+    }
+  ],
+  "limitation": "Disposable profiles with synthetic metadata and controlled provider responses. No live provider depth or eight-hour soak is claimed."
+}

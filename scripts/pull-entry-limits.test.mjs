@@ -9,6 +9,12 @@ globalThis.__entryLimitFixture = fixture;
 const persistence = readFileSync(new URL('../src/lib/videos/persist.ts', import.meta.url), 'utf8');
 const names = [...persistence.matchAll(/export (?:async )?function (\w+)/g)].map(match => match[1]);
 const mockPersist = names.map(name => {
+  if(name==='restoreAdultArchiveLedger')return `export async function restoreAdultArchiveLedger(legacy){const {migrateArchiveLedger}=await import(${JSON.stringify(new URL('../src/lib/videos/adult-archive-model.ts',import.meta.url).href)});return globalThis.__entryLimitFixture.archiveLedger??=migrateArchiveLedger({version:1,positions:{}},legacy);}`;
+  if(name==='appendAdultArchiveWindow')return 'export async function appendAdultArchiveWindow(rows,point){const f=globalThis.__entryLimitFixture;f.writes.push(...rows);f.archiveLedger??={version:1,positions:{}};f.archiveLedger={version:1,positions:{...f.archiveLedger.positions,[point.provider+"::"+point.query+"::"+point.order]:{provider:point.provider,cursor:point.cursor,token:point.token,accepted:rows.length}}};return f.archiveLedger;}';
+  if(name==='hiddenSourceFolders')return 'export function hiddenSourceFolders(){return [];}';
+  if(name==='isCatalogDeleted')return 'export function isCatalogDeleted(){return false;}';
+  if(name==='mediaHealthSnapshot')return 'export function mediaHealthSnapshot(){return {version:1,revision:0,entries:{}};}';
+  if(name==='catalogDeletionSnapshot')return 'export function catalogDeletionSnapshot(){return {version:1,revision:0,entries:[]};}';
   if (name === 'saveCatalogMetadataEdit') return 'export function saveCatalogMetadataEdit(row){return {...row,nonce:"fixture",at:Date.now()};}';
   if (name === 'restoreCatalogMetadata') return 'export async function restoreCatalogMetadata(base){return base;}';
   if (name === 'saveFollows') return 'export function saveFollows(channels) { globalThis.__entryLimitFixture.followsWrites.push(structuredClone(channels)); }';
@@ -28,7 +34,7 @@ const mockRemote = ['followRemote', 'importChannels', 'refreshRemotes', 'searchA
 const asModule = source => `data:text/javascript,${encodeURIComponent(source)}`;
 registerHooks({ resolve(specifier, context, next) {
   if (specifier === '@/lib/remote/functions') return { url: asModule(mockRemote), shortCircuit: true };
-  if (specifier === './persist' && context.parentURL?.endsWith('/videos/store.ts')) return { url: asModule(mockPersist), shortCircuit: true };
+  if (specifier === './persist' && (context.parentURL?.endsWith('/videos/store.ts')||context.parentURL?.endsWith('/videos/adult-archive-cursors.ts'))) return { url: asModule(mockPersist), shortCircuit: true };
   if (specifier.startsWith('@/')) return next(new URL(`../src/${specifier.slice(2)}.ts`, import.meta.url).href, context);
   try { return next(specifier, context); }
   catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return next(`${specifier}.ts`, context); throw error; }
@@ -38,6 +44,7 @@ const { updatePullSettings, DEFAULT_PULL_SETTINGS } = await import('../src/lib/p
 const channel = { id: 'yt:test', kind: 'youtube', handle: 'Test', title: 'Test', catalogCursor: 'before' };
 const card = (id, kind = 'youtube', folderId = channel.id) => ({ id, folderId, name: 'Space documentary', path: id, extension: 'yt', mime: 'video/youtube', size: 0, addedAt: 1, remote: { kind, videoId: id, channelId: 'test' } });
 function reset(videos = []) {
+  fixture.archiveLedger=undefined;
   fixture.followsWrites = []; fixture.writes = []; fixture.removed = []; fixture.cleanupWrites=[]; fixture.failCleanup=false; fixture.requests = 0; fixture.beforeResponse = null; fixture.inputs = []; fixture.responseForRequest = null;
   // Existing admission fixtures exercise hard caps independently of rotation.
   updatePullSettings({ ...DEFAULT_PULL_SETTINGS, youtubeMaxEntries: 2, youtubeAutoCleanup: false, twitchAutoCleanup: false, adultAutoCleanup: false });
@@ -139,6 +146,17 @@ test('YouTube pull commits use sparse tag updates without enumerating the existi
   await flush();
   assert.deepEqual(useLibrary.getState().tags.unrelated,['keep']);assert.ok(useLibrary.getState().tags['new-sparse'].length);
   assert.equal(fixture.writes.length,1);
+});
+test('identity-only review bypasses full catalog admission and preserves source IDs, media references and cursors', async () => {
+  reset([]);updatePullSettings({remoteMaxEntries:0,youtubeMaxEntries:0});
+  const source={id:'yt:legacy-name',kind:'youtube',handle:'Old Fragment',title:'Saved channel',channelId:'UCabcdefghijklmnopqrstuv',importNeedsReview:true,catalogCursor:'saved-cursor'};
+  const videos=new Proxy([card('untouched')],{get(target,key,receiver){if(key===Symbol.iterator)throw Error('identity check traversed the media catalog');return Reflect.get(target,key,receiver);}});
+  const tags={untouched:['manual-tag']};useLibrary.setState({follows:[source],videos,tags});
+  fixture.response={ok:[{channel:{id:'yt:UCabcdefghijklmnopqrstuv',channelId:'UCabcdefghijklmnopqrstuv',kind:'youtube',handle:'https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv',title:'Exact Name',importQuery:'Exact Name'},videos:[]}],failed:0,failedQueries:[]};
+  const result=await useLibrary.getState().importBatch([{kind:'youtube',query:'Exact Name'}],{identityOnly:true});
+  assert.equal(result.ok,1);assert.equal(fixture.inputs[0].identityOnly,true);assert.equal(fixture.writes.length,0);assert.equal(fixture.removed.length,0);
+  assert.equal(useLibrary.getState().videos,videos);assert.equal(useLibrary.getState().tags,tags);
+  assert.equal(useLibrary.getState().follows[0].id,source.id);assert.equal(useLibrary.getState().follows[0].catalogCursor,'saved-cursor');assert.equal(useLibrary.getState().follows[0].importNeedsReview,undefined);
 });
 
 test('viewer comments persist one current card without copying or notifying the 100k browse catalog', async () => {
@@ -631,14 +649,27 @@ test('lowered caps recover through bounded successful pulls and retain the rejec
   await useLibrary.getState().followRemoteQuery('test','youtube');await flush();assert.equal(fixture.removed.length,7);assert.equal(useLibrary.getState().videos.length,6);assert.equal(useLibrary.getState().follows[0].catalogCursor,'after');
 });
 
-test('automatic Adult replacement stays at its catalog target while manual pulls can use the larger source cap', async () => {
+test('automatic Adult pulls stop at the archived-video goal while manual pulls can use the larger source cap', async () => {
   const old=Array.from({length:1000},(_,i)=>({...card(`eporner:auto-target:${i}`,'eporner','eporner:discover'),addedAt:Date.now()-(2000-i)*86400000}));
   reset(old);updatePullSettings({adultAutoCleanup:true,adultCatalogTarget:1000,adultMaxEntries:2000,remoteMaxEntries:3000,adultCleanupBatch:2});
   fixture.response={videos:[0,1,2].map(i=>({...card(`eporner:auto-new:${i}`,'eporner','eporner:discover'),addedAt:Date.now()})),providerNextPages:{eporner:null},providerNextOffsets:{eporner:0},providerDiagnostics:[]};
   await useLibrary.getState().searchAdultFeed('all','top-weekly',{automatic:true,providers:['eporner'],maxVideos:5});
-  assert.equal(useLibrary.getState().videos.length,1000);assert.equal(fixture.removed.length,2);assert.equal(fixture.writes.length,2);
+  assert.equal(useLibrary.getState().videos.length,1000);assert.equal(fixture.removed.length,0);assert.equal(fixture.writes.length,0);assert.equal(fixture.requests,0);
   await useLibrary.getState().searchAdultFeed('all','top-weekly',{providers:['eporner'],maxVideos:5});
-  assert.equal(useLibrary.getState().videos.length,1001);assert.equal(fixture.removed.length,2);
+  assert.equal(useLibrary.getState().videos.length,1003);assert.equal(fixture.removed.length,0);
+});
+
+test('photos and room cards do not prematurely fill the automatic video goal; accepted refreshes retain manual tags', async () => {
+  const old = Array.from({length:1200},(_,i)=>({...card('adult-mixed-'+i,i<1000?'booru':'chaturbate',i<1000?'booru:discover':'chaturbate:discover'),mime:i<1000?'image/jpeg':'video/live',extension:i<1000?'image':'live'}));
+  reset(old);updatePullSettings({adultCatalogTarget:1000,adultMaxEntries:5000,remoteMaxEntries:10000,adultBatchVideos:1000});
+  const manual=old[0],tags={[manual.id]:['my-manual-tag']},metadataProvenance={[manual.id]:{tags:{'my-manual-tag':'manual'},lockedFields:['tags']}};
+  useLibrary.setState({tags,metadataProvenance});
+  fixture.response={videos:[{...manual,mime:'video/mp4',extension:'mp4'},...Array.from({length:20},(_,i)=>({...card('new-video-'+i,'eporner','eporner:discover'),mime:'video/mp4',extension:'mp4'}))],providerNextPages:{eporner:null},providerNextOffsets:{eporner:0},providerDiagnostics:[]};
+  await useLibrary.getState().searchAdultFeed('mixed','latest',{automatic:true,providers:['eporner'],maxVideos:100});
+  const state=useLibrary.getState(),{adultGrowthCounts}=await import('../src/lib/videos/adult-growth.ts');
+  assert.equal(state.videos.length,1220);assert.deepEqual(await adultGrowthCounts(state.videos),{archivedVideos:21,photos:999,liveRooms:200,unknown:0});
+  assert.deepEqual(state.tags[manual.id],['my-manual-tag']);assert.equal(state.metadataProvenance[manual.id],metadataProvenance[manual.id]);
+  assert.equal(state.pullHistory[0].added,20,'a reclassified refresh is not a newly added video');
 });
 
 test('lowering a cleanup batch during a sweep respects already spent replacements rather than resetting per page', async () => {
@@ -995,7 +1026,7 @@ test('clip freshness warm retries advance attempts without rewriting cached card
  reset([]);const realNow=Date.now;let now=3000;Date.now=()=>now;
  try{
   const c={id:'tw:fresh_store',kind:'twitch',handle:'fresh_store',title:'Fresh creator',twitchClipRecentCheckedAt:1000,twitchClipRecentAttemptedAt:1000};
-  const v={...card('tw:c:fresh','twitch',c.id),extension:'clip',detailsOnDisk:true,addedAt:100,duration:30,remote:{kind:'twitch',videoId:'fresh',views:50,observedAt:1000}};
+  const v={...card('tw:c:fresh','twitch',c.id),extension:'clip',detailsOnDisk:true,addedAt:100,duration:30,remote:{kind:'twitch',videoId:'fresh',views:50,observedAt:1000,watchUrl:'https://clips.twitch.tv/fresh',embedUrl:'https://clips.twitch.tv/embed?clip=fresh',sourceIds:[c.id],twitchClipIdentity:undefined}};
   const videos=[v];useLibrary.setState({follows:[c],videos});
   fixture.response={channel:{...c,twitchClipDiagnostics:{at:1000,servedAt:3000,cacheHit:true,mode:'recent',pages:1,received:1,accepted:1,duplicates:0,windows:[]}},videos:[v]};
   await useLibrary.getState().followRemoteQuery(c.handle,'twitch',{twitchClipMode:'recent',clipLimit:50});await flush();let s=useLibrary.getState();assert.equal(s.follows[0].twitchClipRecentAttemptedAt,3000);assert.equal(s.follows[0].twitchClipRecentCheckedAt,1000);assert.equal(s.videos,videos);assert.equal(fixture.writes.length,0);
@@ -1009,7 +1040,7 @@ test('a held older clip response cannot rewind newer cards or clear a newer scop
  reset([]);const realNow=Date.now;let now=3000;Date.now=()=>now;
  try{
   const c={id:'tw:held_clip',kind:'twitch',handle:'held_clip',title:'Held creator',twitchClipRecentCheckedAt:1000,twitchClipRecentAttemptedAt:1000};
-  const v={...card('tw:c:held','twitch',c.id),extension:'clip',detailsOnDisk:true,name:'Newest title',addedAt:200,duration:30,poster:'new.jpg',remote:{kind:'twitch',videoId:'held',views:500,observedAt:4000}};
+  const v={...card('tw:c:held','twitch',c.id),extension:'clip',detailsOnDisk:true,name:'Newest title',addedAt:200,duration:30,poster:'new.jpg',remote:{kind:'twitch',videoId:'held',views:500,observedAt:4000,watchUrl:'https://clips.twitch.tv/held',embedUrl:'https://clips.twitch.tv/embed?clip=held',sourceIds:[c.id],twitchClipIdentity:undefined}};
   const latest={...c,twitchClipRecentAttemptedAt:4500,twitchClipRecentCheckedAt:4000,twitchClipRecentRetry:{attempts:2,retryAt:9000},lastClipFailure:{at:4500,kind:'network-offline',message:'Newer failure',recovery:'Wait'}};
   useLibrary.setState({follows:[c],videos:[v],favorites:{[v.id]:true},history:[{id:v.id,at:1,source:'open'}]});const videos=useLibrary.getState().videos;
   fixture.beforeResponse=()=>{now=5000;useLibrary.setState({follows:[latest]});};

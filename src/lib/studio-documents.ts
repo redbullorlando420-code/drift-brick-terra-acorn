@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
 import { readWorkspaceDocument, saveWorkspaceDocuments } from './videos/persist';
 import { EMPTY_MODEL_NOTES, readModelNotes } from './studio-model-notes';
 import { EMPTY_STUDIO_JOBS, readStudioJobs, type StudioJob } from './studio-jobs';

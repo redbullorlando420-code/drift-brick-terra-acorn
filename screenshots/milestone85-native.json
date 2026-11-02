@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "checks": [
+    "Serialized registry creation",
+    "Duplicate label rejection",
+    "Registry quota rollback",
+    "Native profile Storage separation",
+    "Frozen late-writer routing",
+    "Legacy Default preservation",
+    "Future registry retention",
+    "Atomic label-only rename with stable identity and no extra databases",
+    "No-op rename avoids writes and notifications",
+    "Reserved, duplicate and missing-profile rename rejection",
+    "Rename quota and asynchronous transaction-abort rollback",
+    "Concurrent colliding and same-ID rename serialization",
+    "Private tags, drafts and legacy keys preserved across rename"
+  ],
+  "errors": [],
+  "limitation": "New adapter and registry only; no broad application migration was applied. Disposable browser context and database."
+}

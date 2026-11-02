@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Selected Twitch check records public unavailability; a transient retry preserves its prior verified observation",
+        "Closing a preview cancels a held check without replacing saved evidence",
+        "Granted-source checks distinguish a readable file from an absent file and retain both bookmarks",
+        "Rescanning only the selected folder preserves missing bookmarks, history, resume, ratings and notes",
+        "Removal consequence preview cancels without changing the catalog or removal records",
+        "Recovery evidence and bookmark choice survive reload and are present in validated backup data"
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Selected Twitch check records public unavailability; a transient retry preserves its prior verified observation",
+        "Closing a preview cancels a held check without replacing saved evidence",
+        "Granted-source checks distinguish a readable file from an absent file and retain both bookmarks",
+        "Rescanning only the selected folder preserves missing bookmarks, history, resume, ratings and notes",
+        "Removal consequence preview cancels without changing the catalog or removal records",
+        "Recovery evidence and bookmark choice survive reload and are present in validated backup data"
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
 import { LIBRARY_LIMITS } from './library-limits.ts';
 export type PerformanceMode = 'adaptive' | 'low-memory';
 export type DeviceBudgetHints = { cores?: number; memoryGiB?: number; saveData?: boolean };

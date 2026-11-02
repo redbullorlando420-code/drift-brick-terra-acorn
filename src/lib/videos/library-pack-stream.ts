@@ -1,4 +1,5 @@
 import type { LibraryPackBuildInput } from "./library-pack";
+import { PROFILE_SOURCE_FILE, readProfileSource } from '../profile-source.ts';
 import {
   packObject,
   writePackStream,
@@ -15,6 +16,7 @@ export function* libraryPackSections(
   feedback: Record<string, unknown>,
   extras: Record<string, unknown> = {},
 ): Generator<PackSection> {
+  if (input.sourceProfile) yield {file:PROFILE_SOURCE_FILE,field:'$',shape:'value',data:readProfileSource(input.sourceProfile)};
   const array = (file: string, field: string, data: unknown): PackSection => ({
     file,
     field,
@@ -37,6 +39,7 @@ export function* libraryPackSections(
     "channels",
     input.follows.filter((c) => c.kind === "twitch"),
   );
+  for(const field of ['tags','metadataProvenance','categories'] as const)yield map('marks/metadata.json',field,input[field]);
   yield array("history/history.json", "entries", input.history);
   yield array("links/links.json", "links", input.links);
   yield array("marks/shelves.json", "favorites", input.favorites);

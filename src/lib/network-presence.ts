@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
 export type NetworkDevice = {
   id: string;
   label: string;

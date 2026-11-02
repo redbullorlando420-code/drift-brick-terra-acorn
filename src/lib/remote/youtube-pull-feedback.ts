@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
 import type { FollowedChannel, LibraryVideo } from '../videos/types';
 import type { PullRecord } from './pull-ledger';
 
@@ -21,14 +22,14 @@ export function youtubeCooldownMessage(retryAt: number, error?: string) {
 
 export function clearYoutubeCooldown() {
   if (typeof window === 'undefined') return;
-  try { window.localStorage.removeItem(KEY); } catch { /* Durable follows also clear recovered deadlines. */ }
+  try { localStorage.removeItem(KEY); } catch { /* Durable follows also clear recovered deadlines. */ }
 }
 
 /** Small independent checkpoint; the durable follow ledger also retains this
  * deadline when localStorage is full. Never store the video catalog here. */
 export function saveYoutubeCooldown(cooldown: YoutubeCooldown) {
   if (typeof window === 'undefined') return;
-  try { window.localStorage.setItem(KEY, JSON.stringify(cooldown)); } catch { /* Follow ledger is the fallback. */ }
+  try { localStorage.setItem(KEY, JSON.stringify(cooldown)); } catch { /* Follow ledger is the fallback. */ }
 }
 export function restoreYoutubeCooldown(follows: readonly FollowedChannel[], now = Date.now()): YoutubeCooldown | null {
   let latest: YoutubeCooldown | null = null;
@@ -36,7 +37,7 @@ export function restoreYoutubeCooldown(follows: readonly FollowedChannel[], now 
     if (value && (value.cooldownScope === 'catalog' || value.cooldownScope === 'all') && Number.isFinite(value.retryAt) && value.retryAt > now && value.retryAt > (latest?.retryAt ?? 0)) latest = value;
   };
   if (typeof window !== 'undefined') {
-    try { accept(JSON.parse(window.localStorage.getItem(KEY) ?? 'null')); } catch { /* Invalid or unavailable storage. */ }
+    try { accept(JSON.parse(localStorage.getItem(KEY) ?? 'null')); } catch { /* Invalid or unavailable storage. */ }
   }
   for (const follow of follows) {
     const failure = follow.kind === 'youtube' ? follow.lastProviderFailure : undefined;

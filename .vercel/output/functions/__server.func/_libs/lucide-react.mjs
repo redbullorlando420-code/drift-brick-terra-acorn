@@ -2643,6 +2643,53 @@ var Upload = createLucideIcon("upload", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var UserPlus = createLucideIcon("user-plus", [
+	["path", {
+		d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2",
+		key: "1yyitq"
+	}],
+	["circle", {
+		cx: "9",
+		cy: "7",
+		r: "4",
+		key: "nufk8"
+	}],
+	["line", {
+		x1: "19",
+		x2: "19",
+		y1: "8",
+		y2: "14",
+		key: "1bvyxn"
+	}],
+	["line", {
+		x1: "22",
+		x2: "16",
+		y1: "11",
+		y2: "11",
+		key: "1shjgl"
+	}]
+]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var UserRound = createLucideIcon("user-round", [["circle", {
+	cx: "12",
+	cy: "8",
+	r: "5",
+	key: "1hypcn"
+}], ["path", {
+	d: "M20 21a8 8 0 0 0-16 0",
+	key: "rfgkzh"
+}]]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var Users = createLucideIcon("users", [
 	["path", {
 		d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2",
@@ -2777,4 +2824,4 @@ var Youtube = createLucideIcon("youtube", [["path", {
 	key: "1jp15x"
 }]]);
 //#endregion
-export { Minimize2 as $, ChartColumn as $t, Search as A, FolderPlus as At, Play as B, Download as Bt, SkipBack as C, Heart as Ct, ShieldCheck as D, Gamepad2 as Dt, Shield as E, Glasses as Et, RefreshCw as F, FileText as Ft, PanelLeftOpen as G, ClipboardList as Gt, PinOff as H, Cpu as Ht, Radio as I, Eye as It, OctagonX as J, CircleAlert as Jt, PanelLeftClose as K, Clapperboard as Kt, QrCode as L, EyeOff as Lt, Route as M, Flame as Mt, RotateCcw as N, Flag as Nt, Settings2 as O, Folder as Ot, Rocket as P, Film as Pt, Minimize as Q, Check as Qt, Power as R, ExternalLink as Rt, SkipForward as S, History as St, ShoppingBag as T, Grid3x3 as Tt, PictureInPicture2 as U, Copy as Ut, Pin as V, Database as Vt, Pause as W, Clock3 as Wt, Monitor as X, ChevronLeft as Xt, Music2 as Y, ChevronRight as Yt, MonitorPlay as Z, ChevronDown as Zt, Sun as _, Keyboard as _t, Volume2 as a, BellOff as an, Lock as at, Smartphone as b, ImagePlus as bt, Upload as c, ArrowLeft as cn, List as ct, TriangleAlert as d, ListChecks as dt, Box as en, MessageCircle as et, Trash2 as f, Link2 as ft, Swords as g, Laptop as gt, Tag as h, LayoutDashboard as ht, VolumeX as i, Bell as in, Maximize2 as it, Save as j, FlaskConical as jt, Send as k, FolderSearch as kt, Undo2 as l, ArrowDown as ln, ListVideo as lt, ThumbsDown as m, LayoutGrid as mt, X as n, Bookmark as nn, Megaphone as nt, Video as o, ArrowUp as on, LockOpen as ot, ThumbsUp as p, Lightbulb as pt, PackageSearch as q, CircleCheck as qt, Wifi as r, BookmarkPlus as rn, Maximize as rt, Users as s, ArrowRight as sn, LoaderCircle as st, Youtube as t, Bot as tn, Menu as tt, Twitch as u, ListPlus as ut, Star as v, Images as vt, Shuffle as w, HeartPulse as wt, SlidersHorizontal as x, ImageOff as xt, Sparkles as y, Image as yt, Plus as z, Expand as zt };
+export { MonitorPlay as $, ChevronDown as $t, Settings2 as A, Folder as At, Power as B, ExternalLink as Bt, SlidersHorizontal as C, ImageOff as Ct, ShoppingBag as D, Grid3x3 as Dt, Shuffle as E, HeartPulse as Et, RotateCcw as F, Flag as Ft, PictureInPicture2 as G, Copy as Gt, Play as H, Download as Ht, Rocket as I, Film as It, PanelLeftClose as J, Clapperboard as Jt, Pause as K, Clock3 as Kt, RefreshCw as L, FileText as Lt, Search as M, FolderPlus as Mt, Save as N, FlaskConical as Nt, Shield as O, Glasses as Ot, Route as P, Flame as Pt, Monitor as Q, ChevronLeft as Qt, Radio as R, Eye as Rt, Smartphone as S, ImagePlus as St, SkipBack as T, Heart as Tt, Pin as U, Database as Ut, Plus as V, Expand as Vt, PinOff as W, Cpu as Wt, OctagonX as X, CircleAlert as Xt, PackageSearch as Y, CircleCheck as Yt, Music2 as Z, ChevronRight as Zt, Tag as _, LayoutDashboard as _t, Volume2 as a, BookmarkPlus as an, Maximize as at, Star as b, Images as bt, UserRound as c, ArrowUp as cn, LockOpen as ct, Undo2 as d, ArrowDown as dn, ListVideo as dt, Check as en, Minimize as et, Twitch as f, ListPlus as ft, ThumbsDown as g, LayoutGrid as gt, ThumbsUp as h, Lightbulb as ht, VolumeX as i, Bookmark as in, Megaphone as it, Send as j, FolderSearch as jt, ShieldCheck as k, Gamepad2 as kt, UserPlus as l, ArrowRight as ln, LoaderCircle as lt, Trash2 as m, Link2 as mt, X as n, Box as nn, MessageCircle as nt, Video as o, Bell as on, Maximize2 as ot, TriangleAlert as p, ListChecks as pt, PanelLeftOpen as q, ClipboardList as qt, Wifi as r, Bot as rn, Menu as rt, Users as s, BellOff as sn, Lock as st, Youtube as t, ChartColumn as tn, Minimize2 as tt, Upload as u, ArrowLeft as un, List as ut, Swords as v, Laptop as vt, SkipForward as w, History as wt, Sparkles as x, Image as xt, Sun as y, Keyboard as yt, QrCode as z, EyeOff as zt };

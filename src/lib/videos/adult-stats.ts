@@ -1,3 +1,4 @@
+import {videoIsPrivate} from './public-visibility.ts';
 /**
  * Adult Stats snapshot + CSV/JSON export (local-only counts).
  */
@@ -254,7 +255,7 @@ export function buildAdultStatsSnapshot(
 ): AdultStatsSnapshot {
   const adultIds = new Set(folders.filter((folder) => folder.adult).map((folder) => folder.id));
   const matchedAdults = videos.filter(
-    (video) => adultIds.has(video.folderId) || Boolean(adultProviderKind(video)),
+    (video) => videoIsPrivate(adultIds,video),
   );
   const adultVideos = [...new Map(matchedAdults.map((video) => [video.id, video])).values()];
   const rankCtx: AdultRankContext = { ...ctx, tags };

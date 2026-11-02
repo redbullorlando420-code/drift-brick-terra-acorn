@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
 import { companionFetch } from './companion.ts';
 /** Local cache for desktop game icons (data URLs). Kept separate from hub metadata to avoid blowing reelcase.hub.v1. */
 

@@ -1,4 +1,8 @@
+import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+import {assertRestoreWritable} from '../restore-epoch';
 import type { WriterLease } from '../writer-lease.ts';
+import {FILE_IDENTITIES_KEY,readIdentityLedger,identityAdmissionAllowed} from './local-identity';
+import {DELETIONS_KEY,readDeletions,deletionKeys} from './deletion-tombstones.ts';
 import { withCatalogDetails } from "./catalog-card.ts";
 import {
   cleanupKey,
@@ -10,6 +14,8 @@ import { patchSparseRecord } from "../sparse-record.ts";
 import { yieldCatalogTask } from "../catalog-work.ts";
 import type { LibraryVideo, Folder, VideoMetadataProvenance } from "./types";
 import type { EnrichmentRow } from "./enrichment-batch";
+import {validArchiveCheckpoint,type ArchiveCheckpoint} from './adult-archive-model.ts';
+import {applyArchiveCheckpoint} from './adult-archive-transaction.ts';
 
 export const CATALOG_OPERATION_PREFIX = "catalog-operation:";
 export const CATALOG_CONTROL_KEY = "catalog-operation-control";
@@ -37,6 +43,7 @@ export type CatalogOperation = {
   removed?: string[];
   cleanup?: YoutubeCleanupJournal;
   edit?: CatalogEdit;
+  archive?: ArchiveCheckpoint;
 };
 export type CatalogRecovery = {
   revision: number;
@@ -129,6 +136,7 @@ export function validCatalogOperation(value: unknown): value is CatalogOperation
   if (!value || typeof value !== "object") return false;
   const row = value as CatalogOperation;
   if (row.version !== 1 || !["remote", "local", "cleanup", "edit"].includes(row.kind)) return false;
+  if(row.archive!==undefined&&(row.kind!=='local'||!validArchiveCheckpoint(row.archive)))return false;
   if (row.kind === "edit")
     return (
       !!row.edit &&
@@ -247,6 +255,7 @@ export function createCatalogMutations(open: () => Promise<IDBDatabase>, writer?
     return [...rows.values()];
   }
   function mirror(rows: CatalogEdit[]) {
+    assertRestoreWritable();
     if (rows.length) {
       const text = JSON.stringify({ version: 1, edits: rows });
       if (rows.length > 256 || text.length > 4 * 1024 ** 2)
@@ -306,6 +315,8 @@ export function createCatalogMutations(open: () => Promise<IDBDatabase>, writer?
               tx.abort();
               return;
             }
+            const deletions = remote.get(DELETIONS_KEY);
+            const identities = remote.get(FILE_IDENTITIES_KEY);
             const control = remote.get(CATALOG_CONTROL_KEY),
               cleanup = remote.get("youtube-cleanup");
             cleanup.onsuccess = () => {
@@ -313,6 +324,8 @@ export function createCatalogMutations(open: () => Promise<IDBDatabase>, writer?
                 if (!control.result || !validCatalogControl(control.result))
                   throw Error("Unsupported recovery control.");
                 const retired = retiredYoutubeKeys(normalizeYoutubeCleanup(cleanup.result));
+                const removedKeys = new Set(readDeletions(deletions.result).entries.flatMap(row=>row.keys));
+                const identityLedger=readIdentityLedger(identities.result);
                 if (operation.kind === "edit") {
                   const edit = operation.edit!,
                     previous = activity.get(CATALOG_EDIT_PREFIX + edit.id);
@@ -346,9 +359,13 @@ export function createCatalogMutations(open: () => Promise<IDBDatabase>, writer?
                   };
                 } else {
                   const target = operation.kind === "remote" ? remote : videos;
+                  let remainingRows=operation.rows!.length;
+                  const acceptedRowsQueued=()=>{if(operation.archive&&--remainingRows===0)applyArchiveCheckpoint(tx,operation.archive,fail);};
                   for (const video of operation.rows!) {
+                    if(!identityAdmissionAllowed(video,identityLedger)){acceptedRowsQueued();continue;}
+                    if (deletionKeys(video).some(key=>removedKeys.has(key))) {acceptedRowsQueued();continue;}
                     if (video.isSample || (video.remote && retired.has(cleanupKey(video))))
-                      continue;
+                      {acceptedRowsQueued();continue;}
                     const key = operation.kind === "remote" ? "video:" + video.id : video.id,
                       previous = target.get(key);
                     previous.onsuccess = () => {
@@ -357,11 +374,13 @@ export function createCatalogMutations(open: () => Promise<IDBDatabase>, writer?
                           withCatalogDetails(video, previous.result),
                           keyPath(target, key),
                         );
+                        acceptedRowsQueued();
                       } catch (error) {
                         fail(error);
                       }
                     };
                   }
+                  if(operation.archive&&!operation.rows!.length)applyArchiveCheckpoint(tx,operation.archive,fail);
                   for (const row of operation.enrichment ?? []) {
                     const manual = activity.get(CATALOG_EDIT_PREFIX + row.id),
                       previous = activity.get("metadata-enrichment:" + row.id);
@@ -510,6 +529,7 @@ export function createCatalogMutations(open: () => Promise<IDBDatabase>, writer?
     }
   }
   function edit(row: Omit<CatalogEdit, "nonce" | "at">) {
+    assertRestoreWritable();
     let edits: CatalogEdit[];
     try {
       edits = readMirror();

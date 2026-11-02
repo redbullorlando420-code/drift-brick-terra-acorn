@@ -19,6 +19,7 @@ export const hubLoaders = {
   'find-phone': createModuleLoader(() => import('./find-phone-section').then(m => ({ default: m.FindPhoneSection }))),
   social: createModuleLoader(() => import('./social-section').then(m => ({ default: m.SocialSection }))),
   'mission-plan': createModuleLoader(() => import('./mission-plan-section').then(m => ({ default: m.MissionPlanSection }))),
+  accounts: createModuleLoader(() => import('./accounts-section').then(m => ({ default: m.AccountsSection }))),
   settings: createModuleLoader(() => import('./settings-section').then(m => ({ default: m.SettingsSection }))),
   stats: createModuleLoader(() => import('./stats-section').then(m => ({ default: m.StatsSection }))),
   'private-web': createModuleLoader(() => import('./private-web-shortcuts-section').then(m => ({ default: m.PrivateWebShortcuts }))),

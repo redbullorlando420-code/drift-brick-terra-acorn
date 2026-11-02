@@ -1,0 +1,992 @@
+ M .grok/import-payload-dev-server.log
+ D .vercel/output/functions/__server.func/_-Bfnk1GX4.mjs
+ M .vercel/output/functions/__server.func/_libs/@radix-ui/react-collection+[...].mjs
+ M .vercel/output/functions/__server.func/_libs/@radix-ui/react-dialog+[...].mjs
+ M .vercel/output/functions/__server.func/_libs/@radix-ui/react-dropdown-menu+[...].mjs
+ M .vercel/output/functions/__server.func/_libs/@radix-ui/react-slider+[...].mjs
+ M .vercel/output/functions/__server.func/_libs/@radix-ui/react-tooltip+[...].mjs
+ M .vercel/output/functions/__server.func/_libs/@tanstack/react-router+[...].mjs
+ M .vercel/output/functions/__server.func/_libs/radix-ui__react-popover.mjs
+ D .vercel/output/functions/__server.func/_ssr/adult-panel-DZFBQDEu.mjs
+ D .vercel/output/functions/__server.func/_ssr/ai-guide-DgNzBYbe.mjs
+ D .vercel/output/functions/__server.func/_ssr/anime-review-Bf_u4q4_.mjs
+ D .vercel/output/functions/__server.func/_ssr/anime-section-BOkajZ4S.mjs
+ M .vercel/output/functions/__server.func/_ssr/capability-permissions-CxbvxoZM.mjs
+ M .vercel/output/functions/__server.func/_ssr/companion-DacueTBp.mjs
+ D .vercel/output/functions/__server.func/_ssr/diagnostic-export-preview-4FHuJD2l.mjs
+ D .vercel/output/functions/__server.func/_ssr/feature-readiness-panel-D2oGV5_v.mjs
+ D .vercel/output/functions/__server.func/_ssr/functions-DB_kl1VE.mjs
+ M .vercel/output/functions/__server.func/_ssr/games-section-A1MeWii2.mjs
+ D .vercel/output/functions/__server.func/_ssr/genre-section-BUlIAzng.mjs
+ D .vercel/output/functions/__server.func/_ssr/guide-picks-H-pVr5Jv.mjs
+ D .vercel/output/functions/__server.func/_ssr/lan-connection-section-B_y5NCBk.mjs
+ D .vercel/output/functions/__server.func/_ssr/landing-BITnB6YZ.mjs
+ D .vercel/output/functions/__server.func/_ssr/library-app-BzjSyqkW.mjs
+ D .vercel/output/functions/__server.func/_ssr/live-rooms-DInVyvi_.mjs
+ M .vercel/output/functions/__server.func/_ssr/local-vision-Dgz2g3q-.mjs
+ D .vercel/output/functions/__server.func/_ssr/mission-plan-section-BRH1pvyz.mjs
+ D .vercel/output/functions/__server.func/_ssr/persist-D_pR3DU-.mjs
+ D .vercel/output/functions/__server.func/_ssr/photos-section-CAfpuy1C.mjs
+ D .vercel/output/functions/__server.func/_ssr/player-_q-dPuQU.mjs
+ D .vercel/output/functions/__server.func/_ssr/pre-video-BtqNmAJp.mjs
+ M .vercel/output/functions/__server.func/_ssr/print-model-viewer-BC9atGPg.mjs
+ M .vercel/output/functions/__server.func/_ssr/prints-section-Dx-vcpgU.mjs
+ M .vercel/output/functions/__server.func/_ssr/private-web-shortcuts-section-BSJlEmXt.mjs
+ D .vercel/output/functions/__server.func/_ssr/provider-json-CjRAnOrq.mjs
+ D .vercel/output/functions/__server.func/_ssr/provider-recovery-CuBcDi-X.mjs
+ D .vercel/output/functions/__server.func/_ssr/recommendation-button-SJ_hjWLs.mjs
+ D .vercel/output/functions/__server.func/_ssr/reddit-media-status-CitPM6w9.mjs
+ D .vercel/output/functions/__server.func/_ssr/remote-desktop-section-D_8zdL25.mjs
+ D .vercel/output/functions/__server.func/_ssr/reviewed-photo-bridges-_4_KV0tV.mjs
+ D .vercel/output/functions/__server.func/_ssr/rolldown-runtime-D7D4PA-g.mjs
+ D .vercel/output/functions/__server.func/_ssr/room-search-functions-DeTQqvZx.mjs
+ D .vercel/output/functions/__server.func/_ssr/room-youtube-search-D18wNf2U.mjs
+ D .vercel/output/functions/__server.func/_ssr/router-2fHQywr7.mjs
+ D .vercel/output/functions/__server.func/_ssr/routes-Du3o-A6A.mjs
+ D .vercel/output/functions/__server.func/_ssr/settings-section-BqeKSSgh.mjs
+ M .vercel/output/functions/__server.func/_ssr/shop-section-CD0F069E.mjs
+ M .vercel/output/functions/__server.func/_ssr/social-section-B6encM-F.mjs
+ M .vercel/output/functions/__server.func/_ssr/spotify-section-VJT5-V7u.mjs
+ M .vercel/output/functions/__server.func/_ssr/ssr.mjs
+ D .vercel/output/functions/__server.func/_ssr/stable-diffusion-section-TIrPIcRm.mjs
+ D .vercel/output/functions/__server.func/_ssr/stats-section-CfZ7z8bm.mjs
+ D .vercel/output/functions/__server.func/_ssr/store-0MIXEefC.mjs
+ D .vercel/output/functions/__server.func/_ssr/stream-signal-section-DctAuJk_.mjs
+ M .vercel/output/functions/__server.func/_ssr/streaming-section-BOGJCsP_.mjs
+ D .vercel/output/functions/__server.func/_ssr/topic-links-DtWaw5yn.mjs
+ D .vercel/output/functions/__server.func/_ssr/twitch-archive-search-9pLHLGYQ.mjs
+ D .vercel/output/functions/__server.func/_ssr/twitch-embed-D83ysKZo.mjs
+ D .vercel/output/functions/__server.func/_ssr/use-video-details-PR7pE1lr.mjs
+ D .vercel/output/functions/__server.func/_ssr/watch-room-section-86-FK1ar.mjs
+ D .vercel/output/functions/__server.func/_ssr/youtube-browse-zM7oUZAX.mjs
+ M .vercel/output/functions/__server.func/_ssr/youtube-download-dialog-fmeL3P2x.mjs
+ D .vercel/output/functions/__server.func/_ssr/youtube-page-data-BJBSVcir.mjs
+ D .vercel/output/functions/__server.func/_ssr/youtube-publication-functions-BuFvhEAo.mjs
+ D .vercel/output/functions/__server.func/_ssr/youtube-tags-control-D9vPYPxZ.mjs
+ D .vercel/output/functions/__server.func/_ssr/youtube-transport-CIU2khFM.mjs
+ D .vercel/output/functions/__server.func/_tanstack-start-manifest_v-B56QCUAi.mjs
+ M .vercel/output/nitro.json
+ D .vercel/output/static/assets/_-Dk4lwo2m.js
+ D .vercel/output/static/assets/adult-panel-CrwWOsnp.js
+ D .vercel/output/static/assets/adult-photo-download-UjibCvcY.js
+ D .vercel/output/static/assets/adult-rank-CKO7sxl-.js
+ D .vercel/output/static/assets/ai-guide-BVHRVZNi.js
+ D .vercel/output/static/assets/anime-review-D9D1KHVK.js
+ D .vercel/output/static/assets/anime-review-store-GqPRxg6l.js
+ D .vercel/output/static/assets/anime-section-CSVN3EfQ.js
+ D .vercel/output/static/assets/arrow-right-DhI-ncUP.js
+ D .vercel/output/static/assets/badge-DohbrZLY.js
+ D .vercel/output/static/assets/bitmap-pool-BUXH7_WK.js
+ D .vercel/output/static/assets/bot-CZ49lxNY.js
+ D .vercel/output/static/assets/button-2QRh57rO.js
+ D .vercel/output/static/assets/capability-permissions-BvIzaXU7.js
+ D .vercel/output/static/assets/catalog-turn-CZD8Guqw.js
+ D .vercel/output/static/assets/check-CSpDqeoK.js
+ D .vercel/output/static/assets/chevron-down-Dx7d7Ra_.js
+ D .vercel/output/static/assets/chevron-left-CAEMskrH.js
+ D .vercel/output/static/assets/copy-C-oTqicn.js
+ D .vercel/output/static/assets/diagnostic-export-preview-Dt5JgLBd.js
+ D .vercel/output/static/assets/dist-B4EujCe4.js
+ D .vercel/output/static/assets/dist-CxKiP_w0.js
+ D .vercel/output/static/assets/dist-rTAyEl0o.js
+ D .vercel/output/static/assets/download-DROmNQvm.js
+ D .vercel/output/static/assets/eye-DEzQW0Mj.js
+ D .vercel/output/static/assets/eye-off-CTQ1CrqZ.js
+ D .vercel/output/static/assets/feature-readiness-panel-Bv8QCqqO.js
+ D .vercel/output/static/assets/film-review-store-BK9XJxLU.js
+ D .vercel/output/static/assets/find-phone-section-CudLHqnd.js
+ D .vercel/output/static/assets/games-section-BwI6OzM2.js
+ D .vercel/output/static/assets/genre-section-CrXHPBDp.js
+ D .vercel/output/static/assets/guide-picks-vN5CZa3s.js
+ D .vercel/output/static/assets/heart-CQBIWn_b.js
+ D .vercel/output/static/assets/hub-shared-C-lsmTCQ.js
+ D .vercel/output/static/assets/image-plus-BTT2YsgI.js
+ D .vercel/output/static/assets/index-xoZQsnqi.js
+ D .vercel/output/static/assets/input-COincMVJ.js
+ D .vercel/output/static/assets/lan-connection-section-DwjKZ2TM.js
+ D .vercel/output/static/assets/landing-CsG06ikw.js
+ D .vercel/output/static/assets/library-app-DwiDAucY.js
+ D .vercel/output/static/assets/library-stats.worker-Biz0PHjZ.js
+ D .vercel/output/static/assets/local-vision-BYgdRgDj.js
+ D .vercel/output/static/assets/maximize-2-D-eauQoH.js
+ D .vercel/output/static/assets/mission-plan-section-vrhwyoQ6.js
+ D .vercel/output/static/assets/navigation-work-DiNvFGEi.js
+ D .vercel/output/static/assets/package-search-5RDdvXqk.js
+ D .vercel/output/static/assets/pause-D-iOzvfT.js
+ D .vercel/output/static/assets/persist-lBVCBYuq.js
+ D .vercel/output/static/assets/photos-section-vijZmsQv.js
+ D .vercel/output/static/assets/play-O1mey9CD.js
+ D .vercel/output/static/assets/player-Bl4tVuTg.js
+ D .vercel/output/static/assets/pre-video-hsfzG3cm.js
+ D .vercel/output/static/assets/print-model-viewer-sCOfKvAh.js
+ D .vercel/output/static/assets/prints-blobs-oj37Cbbs.js
+ D .vercel/output/static/assets/prints-section-CuWxwtL4.js
+ D .vercel/output/static/assets/private-web-shortcuts-section-CYD9Be12.js
+ D .vercel/output/static/assets/provider-recovery-By2-ZDdM.js
+ D .vercel/output/static/assets/provider-viewing-store-BPPdlycT.js
+ D .vercel/output/static/assets/recommendation-button-DOkOAOyy.js
+ D .vercel/output/static/assets/refresh-cw-DsfivS7p.js
+ D .vercel/output/static/assets/remote-desktop-section-Bn7DMSYi.js
+ D .vercel/output/static/assets/reviewed-photo-bridges-CNulkG2B.js
+ D .vercel/output/static/assets/rocket-DWKTMr-3.js
+ D .vercel/output/static/assets/rotate-ccw-yTWYAzWF.js
+ D .vercel/output/static/assets/routes-D4wVda7W.js
+ D .vercel/output/static/assets/settings-section-DBu7tpx8.js
+ D .vercel/output/static/assets/shop-section-C-xJCYjT.js
+ D .vercel/output/static/assets/social-section-DXl8OpoZ.js
+ D .vercel/output/static/assets/spotify-section-BRowxYCK.js
+ D .vercel/output/static/assets/stable-diffusion-section-oM2MovD6.js
+ D .vercel/output/static/assets/stats-section-CwBLv0m-.js
+ D .vercel/output/static/assets/store-DxLbMTnh.js
+ D .vercel/output/static/assets/stream-signal-section-DB8YcCBC.js
+ D .vercel/output/static/assets/streaming-section-DKLwhwmd.js
+ D .vercel/output/static/assets/styles-D0KV-Ogc.css
+ D .vercel/output/static/assets/topic-bridge-store-DnictGGY.js
+ D .vercel/output/static/assets/topic-links-BeKa67aJ.js
+ D .vercel/output/static/assets/transformers.web-BN4f6dAX.js
+ D .vercel/output/static/assets/twitch-archive-search-CR2tuLCu.js
+ D .vercel/output/static/assets/twitch-embed-B6t0AszT.js
+ D .vercel/output/static/assets/undo-2-NqNK7gmm.js
+ D .vercel/output/static/assets/use-browse-library-DJuIMKX4.js
+ D .vercel/output/static/assets/use-video-details-u1mB93av.js
+ D .vercel/output/static/assets/volume-x-CTPKJTWi.js
+ D .vercel/output/static/assets/watch-room-section-9ciIzijo.js
+ D .vercel/output/static/assets/youtube-download-dialog-DSYfRc6u.js
+ D .vercel/output/static/assets/youtube-tags-control-jHuepd3f.js
+ M MILESTONE_VERIFICATION.md
+ M NEXT_LEVEL_MILESTONES.md
+ M package-lock.json
+ M package.json
+ M screenshots/all-pages-build.txt
+ M screenshots/all-pages-keyboard-final-dev-desktop-failure.png
+ M screenshots/all-pages-keyboard-final-dev-desktop-help.png
+ M screenshots/all-pages-keyboard-final-dev-desktop-missing-model.png
+ M screenshots/all-pages-keyboard-final-dev-desktop-recipe.png
+ M screenshots/all-pages-keyboard-final-dev-log.txt
+ M screenshots/all-pages-keyboard-final-dev-mobile-failure.png
+ M screenshots/all-pages-keyboard-final-dev-mobile-help.png
+ M screenshots/all-pages-keyboard-final-dev-mobile-recipe.png
+ M screenshots/all-pages-keyboard-final-dev.json
+ M scripts/activity-persistence.test.mjs
+ M scripts/activity-store.test.mjs
+ M scripts/enrichment-store.test.mjs
+ M scripts/mission-next-level.test.mjs
+ M scripts/mission100-browser-check.mjs
+ M scripts/pull-entry-limits.test.mjs
+ M scripts/recipe-keyboard-batch-browser-check.mjs
+ M scripts/saved-edit-persistence.test.mjs
+ M scripts/startup-store.test.mjs
+ M scripts/twitch-clip-freshness.test.mjs
+ M src/components/library/follow-manager.tsx
+ M src/components/library/library-app.tsx
+ M src/components/library/library-pack-transfer.tsx
+ M src/components/library/player.tsx
+ M src/components/library/pre-video.tsx
+ M src/components/library/settings-section.tsx
+ M src/components/library/stats-section.tsx
+ M src/components/library/use-preview-ranking.ts
+ M src/components/library/video-card.tsx
+ M src/components/library/video-overlays.tsx
+ M src/components/library/watch-room-section.tsx
+ M src/lib/media-feedback.ts
+ M src/lib/mission-next-level.ts
+ M src/lib/mission-plan.test.ts
+ M src/lib/mission-plan.ts
+ M src/lib/remote/api.ts
+ M src/lib/remote/functions.ts
+ M src/lib/repository-credits.ts
+ M src/lib/videos/adult-stats.ts
+ M src/lib/videos/catalog-mutations.ts
+ M src/lib/videos/follow-checkpoints.ts
+ M src/lib/videos/follow-collections.ts
+ M src/lib/videos/follow-identity.ts
+ M src/lib/videos/library-pack-stream.ts
+ M src/lib/videos/library-pack.ts
+ M src/lib/videos/library-stats.ts
+ M src/lib/videos/local-runtime.ts
+ M src/lib/videos/pack-preflight.ts
+ M src/lib/videos/persist.ts
+ M src/lib/videos/public-visibility.ts
+ M src/lib/videos/remote-merge.ts
+ M src/lib/videos/scan.ts
+ M src/lib/videos/search-ranking.test.ts
+ M src/lib/videos/search-ranking.ts
+ M src/lib/videos/search-suggestions.test.ts
+ M src/lib/videos/search-suggestions.ts
+ M src/lib/videos/sources.ts
+ M src/lib/videos/store.ts
+ M src/lib/videos/thumbs.ts
+ M src/lib/videos/twitch-recommendations.ts
+ M src/lib/videos/types.ts
+ M src/lib/writer-lease.ts
+ M src/routes/__root.tsx
+?? .grok/all-pages-queue-format.txt
+?? .grok/create-milestone-contact-sheets.mjs
+?? .grok/deletions-diff-warnings.txt
+?? .grok/deletions-format.txt
+?? .grok/deletions-typecheck.txt
+?? .grok/file-identity-dependency.txt
+?? .grok/identity-core-typecheck.txt
+?? .grok/identity-current-typecheck.txt
+?? .grok/identity-diff-warnings.txt
+?? .grok/identity-final-typecheck.txt
+?? .grok/identity-foundation-typecheck.txt
+?? .grok/identity-hardened-typecheck.txt
+?? .grok/identity-release-typecheck.txt
+?? .grok/identity-sources-typecheck.txt
+?? .grok/identity-ui-typecheck.txt
+?? .grok/media-recovery-complete-typecheck.txt
+?? .grok/media-recovery-final-typecheck.txt
+?? .grok/media-recovery-release-typecheck.txt
+?? .grok/media-recovery-runtime-typecheck.txt
+?? .grok/media-recovery-typecheck.txt
+?? .grok/media-recovery-ui-typecheck.txt
+?? .grok/media-recovery-verified-typecheck.txt
+?? .grok/milestone78-diff-warnings.txt
+?? .grok/milestone78-typecheck.txt
+?? .grok/milestone79-diff-warnings.txt
+?? .grok/milestone79-final-diff-warnings.txt
+?? .grok/milestone79-final-source-diff.txt
+?? .grok/milestone79-final-typecheck.txt
+?? .grok/milestone79-handoff-diff.txt
+?? .grok/milestone79-typecheck.txt
+?? .grok/milestone80-diff-check.txt
+?? .grok/milestone81-status.txt
+?? .vercel/output/functions/__server.func/_-DpfEVcb6.mjs
+?? .vercel/output/functions/__server.func/_libs/noble__hashes.mjs
+?? .vercel/output/functions/__server.func/_ssr/adult-panel-BVvrq0u4.mjs
+?? .vercel/output/functions/__server.func/_ssr/ai-guide-J_pi0LmY.mjs
+?? .vercel/output/functions/__server.func/_ssr/anime-review-Cl8DG_wa.mjs
+?? .vercel/output/functions/__server.func/_ssr/anime-review-store-BZPy5ysU.mjs
+?? .vercel/output/functions/__server.func/_ssr/anime-section-BzKPbtzT.mjs
+?? .vercel/output/functions/__server.func/_ssr/button-BBe1bZ7q.mjs
+?? .vercel/output/functions/__server.func/_ssr/diagnostic-export-preview-DfD7JI_M.mjs
+?? .vercel/output/functions/__server.func/_ssr/feature-readiness-panel-C7ppQmWJ.mjs
+?? .vercel/output/functions/__server.func/_ssr/film-review-store-BlMeamqw.mjs
+?? .vercel/output/functions/__server.func/_ssr/functions-C3InSpQ8.mjs
+?? .vercel/output/functions/__server.func/_ssr/functions-COy97Gg7.mjs
+?? .vercel/output/functions/__server.func/_ssr/genre-section-DnJ5DR24.mjs
+?? .vercel/output/functions/__server.func/_ssr/guide-picks-B_hjhrd-.mjs
+?? .vercel/output/functions/__server.func/_ssr/guide-preset-store-Cxq-N5X3.mjs
+?? .vercel/output/functions/__server.func/_ssr/interaction-budget-2wyu0HNo.mjs
+?? .vercel/output/functions/__server.func/_ssr/lan-connection-section-3fHGUlpO.mjs
+?? .vercel/output/functions/__server.func/_ssr/landing-BbwuyFrY.mjs
+?? .vercel/output/functions/__server.func/_ssr/library-app-DbL4MH2h.mjs
+?? .vercel/output/functions/__server.func/_ssr/live-rooms-Bwcla9ud.mjs
+?? .vercel/output/functions/__server.func/_ssr/local-media-health-D5jQ3uOA.mjs
+?? .vercel/output/functions/__server.func/_ssr/media-feedback-BkjZoHn1.mjs
+?? .vercel/output/functions/__server.func/_ssr/mission-plan-section-CYJg1OC9.mjs
+?? .vercel/output/functions/__server.func/_ssr/persist-CM2psfYC.mjs
+?? .vercel/output/functions/__server.func/_ssr/photos-section-CR70LVeZ.mjs
+?? .vercel/output/functions/__server.func/_ssr/player-Cm6mjIbs.mjs
+?? .vercel/output/functions/__server.func/_ssr/pre-video-CD1yFxk5.mjs
+?? .vercel/output/functions/__server.func/_ssr/provider-json-sZboGRL6.mjs
+?? .vercel/output/functions/__server.func/_ssr/provider-recovery-BPsL4VNC.mjs
+?? .vercel/output/functions/__server.func/_ssr/provider-viewing-store-CVGKMba8.mjs
+?? .vercel/output/functions/__server.func/_ssr/pull-dispatch-trace-C71-V1QT.mjs
+?? .vercel/output/functions/__server.func/_ssr/recommendation-button-fsh2rh0Y.mjs
+?? .vercel/output/functions/__server.func/_ssr/recommendation-exposure-store-D8w_nYAL.mjs
+?? .vercel/output/functions/__server.func/_ssr/reddit-media-status-BUsin4xG.mjs
+?? .vercel/output/functions/__server.func/_ssr/remote-desktop-section-BIlGt9j0.mjs
+?? .vercel/output/functions/__server.func/_ssr/reviewed-photo-bridges-C4RgyKuy.mjs
+?? .vercel/output/functions/__server.func/_ssr/room-search-functions-BZynUeqV.mjs
+?? .vercel/output/functions/__server.func/_ssr/room-youtube-search-CUbagDVy.mjs
+?? .vercel/output/functions/__server.func/_ssr/router-MjOkegZg.mjs
+?? .vercel/output/functions/__server.func/_ssr/routes-C-vFxhwt.mjs
+?? .vercel/output/functions/__server.func/_ssr/scan-BwJesS12.mjs
+?? .vercel/output/functions/__server.func/_ssr/settings-section-CW2sdhH_.mjs
+?? .vercel/output/functions/__server.func/_ssr/stable-diffusion-section-DhmMslCT.mjs
+?? .vercel/output/functions/__server.func/_ssr/stats-section-Di-PEYIN.mjs
+?? .vercel/output/functions/__server.func/_ssr/store-DUsnt4ma.mjs
+?? .vercel/output/functions/__server.func/_ssr/stream-signal-section-DI78euDd.mjs
+?? .vercel/output/functions/__server.func/_ssr/topic-alias-store-BjnpoRWE.mjs
+?? .vercel/output/functions/__server.func/_ssr/topic-bridge-store-BR1um3fV.mjs
+?? .vercel/output/functions/__server.func/_ssr/topic-links-xc-cDmDS.mjs
+?? .vercel/output/functions/__server.func/_ssr/twitch-archive-search-CNHFHKb9.mjs
+?? .vercel/output/functions/__server.func/_ssr/twitch-embed-DikEAS3D.mjs
+?? .vercel/output/functions/__server.func/_ssr/twitch-retry-CMhwTUwe.mjs
+?? .vercel/output/functions/__server.func/_ssr/use-video-details-C0o6unni.mjs
+?? .vercel/output/functions/__server.func/_ssr/watch-room-section-DNj1n-99.mjs
+?? .vercel/output/functions/__server.func/_ssr/youtube-browse-B9qBEmmw.mjs
+?? .vercel/output/functions/__server.func/_ssr/youtube-page-data-Bw0-Jstq.mjs
+?? .vercel/output/functions/__server.func/_ssr/youtube-publication-functions-B3uqqn5f.mjs
+?? .vercel/output/functions/__server.func/_ssr/youtube-tags-control-CVq4oI5K.mjs
+?? .vercel/output/functions/__server.func/_ssr/youtube-transport-BkIpUNPj.mjs
+?? .vercel/output/functions/__server.func/_tanstack-start-manifest_v-DYsudBCl.mjs
+?? .vercel/output/static/assets/_-B0oNhN1Z.js
+?? .vercel/output/static/assets/adult-panel-D0eVVXWi.js
+?? .vercel/output/static/assets/adult-photo-download-Cj2nFnMn.js
+?? .vercel/output/static/assets/adult-rank-BLJnW0a2.js
+?? .vercel/output/static/assets/ai-guide-DOY8hUXK.js
+?? .vercel/output/static/assets/anime-review-BeqwB8Rk.js
+?? .vercel/output/static/assets/anime-review-store-D3H8SBBh.js
+?? .vercel/output/static/assets/anime-section-Dg9Upj9i.js
+?? .vercel/output/static/assets/arrow-right-rGR6EYBg.js
+?? .vercel/output/static/assets/badge-Cj38MNFw.js
+?? .vercel/output/static/assets/bitmap-pool-Bm-0Ieg9.js
+?? .vercel/output/static/assets/bot-3tPf4PTt.js
+?? .vercel/output/static/assets/button-Dh1bWVOJ.js
+?? .vercel/output/static/assets/capability-permissions-DJYh6qpz.js
+?? .vercel/output/static/assets/catalog-turn-4nhpDFxB.js
+?? .vercel/output/static/assets/check-B8ubTLZ7.js
+?? .vercel/output/static/assets/chevron-down-Dd2bOswW.js
+?? .vercel/output/static/assets/chevron-left-D1BxzWxP.js
+?? .vercel/output/static/assets/copy-CiLWhF4W.js
+?? .vercel/output/static/assets/diagnostic-export-preview-w8RA-yS2.js
+?? .vercel/output/static/assets/dist-A4MhrrPG.js
+?? .vercel/output/static/assets/dist-Ddr-B59v.js
+?? .vercel/output/static/assets/download-4j-LFNzM.js
+?? .vercel/output/static/assets/eye-Bkl9gZUM.js
+?? .vercel/output/static/assets/eye-off-HXXya_R_.js
+?? .vercel/output/static/assets/feature-readiness-panel-DkUhM6go.js
+?? .vercel/output/static/assets/file-fingerprint.worker-DABIhaZk.js
+?? .vercel/output/static/assets/film-review-store-CIL7vsGL.js
+?? .vercel/output/static/assets/find-phone-section-BBWA4_wz.js
+?? .vercel/output/static/assets/functions-CnixDPyP.js
+?? .vercel/output/static/assets/games-section-DY5gg4zP.js
+?? .vercel/output/static/assets/genre-section-BkBjPieI.js
+?? .vercel/output/static/assets/guide-picks-CchoXChA.js
+?? .vercel/output/static/assets/guide-preset-store-1KpQuzHz.js
+?? .vercel/output/static/assets/heart-C7XdJ2Ju.js
+?? .vercel/output/static/assets/hub-shared-CaaeFrPZ.js
+?? .vercel/output/static/assets/image-plus-Ci5ffDt5.js
+?? .vercel/output/static/assets/index-BysuUWAM.js
+?? .vercel/output/static/assets/input-Ca5mGUkn.js
+?? .vercel/output/static/assets/interaction-budget-CPdGQeYB.js
+?? .vercel/output/static/assets/lan-connection-section-BsD3IBe0.js
+?? .vercel/output/static/assets/landing-Bxkm9ESL.js
+?? .vercel/output/static/assets/library-app-C2FqRBxh.js
+?? .vercel/output/static/assets/library-limits-DbNrkfXJ.js
+?? .vercel/output/static/assets/library-stats.worker-B0IQd5Uk.js
+?? .vercel/output/static/assets/local-media-health-CoXDqJdR.js
+?? .vercel/output/static/assets/local-vision-UHJJe5NY.js
+?? .vercel/output/static/assets/maximize-2-BFIkr8zE.js
+?? .vercel/output/static/assets/media-feedback-BfySRZwY.js
+?? .vercel/output/static/assets/mission-plan-section-SxTCDABO.js
+?? .vercel/output/static/assets/navigation-work-C4_swDx4.js
+?? .vercel/output/static/assets/package-search-BwXkGWJr.js
+?? .vercel/output/static/assets/pause-BxzaO3Po.js
+?? .vercel/output/static/assets/persist-CQV-pred.js
+?? .vercel/output/static/assets/photos-section-Dby9gX8G.js
+?? .vercel/output/static/assets/play-BlTQnfM7.js
+?? .vercel/output/static/assets/player-CTn5im59.js
+?? .vercel/output/static/assets/pre-video-9L-58kro.js
+?? .vercel/output/static/assets/print-model-viewer-QCYyw6ND.js
+?? .vercel/output/static/assets/prints-blobs-yAHe9zXZ.js
+?? .vercel/output/static/assets/prints-section-Bg1XuyVY.js
+?? .vercel/output/static/assets/private-web-shortcuts-section-B9xvvBjP.js
+?? .vercel/output/static/assets/provider-recovery-BC_RjGGv.js
+?? .vercel/output/static/assets/provider-viewing-store-BlG0JJIT.js
+?? .vercel/output/static/assets/recommendation-button-DdFJhi8w.js
+?? .vercel/output/static/assets/recommendation-exposure-store-BVwQajXz.js
+?? .vercel/output/static/assets/refresh-cw-CTs6CzGp.js
+?? .vercel/output/static/assets/remote-desktop-section-wyNN90gh.js
+?? .vercel/output/static/assets/reviewed-photo-bridges-Cnuspbwg.js
+?? .vercel/output/static/assets/rocket-C4kZ35Ki.js
+?? .vercel/output/static/assets/rotate-ccw-CgdNR0zz.js
+?? .vercel/output/static/assets/routes-C4aVMIN8.js
+?? .vercel/output/static/assets/scan-DvrNMSj0.js
+?? .vercel/output/static/assets/settings-section-BYcDJWKu.js
+?? .vercel/output/static/assets/shop-section-CmSh1RuS.js
+?? .vercel/output/static/assets/social-section-C6sX3_We.js
+?? .vercel/output/static/assets/spotify-section-DAOpVnSp.js
+?? .vercel/output/static/assets/stable-diffusion-section-B1-G5TFZ.js
+?? .vercel/output/static/assets/stats-section-DNhXbHn1.js
+?? .vercel/output/static/assets/store-fhCGVnj0.js
+?? .vercel/output/static/assets/stream-signal-section-Dh4TF935.js
+?? .vercel/output/static/assets/streaming-section-DFjlMijx.js
+?? .vercel/output/static/assets/styles-CU36M_F4.css
+?? .vercel/output/static/assets/topic-alias-store-CZ59xpUx.js
+?? .vercel/output/static/assets/topic-bridge-store-CLeCJ4Sd.js
+?? .vercel/output/static/assets/topic-links-BeAkyG15.js
+?? .vercel/output/static/assets/transformers.web-CKR089ud.js
+?? .vercel/output/static/assets/twitch-archive-search-CifrQwIe.js
+?? .vercel/output/static/assets/twitch-embed-DAeGQ6hL.js
+?? .vercel/output/static/assets/twitch-identity-DCn8_OkL.js
+?? .vercel/output/static/assets/undo-2-CdqOf8qR.js
+?? .vercel/output/static/assets/use-browse-library-CWbQ7P9e.js
+?? .vercel/output/static/assets/use-video-details-D1izudGK.js
+?? .vercel/output/static/assets/utils-D-IlF1lz.js
+?? .vercel/output/static/assets/volume-x-DPi5H-x0.js
+?? .vercel/output/static/assets/watch-room-section-8rVvE9sP.js
+?? .vercel/output/static/assets/youtube-download-dialog-CMFsO80t.js
+?? .vercel/output/static/assets/youtube-tags-control-DbaljMLk.js
+?? docs/BACKUP_REVIEW_AND_TWITCH_IDENTITIES.md
+?? docs/MEDIA_RECOVERY.md
+?? docs/PAGE_AUDIT_2026_10_31.md
+?? docs/REMOVALS_AND_FILE_IDENTITIES.md
+?? screenshots/all-pages-release-home-log.txt
+?? screenshots/all-pages-release-home-mobile.png
+?? screenshots/all-pages-release-home.json
+?? screenshots/all-pages-release-home.png
+?? screenshots/all-pages-release-production-desktop-adult-fetishes.png
+?? screenshots/all-pages-release-production-desktop-adults.png
+?? screenshots/all-pages-release-production-desktop-anime.png
+?? screenshots/all-pages-release-production-desktop-assistant.png
+?? screenshots/all-pages-release-production-desktop-connection.png
+?? screenshots/all-pages-release-production-desktop-continue.png
+?? screenshots/all-pages-release-production-desktop-favorites.png
+?? screenshots/all-pages-release-production-desktop-find-phone.png
+?? screenshots/all-pages-release-production-desktop-games.png
+?? screenshots/all-pages-release-production-desktop-genres.png
+?? screenshots/all-pages-release-production-desktop-history.png
+?? screenshots/all-pages-release-production-desktop-home.png
+?? screenshots/all-pages-release-production-desktop-landing.png
+?? screenshots/all-pages-release-production-desktop-live.png
+?? screenshots/all-pages-release-production-desktop-mission-plan.png
+?? screenshots/all-pages-release-production-desktop-movies.png
+?? screenshots/all-pages-release-production-desktop-photos.png
+?? screenshots/all-pages-release-production-desktop-prints.png
+?? screenshots/all-pages-release-production-desktop-remote-desktop.png
+?? screenshots/all-pages-release-production-desktop-settings.png
+?? screenshots/all-pages-release-production-desktop-shop.png
+?? screenshots/all-pages-release-production-desktop-social.png
+?? screenshots/all-pages-release-production-desktop-spotify.png
+?? screenshots/all-pages-release-production-desktop-stable-diffusion.png
+?? screenshots/all-pages-release-production-desktop-stats.png
+?? screenshots/all-pages-release-production-desktop-stream-signal.png
+?? screenshots/all-pages-release-production-desktop-streaming.png
+?? screenshots/all-pages-release-production-desktop-twitch.png
+?? screenshots/all-pages-release-production-desktop-watch-room.png
+?? screenshots/all-pages-release-production-desktop-youtube.png
+?? screenshots/all-pages-release-production-log.txt
+?? screenshots/all-pages-release-production-mobile-adult-fetishes.png
+?? screenshots/all-pages-release-production-mobile-adults.png
+?? screenshots/all-pages-release-production-mobile-anime.png
+?? screenshots/all-pages-release-production-mobile-assistant.png
+?? screenshots/all-pages-release-production-mobile-connection.png
+?? screenshots/all-pages-release-production-mobile-continue.png
+?? screenshots/all-pages-release-production-mobile-favorites.png
+?? screenshots/all-pages-release-production-mobile-find-phone.png
+?? screenshots/all-pages-release-production-mobile-games.png
+?? screenshots/all-pages-release-production-mobile-genres.png
+?? screenshots/all-pages-release-production-mobile-history.png
+?? screenshots/all-pages-release-production-mobile-home.png
+?? screenshots/all-pages-release-production-mobile-landing.png
+?? screenshots/all-pages-release-production-mobile-live.png
+?? screenshots/all-pages-release-production-mobile-mission-plan.png
+?? screenshots/all-pages-release-production-mobile-movies.png
+?? screenshots/all-pages-release-production-mobile-photos.png
+?? screenshots/all-pages-release-production-mobile-prints.png
+?? screenshots/all-pages-release-production-mobile-remote-desktop.png
+?? screenshots/all-pages-release-production-mobile-settings.png
+?? screenshots/all-pages-release-production-mobile-shop.png
+?? screenshots/all-pages-release-production-mobile-social.png
+?? screenshots/all-pages-release-production-mobile-spotify.png
+?? screenshots/all-pages-release-production-mobile-stable-diffusion.png
+?? screenshots/all-pages-release-production-mobile-stats.png
+?? screenshots/all-pages-release-production-mobile-stream-signal.png
+?? screenshots/all-pages-release-production-mobile-streaming.png
+?? screenshots/all-pages-release-production-mobile-twitch.png
+?? screenshots/all-pages-release-production-mobile-watch-room.png
+?? screenshots/all-pages-release-production-mobile-youtube.png
+?? screenshots/all-pages-release-production.json
+?? screenshots/deletions-baseline-tests.txt
+?? screenshots/deletions-identity-dev-desktop-failure.png
+?? screenshots/deletions-identity-dev-desktop.png
+?? screenshots/deletions-identity-dev-log.txt
+?? screenshots/deletions-identity-dev-mobile-failure.png
+?? screenshots/deletions-identity-dev-mobile.png
+?? screenshots/deletions-identity-dev.json
+?? screenshots/deletions-production-desktop.png
+?? screenshots/deletions-production-mobile.png
+?? screenshots/deletions-production.json
+?? screenshots/deletions-production.log
+?? screenshots/deletions-release-dev-desktop.png
+?? screenshots/deletions-release-dev-mobile.png
+?? screenshots/deletions-release-dev.json
+?? screenshots/deletions-release-dev.log
+?? screenshots/deletions-release-production-desktop.png
+?? screenshots/deletions-release-production-mobile.png
+?? screenshots/deletions-release-production.json
+?? screenshots/deletions-release-production.log
+?? screenshots/deletions-tests.txt
+?? screenshots/file-identity-activity-dev-desktop-failure.png
+?? screenshots/file-identity-activity-dev-mobile-failure.png
+?? screenshots/file-identity-activity-dev.json
+?? screenshots/file-identity-activity-dev.log
+?? screenshots/file-identity-complete-dev-desktop.png
+?? screenshots/file-identity-complete-dev-mobile.png
+?? screenshots/file-identity-complete-dev.json
+?? screenshots/file-identity-complete-dev.log
+?? screenshots/file-identity-dev-desktop-failure.png
+?? screenshots/file-identity-dev.json
+?? screenshots/file-identity-dev.log
+?? screenshots/file-identity-dev2-desktop-failure.png
+?? screenshots/file-identity-dev2-mobile-failure.png
+?? screenshots/file-identity-dev2.json
+?? screenshots/file-identity-dev2.log
+?? screenshots/file-identity-production-desktop.png
+?? screenshots/file-identity-production-mobile.png
+?? screenshots/file-identity-production.json
+?? screenshots/file-identity-production.log
+?? screenshots/file-identity-resume-dev-desktop.png
+?? screenshots/file-identity-resume-dev-mobile.png
+?? screenshots/file-identity-resume-dev.json
+?? screenshots/file-identity-resume-dev.log
+?? screenshots/file-identity-verified-dev-desktop.png
+?? screenshots/file-identity-verified-dev-mobile.png
+?? screenshots/file-identity-verified-dev.json
+?? screenshots/file-identity-verified-dev.log
+?? screenshots/identity-build.txt
+?? screenshots/identity-home-dev-mobile.png
+?? screenshots/identity-home-dev.json
+?? screenshots/identity-home-dev.log
+?? screenshots/identity-home-dev.png
+?? screenshots/identity-release-production-desktop.png
+?? screenshots/identity-release-production-mobile.png
+?? screenshots/identity-release-production.json
+?? screenshots/identity-release-production.log
+?? screenshots/identity-unit-tests.txt
+?? screenshots/keyboard-queue-production-desktop-help.png
+?? screenshots/keyboard-queue-production-desktop-missing-model.png
+?? screenshots/keyboard-queue-production-desktop-recipe.png
+?? screenshots/keyboard-queue-production-log.txt
+?? screenshots/keyboard-queue-production-mobile-help.png
+?? screenshots/keyboard-queue-production-mobile-missing-model.png
+?? screenshots/keyboard-queue-production-mobile-recipe.png
+?? screenshots/keyboard-queue-production.json
+?? screenshots/keyboard-queue-verified-dev-desktop-help.png
+?? screenshots/keyboard-queue-verified-dev-desktop-missing-model.png
+?? screenshots/keyboard-queue-verified-dev-desktop-recipe.png
+?? screenshots/keyboard-queue-verified-dev-log.txt
+?? screenshots/keyboard-queue-verified-dev-mobile-help.png
+?? screenshots/keyboard-queue-verified-dev-mobile-missing-model.png
+?? screenshots/keyboard-queue-verified-dev-mobile-recipe.png
+?? screenshots/keyboard-queue-verified-dev.json
+?? screenshots/media-recovery-activity-check.txt
+?? screenshots/media-recovery-api-check.txt
+?? screenshots/media-recovery-build.txt
+?? screenshots/media-recovery-complete-dev-desktop.png
+?? screenshots/media-recovery-complete-dev-mobile-failure.png
+?? screenshots/media-recovery-complete-dev.json
+?? screenshots/media-recovery-complete-dev.log
+?? screenshots/media-recovery-dev-desktop-failure.png
+?? screenshots/media-recovery-dev-mobile-failure.png
+?? screenshots/media-recovery-dev.json
+?? screenshots/media-recovery-dev.log
+?? screenshots/media-recovery-dev2-desktop.png
+?? screenshots/media-recovery-dev2-mobile.png
+?? screenshots/media-recovery-dev2.json
+?? screenshots/media-recovery-dev2.log
+?? screenshots/media-recovery-final-dev-desktop.png
+?? screenshots/media-recovery-final-dev-mobile.png
+?? screenshots/media-recovery-final-dev.json
+?? screenshots/media-recovery-final-dev.log
+?? screenshots/media-recovery-focused-tests.txt
+?? screenshots/media-recovery-identity-regression-desktop.png
+?? screenshots/media-recovery-identity-regression-mobile.png
+?? screenshots/media-recovery-identity-regression.json
+?? screenshots/media-recovery-identity-regression.log
+?? screenshots/media-recovery-merge-tests.txt
+?? screenshots/media-recovery-production-desktop-local.png
+?? screenshots/media-recovery-production-desktop-twitch.png
+?? screenshots/media-recovery-production-desktop.png
+?? screenshots/media-recovery-production-mobile-local.png
+?? screenshots/media-recovery-production-mobile-twitch.png
+?? screenshots/media-recovery-production-mobile.png
+?? screenshots/media-recovery-production.json
+?? screenshots/media-recovery-production.log
+?? screenshots/media-recovery-release-tests.txt
+?? screenshots/media-recovery-runtime-build.txt
+?? screenshots/media-recovery-stale-clip-regression.txt
+?? screenshots/media-recovery-unit-final.txt
+?? screenshots/media-recovery-unit-tests.txt
+?? screenshots/media-recovery-verified-dev-desktop.png
+?? screenshots/media-recovery-verified-dev-mobile.png
+?? screenshots/media-recovery-verified-dev.json
+?? screenshots/media-recovery-verified-dev.log
+?? screenshots/milestone78-all-pages-desktop-adult-fetishes.png
+?? screenshots/milestone78-all-pages-desktop-adults.png
+?? screenshots/milestone78-all-pages-desktop-anime.png
+?? screenshots/milestone78-all-pages-desktop-assistant.png
+?? screenshots/milestone78-all-pages-desktop-connection.png
+?? screenshots/milestone78-all-pages-desktop-continue.png
+?? screenshots/milestone78-all-pages-desktop-favorites.png
+?? screenshots/milestone78-all-pages-desktop-find-phone.png
+?? screenshots/milestone78-all-pages-desktop-games.png
+?? screenshots/milestone78-all-pages-desktop-genres.png
+?? screenshots/milestone78-all-pages-desktop-history.png
+?? screenshots/milestone78-all-pages-desktop-home.png
+?? screenshots/milestone78-all-pages-desktop-landing.png
+?? screenshots/milestone78-all-pages-desktop-live.png
+?? screenshots/milestone78-all-pages-desktop-mission-plan.png
+?? screenshots/milestone78-all-pages-desktop-movies.png
+?? screenshots/milestone78-all-pages-desktop-photos.png
+?? screenshots/milestone78-all-pages-desktop-prints.png
+?? screenshots/milestone78-all-pages-desktop-remote-desktop.png
+?? screenshots/milestone78-all-pages-desktop-settings.png
+?? screenshots/milestone78-all-pages-desktop-shop.png
+?? screenshots/milestone78-all-pages-desktop-social.png
+?? screenshots/milestone78-all-pages-desktop-spotify.png
+?? screenshots/milestone78-all-pages-desktop-stable-diffusion.png
+?? screenshots/milestone78-all-pages-desktop-stats.png
+?? screenshots/milestone78-all-pages-desktop-stream-signal.png
+?? screenshots/milestone78-all-pages-desktop-streaming.png
+?? screenshots/milestone78-all-pages-desktop-twitch.png
+?? screenshots/milestone78-all-pages-desktop-watch-room.png
+?? screenshots/milestone78-all-pages-desktop-youtube.png
+?? screenshots/milestone78-all-pages-mobile-adult-fetishes.png
+?? screenshots/milestone78-all-pages-mobile-adults.png
+?? screenshots/milestone78-all-pages-mobile-anime.png
+?? screenshots/milestone78-all-pages-mobile-connection-failure.png
+?? screenshots/milestone78-all-pages-mobile-continue.png
+?? screenshots/milestone78-all-pages-mobile-favorites.png
+?? screenshots/milestone78-all-pages-mobile-find-phone-failure.png
+?? screenshots/milestone78-all-pages-mobile-games.png
+?? screenshots/milestone78-all-pages-mobile-genres.png
+?? screenshots/milestone78-all-pages-mobile-history.png
+?? screenshots/milestone78-all-pages-mobile-home.png
+?? screenshots/milestone78-all-pages-mobile-landing.png
+?? screenshots/milestone78-all-pages-mobile-live.png
+?? screenshots/milestone78-all-pages-mobile-movies.png
+?? screenshots/milestone78-all-pages-mobile-photos.png
+?? screenshots/milestone78-all-pages-mobile-prints.png
+?? screenshots/milestone78-all-pages-mobile-remote-desktop.png
+?? screenshots/milestone78-all-pages-mobile-shop.png
+?? screenshots/milestone78-all-pages-mobile-social.png
+?? screenshots/milestone78-all-pages-mobile-spotify.png
+?? screenshots/milestone78-all-pages-mobile-stable-diffusion.png
+?? screenshots/milestone78-all-pages-mobile-stream-signal.png
+?? screenshots/milestone78-all-pages-mobile-streaming.png
+?? screenshots/milestone78-all-pages-mobile-twitch.png
+?? screenshots/milestone78-all-pages-mobile-watch-room.png
+?? screenshots/milestone78-all-pages-mobile-youtube.png
+?? screenshots/milestone78-all-pages.json
+?? screenshots/milestone78-all-pages.log
+?? screenshots/milestone78-build.txt
+?? screenshots/milestone78-focused-tests.txt
+?? screenshots/milestone78-focused-tests2.txt
+?? screenshots/milestone78-focused-tests3.txt
+?? screenshots/milestone78-home-production-mobile.png
+?? screenshots/milestone78-home-production.json
+?? screenshots/milestone78-home-production.log
+?? screenshots/milestone78-home-production.png
+?? screenshots/milestone78-identity-production-desktop.png
+?? screenshots/milestone78-identity-production-mobile.png
+?? screenshots/milestone78-identity-production.json
+?? screenshots/milestone78-identity-production.log
+?? screenshots/milestone78-mission-dev-desktop-failure.png
+?? screenshots/milestone78-mission-dev.json
+?? screenshots/milestone78-mission-dev.log
+?? screenshots/milestone78-mission-production-desktop-failure.png
+?? screenshots/milestone78-mission-production.json
+?? screenshots/milestone78-mission-production.log
+?? screenshots/milestone78-mission-verified-dev-desktop.png
+?? screenshots/milestone78-mission-verified-dev-mobile.png
+?? screenshots/milestone78-mission-verified-dev.json
+?? screenshots/milestone78-mission-verified-dev.log
+?? screenshots/milestone78-mission-verified-production-desktop.png
+?? screenshots/milestone78-mission-verified-production-mobile.png
+?? screenshots/milestone78-mission-verified-production.json
+?? screenshots/milestone78-mission-verified-production.log
+?? screenshots/milestone78-pages-final-desktop-adult-fetishes.png
+?? screenshots/milestone78-pages-final-desktop-adults.png
+?? screenshots/milestone78-pages-final-desktop-anime.png
+?? screenshots/milestone78-pages-final-desktop-assistant.png
+?? screenshots/milestone78-pages-final-desktop-connection.png
+?? screenshots/milestone78-pages-final-desktop-contact.png
+?? screenshots/milestone78-pages-final-desktop-continue.png
+?? screenshots/milestone78-pages-final-desktop-favorites.png
+?? screenshots/milestone78-pages-final-desktop-find-phone.png
+?? screenshots/milestone78-pages-final-desktop-games.png
+?? screenshots/milestone78-pages-final-desktop-genres.png
+?? screenshots/milestone78-pages-final-desktop-history.png
+?? screenshots/milestone78-pages-final-desktop-home.png
+?? screenshots/milestone78-pages-final-desktop-landing.png
+?? screenshots/milestone78-pages-final-desktop-live.png
+?? screenshots/milestone78-pages-final-desktop-mission-plan.png
+?? screenshots/milestone78-pages-final-desktop-movies.png
+?? screenshots/milestone78-pages-final-desktop-photos.png
+?? screenshots/milestone78-pages-final-desktop-prints.png
+?? screenshots/milestone78-pages-final-desktop-remote-desktop.png
+?? screenshots/milestone78-pages-final-desktop-settings.png
+?? screenshots/milestone78-pages-final-desktop-shop.png
+?? screenshots/milestone78-pages-final-desktop-social.png
+?? screenshots/milestone78-pages-final-desktop-spotify.png
+?? screenshots/milestone78-pages-final-desktop-stable-diffusion.png
+?? screenshots/milestone78-pages-final-desktop-stats.png
+?? screenshots/milestone78-pages-final-desktop-stream-signal.png
+?? screenshots/milestone78-pages-final-desktop-streaming.png
+?? screenshots/milestone78-pages-final-desktop-twitch.png
+?? screenshots/milestone78-pages-final-desktop-watch-room.png
+?? screenshots/milestone78-pages-final-desktop-youtube.png
+?? screenshots/milestone78-pages-final-mobile-adult-fetishes.png
+?? screenshots/milestone78-pages-final-mobile-adults.png
+?? screenshots/milestone78-pages-final-mobile-anime.png
+?? screenshots/milestone78-pages-final-mobile-assistant.png
+?? screenshots/milestone78-pages-final-mobile-connection.png
+?? screenshots/milestone78-pages-final-mobile-contact.png
+?? screenshots/milestone78-pages-final-mobile-continue.png
+?? screenshots/milestone78-pages-final-mobile-favorites.png
+?? screenshots/milestone78-pages-final-mobile-find-phone.png
+?? screenshots/milestone78-pages-final-mobile-games.png
+?? screenshots/milestone78-pages-final-mobile-genres.png
+?? screenshots/milestone78-pages-final-mobile-history.png
+?? screenshots/milestone78-pages-final-mobile-home.png
+?? screenshots/milestone78-pages-final-mobile-landing.png
+?? screenshots/milestone78-pages-final-mobile-live.png
+?? screenshots/milestone78-pages-final-mobile-mission-plan.png
+?? screenshots/milestone78-pages-final-mobile-movies.png
+?? screenshots/milestone78-pages-final-mobile-photos.png
+?? screenshots/milestone78-pages-final-mobile-prints.png
+?? screenshots/milestone78-pages-final-mobile-remote-desktop.png
+?? screenshots/milestone78-pages-final-mobile-settings.png
+?? screenshots/milestone78-pages-final-mobile-shop.png
+?? screenshots/milestone78-pages-final-mobile-social.png
+?? screenshots/milestone78-pages-final-mobile-spotify.png
+?? screenshots/milestone78-pages-final-mobile-stable-diffusion.png
+?? screenshots/milestone78-pages-final-mobile-stats.png
+?? screenshots/milestone78-pages-final-mobile-stream-signal.png
+?? screenshots/milestone78-pages-final-mobile-streaming.png
+?? screenshots/milestone78-pages-final-mobile-twitch.png
+?? screenshots/milestone78-pages-final-mobile-watch-room.png
+?? screenshots/milestone78-pages-final-mobile-youtube.png
+?? screenshots/milestone78-pages-final.json
+?? screenshots/milestone78-pages-final.log
+?? screenshots/milestone78-roadmap-tests.txt
+?? screenshots/milestone78-runtime-build.txt
+?? screenshots/milestone78-runtime-tests.txt
+?? screenshots/milestone79-bounded-tests.txt
+?? screenshots/milestone79-build.txt
+?? screenshots/milestone79-final-build.txt
+?? screenshots/milestone79-final-home-mobile.png
+?? screenshots/milestone79-final-home.json
+?? screenshots/milestone79-final-home.log
+?? screenshots/milestone79-final-home.png
+?? screenshots/milestone79-final-production-desktop-local.png
+?? screenshots/milestone79-final-production-desktop-twitch.png
+?? screenshots/milestone79-final-production-desktop.png
+?? screenshots/milestone79-final-production-mobile-local.png
+?? screenshots/milestone79-final-production-mobile-twitch.png
+?? screenshots/milestone79-final-production-mobile.png
+?? screenshots/milestone79-final-production.json
+?? screenshots/milestone79-final-production.log
+?? screenshots/milestone79-final-runtime-tests.txt
+?? screenshots/milestone79-final-source-tests.txt
+?? screenshots/milestone79-focused-tests.txt
+?? screenshots/milestone79-home-dev-mobile.png
+?? screenshots/milestone79-home-dev.json
+?? screenshots/milestone79-home-dev.log
+?? screenshots/milestone79-home-dev.png
+?? screenshots/milestone79-home-production-mobile.png
+?? screenshots/milestone79-home-production.json
+?? screenshots/milestone79-home-production.log
+?? screenshots/milestone79-home-production.png
+?? screenshots/milestone79-identity-regression-desktop.png
+?? screenshots/milestone79-identity-regression-mobile.png
+?? screenshots/milestone79-identity-regression.json
+?? screenshots/milestone79-identity-regression.log
+?? screenshots/milestone79-mission-dev-desktop.png
+?? screenshots/milestone79-mission-dev-mobile.png
+?? screenshots/milestone79-mission-dev.json
+?? screenshots/milestone79-mission-dev.log
+?? screenshots/milestone79-mission-production-desktop.png
+?? screenshots/milestone79-mission-production-mobile.png
+?? screenshots/milestone79-mission-production.json
+?? screenshots/milestone79-mission-production.log
+?? screenshots/milestone79-recovery-dev-desktop-local.png
+?? screenshots/milestone79-recovery-dev-desktop-twitch.png
+?? screenshots/milestone79-recovery-dev-desktop.png
+?? screenshots/milestone79-recovery-dev-mobile-local.png
+?? screenshots/milestone79-recovery-dev-mobile-twitch.png
+?? screenshots/milestone79-recovery-dev-mobile.png
+?? screenshots/milestone79-recovery-dev.json
+?? screenshots/milestone79-recovery-dev.log
+?? screenshots/milestone79-recovery-production-desktop-local.png
+?? screenshots/milestone79-recovery-production-desktop-twitch.png
+?? screenshots/milestone79-recovery-production-desktop.png
+?? screenshots/milestone79-recovery-production-mobile-local.png
+?? screenshots/milestone79-recovery-production-mobile-twitch.png
+?? screenshots/milestone79-recovery-production-mobile.png
+?? screenshots/milestone79-recovery-production.json
+?? screenshots/milestone79-recovery-production.log
+?? screenshots/milestone79-recovery-verified-dev-desktop-local.png
+?? screenshots/milestone79-recovery-verified-dev-desktop-twitch.png
+?? screenshots/milestone79-recovery-verified-dev-desktop.png
+?? screenshots/milestone79-recovery-verified-dev-mobile-local.png
+?? screenshots/milestone79-recovery-verified-dev-mobile-twitch.png
+?? screenshots/milestone79-recovery-verified-dev-mobile.png
+?? screenshots/milestone79-recovery-verified-dev.json
+?? screenshots/milestone79-recovery-verified-dev.log
+?? screenshots/milestone79-recovery-verified-production-desktop-local.png
+?? screenshots/milestone79-recovery-verified-production-desktop-twitch.png
+?? screenshots/milestone79-recovery-verified-production-desktop.png
+?? screenshots/milestone79-recovery-verified-production-mobile-local.png
+?? screenshots/milestone79-recovery-verified-production-mobile-twitch.png
+?? screenshots/milestone79-recovery-verified-production-mobile.png
+?? screenshots/milestone79-recovery-verified-production.json
+?? screenshots/milestone79-recovery-verified-production.log
+?? screenshots/milestone79-regression-tests.txt
+?? screenshots/milestone79-roadmap-tests.txt
+?? screenshots/milestone79-runtime-tests.txt
+?? screenshots/milestone79-runtime-verified-tests.txt
+?? screenshots/milestone80-build.txt
+?? screenshots/milestone80-final-build.txt
+?? screenshots/milestone80-final-dev-desktop-alias.png
+?? screenshots/milestone80-final-dev-desktop-fields.png
+?? screenshots/milestone80-final-dev-mobile-alias.png
+?? screenshots/milestone80-final-dev-mobile-fields.png
+?? screenshots/milestone80-final-dev.json
+?? screenshots/milestone80-final-home-mobile.png
+?? screenshots/milestone80-final-home.json
+?? screenshots/milestone80-final-home.png
+?? screenshots/milestone80-final-production-desktop-alias.png
+?? screenshots/milestone80-final-production-desktop-fields.png
+?? screenshots/milestone80-final-production-mobile-alias.png
+?? screenshots/milestone80-final-production-mobile-fields.png
+?? screenshots/milestone80-final-production.json
+?? screenshots/milestone80-final-tests.txt
+?? screenshots/milestone80-focused-tests.txt
+?? screenshots/milestone80-home-dev-mobile.png
+?? screenshots/milestone80-home-dev.json
+?? screenshots/milestone80-home-dev.png
+?? screenshots/milestone80-home-production-mobile.png
+?? screenshots/milestone80-home-production.json
+?? screenshots/milestone80-home-production.png
+?? screenshots/milestone80-mission-dev-desktop.png
+?? screenshots/milestone80-mission-dev-mobile.png
+?? screenshots/milestone80-mission-dev.json
+?? screenshots/milestone80-mission-production-desktop.png
+?? screenshots/milestone80-mission-production-mobile.png
+?? screenshots/milestone80-mission-production.json
+?? screenshots/milestone80-review-dev-desktop-alias.png
+?? screenshots/milestone80-review-dev-desktop-failure.png
+?? screenshots/milestone80-review-dev-desktop-fields.png
+?? screenshots/milestone80-review-dev-mobile-alias.png
+?? screenshots/milestone80-review-dev-mobile-fields.png
+?? screenshots/milestone80-review-dev.json
+?? screenshots/milestone80-review-production-desktop-alias.png
+?? screenshots/milestone80-review-production-desktop-fields.png
+?? screenshots/milestone80-review-production-mobile-alias.png
+?? screenshots/milestone80-review-production-mobile-fields.png
+?? screenshots/milestone80-review-production.json
+?? screenshots/milestone80-roadmap-tests.txt
+?? screenshots/milestone80-typecheck.txt
+?? screenshots/milestone81-build.txt
+?? screenshots/milestone81-home-dev-mobile.png
+?? screenshots/milestone81-home-dev.json
+?? screenshots/milestone81-home-dev.png
+?? screenshots/milestone81-mission-dev-desktop.png
+?? screenshots/milestone81-mission-dev-mobile.png
+?? screenshots/milestone81-mission-dev.json
+?? screenshots/milestone81-native.json
+?? screenshots/milestone81-pages-dev-desktop-adult-fetishes.png
+?? screenshots/milestone81-pages-dev-desktop-adults.png
+?? screenshots/milestone81-pages-dev-desktop-anime.png
+?? screenshots/milestone81-pages-dev-desktop-assistant.png
+?? screenshots/milestone81-pages-dev-desktop-connection.png
+?? screenshots/milestone81-pages-dev-desktop-continue.png
+?? screenshots/milestone81-pages-dev-desktop-favorites.png
+?? screenshots/milestone81-pages-dev-desktop-find-phone.png
+?? screenshots/milestone81-pages-dev-desktop-games.png
+?? screenshots/milestone81-pages-dev-desktop-genres.png
+?? screenshots/milestone81-pages-dev-desktop-history.png
+?? screenshots/milestone81-pages-dev-desktop-home.png
+?? screenshots/milestone81-pages-dev-desktop-landing.png
+?? screenshots/milestone81-pages-dev-desktop-live.png
+?? screenshots/milestone81-pages-dev-desktop-mission-plan.png
+?? screenshots/milestone81-pages-dev-desktop-movies.png
+?? screenshots/milestone81-pages-dev-desktop-photos.png
+?? screenshots/milestone81-pages-dev-desktop-prints.png
+?? screenshots/milestone81-pages-dev-desktop-remote-desktop.png
+?? screenshots/milestone81-pages-dev-desktop-settings.png
+?? screenshots/milestone81-pages-dev-desktop-shop.png
+?? screenshots/milestone81-pages-dev-desktop-social.png
+?? screenshots/milestone81-pages-dev-desktop-spotify.png
+?? screenshots/milestone81-pages-dev-desktop-stable-diffusion.png
+?? screenshots/milestone81-pages-dev-desktop-stats.png
+?? screenshots/milestone81-pages-dev-desktop-stream-signal.png
+?? screenshots/milestone81-pages-dev-desktop-streaming.png
+?? screenshots/milestone81-pages-dev-desktop-twitch.png
+?? screenshots/milestone81-pages-dev-desktop-watch-room.png
+?? screenshots/milestone81-pages-dev-desktop-youtube.png
+?? screenshots/milestone81-pages-dev-mobile-adult-fetishes.png
+?? screenshots/milestone81-pages-dev-mobile-adults.png
+?? screenshots/milestone81-pages-dev-mobile-anime.png
+?? screenshots/milestone81-pages-dev-mobile-assistant.png
+?? screenshots/milestone81-pages-dev-mobile-connection.png
+?? screenshots/milestone81-pages-dev-mobile-continue.png
+?? screenshots/milestone81-pages-dev-mobile-favorites.png
+?? screenshots/milestone81-pages-dev-mobile-find-phone.png
+?? screenshots/milestone81-pages-dev-mobile-games.png
+?? screenshots/milestone81-pages-dev-mobile-genres.png
+?? screenshots/milestone81-pages-dev-mobile-history.png
+?? screenshots/milestone81-pages-dev-mobile-home.png
+?? screenshots/milestone81-pages-dev-mobile-landing.png
+?? screenshots/milestone81-pages-dev-mobile-live.png
+?? screenshots/milestone81-pages-dev-mobile-mission-plan.png
+?? screenshots/milestone81-pages-dev-mobile-movies.png
+?? screenshots/milestone81-pages-dev-mobile-photos.png
+?? screenshots/milestone81-pages-dev-mobile-prints.png
+?? screenshots/milestone81-pages-dev-mobile-remote-desktop.png
+?? screenshots/milestone81-pages-dev-mobile-settings.png
+?? screenshots/milestone81-pages-dev-mobile-shop.png
+?? screenshots/milestone81-pages-dev-mobile-social.png
+?? screenshots/milestone81-pages-dev-mobile-spotify.png
+?? screenshots/milestone81-pages-dev-mobile-stable-diffusion.png
+?? screenshots/milestone81-pages-dev-mobile-stats.png
+?? screenshots/milestone81-pages-dev-mobile-stream-signal.png
+?? screenshots/milestone81-pages-dev-mobile-streaming.png
+?? screenshots/milestone81-pages-dev-mobile-twitch.png
+?? screenshots/milestone81-pages-dev-mobile-watch-room.png
+?? screenshots/milestone81-pages-dev-mobile-youtube.png
+?? screenshots/milestone81-pages-dev.json
+?? screenshots/milestone81-persistence-tests.txt
+?? screenshots/milestone81-regressions.txt
+?? screenshots/milestone81-restore-dev-desktop-alias.png
+?? screenshots/milestone81-restore-dev-desktop-failure.png
+?? screenshots/milestone81-restore-dev-desktop-fields.png
+?? screenshots/milestone81-restore-dev-desktop-ready.png
+?? screenshots/milestone81-restore-dev-desktop-rollback.png
+?? screenshots/milestone81-restore-dev-mobile-alias.png
+?? screenshots/milestone81-restore-dev-mobile-fields.png
+?? screenshots/milestone81-restore-dev-mobile-ready.png
+?? screenshots/milestone81-restore-dev-mobile-rollback.png
+?? screenshots/milestone81-restore-dev.json
+?? screenshots/milestone81-restore-tests.txt
+?? screenshots/milestone81-roadmap-tests.txt
+?? screenshots/milestone81-runtime-tests.txt
+?? screenshots/milestone81-typecheck.txt
+?? scripts/deletion-tombstones.test.mjs
+?? scripts/deletions-identity-browser-check.mjs
+?? scripts/file-identity-browser-check.mjs
+?? scripts/identity-and-backup-review-browser-check.mjs
+?? scripts/identity-and-backup-review.test.mjs
+?? scripts/identity-review-storage-fixture.mjs
+?? scripts/identity-storage-fixture.mjs
+?? scripts/library-restore-browser-check.mjs
+?? scripts/library-restore-native-check.mjs
+?? scripts/library-restore-storage-fixture.mjs
+?? scripts/library-restore.test.mjs
+?? scripts/local-identity.test.mjs
+?? scripts/media-recovery-api.test.mjs
+?? scripts/media-recovery-browser-check.mjs
+?? scripts/media-recovery-storage-fixture.mjs
+?? scripts/media-recovery.test.mjs
+?? src/components/library/file-identity-panel.tsx
+?? src/components/library/media-recovery-panel.tsx
+?? src/components/library/pack-conflict-review.tsx
+?? src/components/library/removed-titles-panel.tsx
+?? src/components/library/restore-boundary.tsx
+?? src/components/library/twitch-alias-review.tsx
+?? src/lib/remote/twitch-media-health.ts
+?? src/lib/restore-epoch.ts
+?? src/lib/videos/backup-inspection-queue.ts
+?? src/lib/videos/deletion-tombstones.ts
+?? src/lib/videos/file-fingerprint.ts
+?? src/lib/videos/file-fingerprint.worker.ts
+?? src/lib/videos/identity-repository.ts
+?? src/lib/videos/identity-scan.ts
+?? src/lib/videos/library-restore-plan.ts
+?? src/lib/videos/library-restore-repository.ts
+?? src/lib/videos/local-identity.ts
+?? src/lib/videos/local-media-health.ts
+?? src/lib/videos/media-health-repository.ts
+?? src/lib/videos/media-health.ts
+?? src/lib/videos/media-recovery-groups.ts
+?? src/lib/videos/pack-conflicts.ts
+?? src/lib/videos/pack-review-repository.ts
+?? src/lib/videos/restore-snapshot.ts
+?? src/lib/videos/twitch-alias-repository.ts
+?? src/lib/videos/twitch-channel-identity.ts

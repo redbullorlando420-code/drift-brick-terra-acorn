@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
 import { readWorkspaceDocument, saveWorkspaceDocuments } from './persist';
 import { CoalescedWriter } from '../coalesced-writer';
 import { cleanImportSession, emptyImportSession, importSessionKey, mergeImportSessions, type ImportSession } from './import-session';

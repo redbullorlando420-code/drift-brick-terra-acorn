@@ -1,0 +1,307 @@
+src\lib\artwork-mode.ts:10:    try { textFirst = localStorage.getItem(ARTWORK_MODE_KEY) === 'text'; }
+src\lib\artwork-mode.ts:21:  try { localStorage.setItem(ARTWORK_MODE_KEY, value ? 'text' : 'images'); } catch { /* session choice still works */ }
+src\lib\artwork-mode.ts:38:    window.addEventListener('storage', storage);
+src\components\library\adult-panel.tsx:215:      localStorage.setItem("reelcase.adult-discovery-collapsed", "false");
+src\components\library\adult-panel.tsx:458:    setDiscoveryCollapsed(localStorage.getItem("reelcase.adult-discovery-collapsed") !== "false");
+src\components\library\adult-panel.tsx:465:      localStorage.setItem(REDDIT_SOURCE_STORAGE_KEY, JSON.stringify(redditSources));
+src\components\library\adult-panel.tsx:466:      localStorage.setItem(`${REDDIT_SOURCE_STORAGE_KEY}.enabled`, String(useCustomRedditSources));
+src\components\library\adult-panel.tsx:475:      localStorage.setItem("reelcase.adult-discovery-collapsed", String(discoveryCollapsed));
+src\components\library\browse.tsx:23:  const value = Number(localStorage.getItem(key) ?? fallback);
+src\lib\capability-consent.ts:157:    typeof window === "undefined" ? noStorage.getItem() : window.localStorage.getItem(key),
+src\lib\capability-consent.ts:160:    window.localStorage.setItem(key, value);
+src\lib\capability-consent.ts:167:  window.addEventListener("storage", (event) => {
+src\components\library\companion-update-panel.tsx:25:      const text = localStorage.getItem(key);
+src\components\library\companion-update-panel.tsx:40:      localStorage.setItem(key, JSON.stringify(current));
+src\lib\auth\client.ts:54:    return window.sessionStorage.getItem(BEARER_KEY);
+src\lib\auth\client.ts:63:    if (token) window.sessionStorage.setItem(BEARER_KEY, token);
+src\lib\auth\client.ts:64:    else window.sessionStorage.removeItem(BEARER_KEY);
+src\lib\data-saver.ts:8:    return localStorage.getItem(DATA_SAVER_KEY) === "save-data" ? "save-data" : "adaptive";
+src\lib\data-saver.ts:23:    localStorage.setItem(DATA_SAVER_KEY, mode);
+src\lib\data-saver.ts:44:    window.addEventListener("storage", storage);
+src\components\library\desktop-sidebar.tsx:25:    try { desktopSidebar.pin(localStorage.getItem(SIDEBAR_PINNED_KEY) !== 'false'); } catch { /* session preference */ }
+src\components\library\desktop-sidebar.tsx:31:      try { localStorage.setItem(SIDEBAR_PINNED_KEY, String(next)); } catch { /* session preference */ }
+src\lib\game-icons.ts:10:    const raw = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Record<string, string>;
+src\lib\game-icons.ts:26:    localStorage.setItem(KEY, JSON.stringify(all));
+src\lib\game-icons.ts:34:      localStorage.setItem(KEY, JSON.stringify(all));
+src\components\library\follow-manager.tsx:153:    window.addEventListener("storage", syncStorage);
+src\components\library\global-search.tsx:93:      const saved: unknown = JSON.parse(localStorage.getItem('reelcase.search.recent') ?? '[]');
+src\components\library\global-search.tsx:159:      try { localStorage.setItem('reelcase.search.recent', JSON.stringify(next)); } catch { /* Optional history cannot block search. */ }
+src\components\library\hub-shared.tsx:53:    const raw = localStorage.getItem(HUB_KEY);
+src\components\library\hub-shared.tsx:62:  localStorage.setItem(HUB_KEY, JSON.stringify(next));
+src\components\library\keyboard-help.tsx:21:    const sync = () => { try { const next = readShortcutPreferences(key ? localStorage.getItem(key) : null); setPrefs(next); setShortcutPreferences(next); } catch { setError('Shortcut preferences could not be read. Defaults are active.'); setPrefs({search:true,sidebar:true}); setShortcutPreferences({search:true,sidebar:true}); } };
+src\components\library\keyboard-help.tsx:23:    sync(); window.addEventListener('storage', update);
+src\components\library\keyboard-help.tsx:41:    try { if (!key) throw Error('Sign in to save shortcut preferences.'); localStorage.setItem(key, JSON.stringify(next)); setPrefs(next); setShortcutPreferences(next); setError(''); }
+src\components\library\library-app.tsx:323:        setRenderBudgetMonitoring(localStorage.getItem('reelcase.debug-panel') === 'true');
+src\components\library\library-app.tsx:324:        document.documentElement.dataset.artworkMode = localStorage.getItem('reelcase.artwork-mode') === 'text' ? 'text' : 'images';
+src\components\library\library-app.tsx:329:    sync(); window.addEventListener('reelcase:diagnostics-settings', sync); window.addEventListener('storage', storage);
+src\components\library\library-app.tsx:422:    try { const seconds = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "30"); return [15, 30, 60, 120, 300].includes(seconds) ? seconds * 1_000 : 30_000; }
+src\components\library\library-app.tsx:698:      const saved = Number(localStorage.getItem("reelcase.adult-rail-limit") ?? "48");
+src\components\library\library-app.tsx:937:    const update = () => { try { const seconds = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "30"); setRemoteRefreshMs(([15, 30, 60, 120, 300].includes(seconds) ? seconds : 30) * 1_000); } catch { setRemoteRefreshMs(30_000); } };
+src\components\library\library-app.tsx:1022:      try { const value = Number(localStorage.getItem(key)); return Number.isFinite(value) ? value : 0; }
+src\components\library\library-app.tsx:1054:          try { localStorage.setItem(YOUTUBE_SWEEP_KEY, String(finishedAt)); } catch { /* Session pacing remains. */ }
+src\components\library\library-app.tsx:1058:        const preferences = (() => { try { return JSON.parse(localStorage.getItem('reelcase.settings.v2') ?? '{}') as Record<string, boolean>; } catch { return {}; } })();
+src\components\library\library-app.tsx:1599:              {sourceId === "favorites" && !query && <div className="mb-6 rounded-lg bg-elevated p-4 shadow-border"><p className="text-sm font-medium text-fg">Photos and private favorites</p><p className="mt-1 text-xs text-muted">Photo hearts stay in the photo viewer. Private favorites stay in Adults. Creator and topic hearts appear above.</p><Button size="sm" variant="secondary" className="mt-3" onClick={() => { localStorage.setItem("reelcase.photos.favorites-only", "true"); setSource("photos"); }}>Open photo favorites</Button><Button size="sm" variant="secondary" className="mt-3 ml-2" onClick={() => { setAdultDeepVisible(true); setSource("adults"); }}>Open private favorites · {adultFavorites.length}</Button></div>}
+src\components\library\library-app.tsx:1803:                  {folders.find((folder) => folder.id === sourceId)?.photoCount ? <div className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-elevated px-4 py-3 shadow-border"><p className="text-sm text-fg">This source also has {folders.find((folder) => folder.id === sourceId)?.photoCount} discovered photos.</p><Button size="sm" variant="secondary" onClick={() => { const folder = folders.find((item) => item.id === sourceId); if (folder) localStorage.setItem("reelcase.photos.source-filter", folder.name); setSource("photos"); }}>Browse this source’s photos</Button></div> : null}
+src\components\library\light-home.tsx:39:      const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}');
+src\components\library\light-home.tsx:62:          try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* Keep the choice for this visit. */ }
+src\lib\media-feedback.ts:51:      for (let index = 0; index < localStorage.length; index++) {
+src\lib\media-feedback.ts:52:        const key = localStorage.key(index);
+src\lib\media-feedback.ts:67:        for (let index = 0; index < localStorage.length; index++) {
+src\lib\media-feedback.ts:68:          const key = localStorage.key(index);
+src\lib\media-feedback.ts:73:              const value = Number(localStorage.getItem(key));
+src\lib\media-feedback.ts:135:    const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<Feedback>;
+src\lib\media-feedback.ts:241:  try { legacy = Number(localStorage.getItem(`reelcase.rating.${id}`) ?? 0); } catch { /* session only */ }
+src\lib\media-feedback.ts:299:export function getNote(id: string): string { const value = read().notes[id]; if (typeof value === "string") return value; try { return localStorage.getItem(`reelcase.note.${id}`) ?? ""; } catch { return ""; } }
+src\components\library\live-desk.tsx:43:      const saved = JSON.parse(localStorage.getItem("reelcase.live-desk") ?? "{}");
+src\components\library\live-desk.tsx:47:      const count = Number(localStorage.getItem("reelcase.live-columns"));
+src\components\library\live-desk.tsx:55:      localStorage.setItem("reelcase.live-desk", JSON.stringify({ source, filter, sort }));
+src\components\library\live-desk.tsx:56:      localStorage.setItem("reelcase.live-columns", String(columns));
+src\lib\network-presence.ts:23:    const saved = localStorage.getItem(DEVICE_ID_KEY);
+src\lib\network-presence.ts:26:    localStorage.setItem(DEVICE_ID_KEY, next);
+src\lib\performance-profile.ts:40:    try { savedMode = localStorage.getItem(PERFORMANCE_MODE_KEY) === 'low-memory' ? 'low-memory' : 'adaptive'; }
+src\lib\performance-profile.ts:52:  try { localStorage.setItem(PERFORMANCE_MODE_KEY, mode); } catch { /* session setting still applies */ }
+src\lib\performance-profile.ts:67:    window.addEventListener('storage', onStorage);
+src\components\library\photos-section.tsx:67:  try { cachedPhotoMetadata = JSON.parse(localStorage.getItem("reelcase.photo-meta.v1") ?? "{}"); }
+src\components\library\photos-section.tsx:100:    try { return localStorage.getItem("reelcase.photos.rating-queue") ?? ""; } catch { return ""; }
+src\components\library\photos-section.tsx:108:    try { return localStorage.getItem("reelcase.photos.source-filter") || "All albums"; } catch { return "All albums"; }
+src\components\library\photos-section.tsx:115:    try { return localStorage.getItem("reelcase.photos.favorites-only") === "true"; } catch { return false; }
+src\components\library\photos-section.tsx:118:    try { return (localStorage.getItem("reelcase.photos.sort") as PhotoSort) || "newest"; } catch { return "newest"; }
+src\components\library\photos-section.tsx:121:    try { return localStorage.getItem("reelcase.photos.show-locations") === "true"; } catch { return false; }
+src\components\library\photos-section.tsx:127:    try { const value = Number(localStorage.getItem("reelcase.photos.slide-seconds") ?? "5"); return [3, 5, 10, 20, 30].includes(value) ? value : 5; } catch { return 5; }
+src\components\library\photos-section.tsx:149:    try { const saved = JSON.parse(localStorage.getItem("reelcase.photo-vision-benchmark.v1") ?? "null") as Partial<VisionBenchmark> | null; return saved?.semantic && saved.semanticPlus && saved.semanticPro ? saved as VisionBenchmark : null; } catch { return null; }
+src\components\library\photos-section.tsx:183:      const raw = localStorage.getItem("reelcase.photo-upscaler.model.v1");
+src\components\library\photos-section.tsx:218:      try { localStorage.setItem("reelcase.photo-upscaler.model.v1", JSON.stringify(model)); } catch { /* The cache manifest is the durable fallback for full libraries. */ }
+src\components\library\photos-section.tsx:224:    try { const cache = await caches.open("reelcase-local-models-v1"); await cache.delete("/reelcase-local-models/upscaler.onnx"); await cache.delete("/reelcase-local-models/upscaler.manifest.json"); localStorage.removeItem("reelcase.photo-upscaler.model.v1"); } finally { await checkUpscalerHealth(); }
+src\components\library\photos-section.tsx:401:  useEffect(() => { try { localStorage.setItem("reelcase.photos.sort", photoSort); } catch { /* storage unavailable */ } }, [photoSort]);
+src\components\library\photos-section.tsx:402:  useEffect(() => { try { localStorage.setItem("reelcase.photos.favorites-only", String(favoritesOnly)); } catch { /* storage unavailable */ } }, [favoritesOnly]);
+src\components\library\photos-section.tsx:403:  useEffect(() => { try { localStorage.setItem("reelcase.photos.rating-queue", ratingQueuePhotoId); } catch { /* storage unavailable */ } }, [ratingQueuePhotoId]);
+src\components\library\photos-section.tsx:404:  useEffect(() => { try { localStorage.setItem("reelcase.photos.show-locations", String(showLocations)); } catch { /* storage unavailable */ } }, [showLocations]);
+src\components\library\photos-section.tsx:405:  useEffect(() => { try { localStorage.setItem("reelcase.photos.slide-seconds", String(slideSeconds)); } catch { /* storage unavailable */ } }, [slideSeconds]);
+src\components\library\photos-section.tsx:439:      const configuredWorkers = Number(localStorage.getItem("reelcase.photo-scan-workers") ?? "0");
+src\components\library\photos-section.tsx:655:      try { localStorage.setItem("reelcase.photo-vision-benchmark.v1", JSON.stringify(benchmark)); } catch { /* The visible result remains available for this session. */ }
+src\components\library\photos-section.tsx:769:        <div className="flex flex-wrap gap-2 border-t border-border pt-3"><span className="self-center text-xs text-muted">Albums</span><Button size="sm" variant={selectedAlbum === "All albums" ? "default" : "secondary"} onClick={() => { setSelectedAlbum("All albums"); localStorage.removeItem("reelcase.photos.source-filter"); }}>All albums</Button>{albums.map((album) => <Button key={album} size="sm" variant={selectedAlbum === album ? "default" : "secondary"} onClick={() => { setSelectedAlbum(album); localStorage.setItem("reelcase.photos.source-filter", album); }}>{album}</Button>)}</div>
+src\lib\print-edit-state.ts:48:    const all = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Record<
+src\lib\print-edit-state.ts:62:    const all = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Record<string, PrintEditState>;
+src\lib\print-edit-state.ts:68:    localStorage.setItem(KEY, JSON.stringify(all));
+src\components\library\player.tsx:112:    try { const saved = Number(localStorage.getItem("reelcase.player-volume") ?? "85"); return [25, 50, 70, 85, 100].includes(saved) ? saved / 100 : 0.85; } catch { return 0.85; }
+src\components\library\player.tsx:115:    try { return localStorage.getItem("reelcase.player-start-muted") === "true"; } catch { return false; }
+src\components\library\player.tsx:252:        const preferences = JSON.parse(localStorage.getItem("reelcase.settings.v2") ?? "{}") as Record<string, boolean>;
+src\lib\print-save.ts:128:    const data = JSON.parse(localStorage.getItem(KEY) || "{}"),
+src\lib\print-save.ts:144:    const data = JSON.parse(localStorage.getItem(KEY) || "{}");
+src\lib\print-save.ts:147:    localStorage.setItem(KEY, JSON.stringify(data));
+src\lib\multiplayer\room-device-captions.ts:18:    return readRoomCaptionPreference(JSON.parse(localStorage.getItem(ROOM_CAPTIONS_KEY) ?? "null"));
+src\components\library\mission-plan-section.tsx:304:      const saved = JSON.parse(localStorage.getItem("reelcase.mission-plan.v1") ?? "null") as Mission[] | null;
+src\components\library\mission-plan-section.tsx:305:      const revision = Number(localStorage.getItem(MISSION_PLAN_REVISION_KEY) ?? "0");
+src\components\library\mission-plan-section.tsx:311:  useEffect(()=>{try{const raw=JSON.parse(localStorage.getItem('reelcase.mission-plan.recovery.v1')??'null');if(Array.isArray(raw)&&raw.every(row=>typeof row.id==='string'&&typeof row.title==='string'&&typeof row.detail==='string'))setPlanRecovery(raw);}catch{}},[]);
+src\components\library\mission-plan-section.tsx:315:  useEffect(() => { try { localStorage.setItem("reelcase.mission-plan.v1", JSON.stringify(missions)); localStorage.setItem(MISSION_PLAN_REVISION_KEY, String(MISSION_PLAN_REVISION)); } catch { /* storage unavailable */ } }, [missions]);
+src\components\library\mission-plan-section.tsx:374:    <div className="mt-5 flex flex-wrap gap-2"><Button variant="secondary" onClick={exportMissions}><Download className="size-4"/>Export mission plan</Button><ConsequenceAction label="Reset to the current delivery queue" title="Reset this mission plan?" confirm="Reset mission plan" onConfirm={()=>{const bytes=JSON.stringify(missions);if(bytes.length>2*1024**2)throw Error('The recovery snapshot exceeds 2 MiB. Export the plan first.');localStorage.setItem('reelcase.mission-plan.recovery.v1',bytes);localStorage.setItem('reelcase.mission-plan.v1',JSON.stringify(ALL_DEFAULT_MISSIONS));setPlanRecovery(missions);setMissions(ALL_DEFAULT_MISSIONS);}}><p>This replaces {missions.length} saved statuses and custom ideas with the current default plan.</p><p>One preceding plan is saved in this browser. Undo restores its exact statuses and custom wording; another reset replaces that recovery slot. Export first to keep more than one version.</p></ConsequenceAction>{planRecovery&&<Button variant="secondary" className="min-h-11" onClick={()=>{try{localStorage.setItem('reelcase.mission-plan.v1',JSON.stringify(planRecovery));setMissions(planRecovery);setPlanRecovery(null);try{localStorage.removeItem('reelcase.mission-plan.recovery.v1');}catch{}}catch{setBriefNotice('Undo could not be saved. The recovery plan was kept; retry when storage is available.');}}}>Undo mission reset</Button>}<span className="self-center text-xs text-muted">Exports the current status, or restores the complete delivery baseline.</span></div>
+src\lib\prints-blobs.ts:1:/** Local IndexedDB store for 3D print file bytes (viewer only). Metadata stays in localStorage. */
+src\lib\prints-blobs.ts:22:    const req = indexedDB.open(DB_NAME, DB_VERSION);
+src\components\library\print-save-panel.tsx:31:        return localStorage.getItem(printPendingKey(modelKey));
+src\components\library\print-save-panel.tsx:62:      if (id) localStorage.setItem(printPendingKey(modelKey), id);
+src\components\library\print-save-panel.tsx:64:        localStorage.removeItem(printPendingKey(modelKey));
+src\components\library\print-save-panel.tsx:65:        localStorage.removeItem(printPendingKey(modelKey) + ":signature");
+src\components\library\print-save-panel.tsx:134:        localStorage.setItem(printPendingKey(modelKey) + ":signature", captured);
+src\components\library\print-save-panel.tsx:180:        captured = localStorage.getItem(printPendingKey(modelKey) + ":signature") || "";
+src\lib\provider-viewing-store.ts:6:export function getProviderViewing(){if(!started&&typeof window!=='undefined'){started=true;let legacyMfc=false;try{legacyMfc=localStorage.getItem('reelcase.mfc.view-mode.v1')==='embedded';}catch{/* Session defaults remain usable. */}snapshot={...snapshot,ledger:normalizeProviderViewing(loadProviderViewingSync()),legacyMfc};}return snapshot;}
+src\lib\pull-control.ts:32:  try { control.set(localStorage.getItem(KEY) === "true"); } catch { /* Session control still works. */ }
+src\lib\pull-control.ts:39:  try { localStorage.setItem(KEY, String(value)); } catch { /* Session control still works. */ }
+src\lib\pull-control.ts:86:  window.addEventListener('storage', onStorage);
+src\components\library\private-web-shortcuts-section.tsx:14:      const saved = JSON.parse(localStorage.getItem(PRIVATE_SHORTCUTS_KEY) ?? "[]");
+src\components\library\private-web-shortcuts-section.tsx:20:  const save = (next: PrivateWebShortcut[]) => { setLinks(next); localStorage.setItem(PRIVATE_SHORTCUTS_KEY, JSON.stringify(next)); };
+src\components\library\provider-recovery.tsx:32:export function ProviderViewingDesk(){const state=useProviderViewing();return <details data-provider-viewing-desk className="mt-3 rounded-md border border-border bg-bg/35 p-3"><summary className="min-h-11 cursor-pointer content-center text-sm font-medium">Remembered official viewing links</summary><p className="mt-2 text-xs leading-5 text-muted">One latest official link and viewing mode per source, on this device. These choices contain no login state, credentials or cookies. They are included in your personal library backup.</p>{state.ready&&!Object.keys(state.ledger.choices).length&&<p className="mt-3 text-sm text-muted">No official viewing choice saved yet. Use a provider preview to choose direct or embedded viewing.</p>}<div className="mt-3 space-y-3">{Object.entries(state.ledger.choices).map(([id,choice])=><div key={id} data-provider-viewing={id} className="rounded-md bg-elevated p-3"><p className="text-sm font-medium text-fg">{adultAdapter(id)?.label} · {choice.mode==='website'?'Direct website':'Embedded view'}</p><a href={choice.url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-11 max-w-full break-all items-center text-xs text-accent underline">{choice.url}</a><Button className="mt-2 min-h-11 max-w-full whitespace-normal" variant="secondary" onClick={()=>{changeProviderViewing(l=>forgetProviderView(l,id as AdultPullProvider));if(id==='myfreecams')try{localStorage.removeItem('reelcase.mfc.view-mode.v1');}catch{/* Other browser data is never touched. */}}}>Forget {adultAdapter(id)?.label} viewing choice</Button></div>)}</div><ProviderSaveNotice/></details>;}
+src\lib\pull-settings.ts:67:    try { settings = Object.freeze(normalizePullSettings(JSON.parse(localStorage.getItem(KEY) ?? 'null'))); } catch { /* Defaults remain usable. */ }
+src\lib\pull-settings.ts:74:  try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch { /* Session settings still apply. */ }
+src\lib\pull-settings.ts:85:  window.addEventListener('storage', onStorage);
+src\components\library\pull-settings-panel.tsx:29:      if (sessionStorage.getItem('reelcase.settings-section') !== 'youtube-cleanup') return;
+src\components\library\pull-settings-panel.tsx:30:      sessionStorage.removeItem('reelcase.settings-section');
+src\lib\rating-streaks.ts:18:    const saved = Number(localStorage.getItem(GOAL_KEY) ?? DEFAULT_WEEKLY_GOAL);
+src\lib\rating-streaks.ts:25:  try { localStorage.setItem(GOAL_KEY, String(goal)); } catch { /* keep the session default */ }
+src\lib\rating-streaks.ts:40:    const saved = JSON.parse(localStorage.getItem(KEY) ?? "[]");
+src\lib\rating-streaks.ts:44:function write(days: RatingDay[]) { try { localStorage.setItem(KEY, JSON.stringify(days.slice(-400))); } catch { /* local rewards are optional */ } }
+src\lib\rating-streaks.ts:51:    const feedback = JSON.parse(localStorage.getItem("reelcase.media-feedback.v1") ?? "{}") as {
+src\lib\restore-epoch.ts:77:  localStorage.setItem(
+src\lib\restore-epoch.ts:85:  const text = localStorage.getItem(RESTORE_HEAD);
+src\lib\remote\adult-pull-cache.ts:96:    const raw = JSON.parse(localStorage.getItem(CLIENT_KEY) ?? "[]") as AdultPullFingerprint[];
+src\lib\remote\adult-pull-cache.ts:111:    localStorage.setItem(CLIENT_KEY, JSON.stringify(next));
+src\components\library\room-device-captions.tsx:79:      if (localStorage.getItem(ROOM_CAPTIONS_KEY) !== value)
+src\components\library\room-device-captions.tsx:80:        localStorage.setItem(ROOM_CAPTIONS_KEY, value);
+src\components\library\restore-boundary.tsx:94:    window.addEventListener("storage", storage);
+src\components\library\room-playlists-panel.tsx:11:  const items = readRoomPlaylists(localStorage.getItem(ROOM_PLAYLISTS_KEY));
+src\components\library\room-playlists-panel.tsx:34:    window.addEventListener('storage', update);
+src\components\library\room-playlists-panel.tsx:41:      localStorage.setItem(ROOM_PLAYLISTS_KEY, writeRoomPlaylists(next));
+src\components\library\room-invitation.tsx:12:    reachable ? current : (localStorage.getItem("reelcase.watch-room.invite-origin.v1") ?? ""),
+src\components\library\room-invitation.tsx:42:      localStorage.setItem("reelcase.watch-room.invite-origin.v1", value);
+src\lib\remote\pull-ledger.ts:28:    const value: unknown = JSON.parse(window.localStorage.getItem(KEY) ?? "[]");
+src\lib\remote\pull-ledger.ts:39:  try { window.localStorage.setItem(KEY, JSON.stringify(records.slice(0, MAX_RECORDS))); } catch { /* Pull reporting must never interrupt playback or refresh. */ }
+src\lib\studio-documents.ts:7:    async load(){const candidates:T[]=[];let warning='',present=false;try{const text=localStorage.getItem(key);if(text){present=true;candidates.push(parse(JSON.parse(text)));}}catch{warning='A local studio record could not be read.';}
+src\lib\studio-documents.ts:10:    async save(raw:T){const value=parse({...raw,updatedAt:Math.max(Date.now(),timestamp+1,raw.updatedAt)});let local=false,disk=false;try{localStorage.setItem(key,JSON.stringify(value));local=true;}catch{}try{await saveWorkspaceDocuments([{key,value}]);disk=true;}catch{}if(!local&&!disk)throw Error('Studio storage failed. Nothing new was submitted; retry the save or export your work.');timestamp=value.updatedAt;return {value,warning:local&&disk?'':local?'Saved in the local mirror only; disk storage is unavailable.':'Saved on disk only; the local mirror is unavailable.'};},
+src\components\library\shop-section.tsx:14:        JSON.parse(localStorage.getItem("reelcase.package-tracking.v1") ?? "[]"),
+src\components\library\shop-section.tsx:27:      localStorage.setItem("reelcase.package-tracking.v1", JSON.stringify(next));
+src\components\library\settings-section.tsx:231:      const saved = JSON.parse(localStorage.getItem("reelcase.settings.v2") ?? "{}") as Record<string, boolean>;
+src\components\library\settings-section.tsx:234:      localStorage.setItem("reelcase.settings.v2", JSON.stringify(next));
+src\components\library\settings-section.tsx:239:  useEffect(() => { const rail = Number(localStorage.getItem("reelcase.adult-rail-limit") ?? "48"); setAdultRailLimit([16, 24, 48, 72].includes(rail) ? rail : 48);  }, []);
+src\components\library\settings-section.tsx:241:    const saved = Number(localStorage.getItem("reelcase.ui-zoom") ?? "100");
+src\components\library\settings-section.tsx:247:    const saved = Number(localStorage.getItem("reelcase.home-rail-limit") ?? "8");
+src\components\library\settings-section.tsx:250:  useEffect(() => { const saved = Number(localStorage.getItem("reelcase.grid-page-size") ?? "24"); setGridPageSize([24, 48, 96, 144].includes(saved) ? saved : 24); }, []);
+src\components\library\settings-section.tsx:251:  useEffect(() => { const saved = Number(localStorage.getItem("reelcase.thumbnail-workers") ?? "0"); setThumbnailWorkers([1, 2, 3, 4].includes(saved) ? saved : 0); }, []);
+src\components\library\settings-section.tsx:252:  useEffect(() => { const saved = Number(localStorage.getItem("reelcase.photo-scan-workers") ?? "0"); setPhotoWorkers([2, 4, 6, 8, 12].includes(saved) ? saved : 0); }, []);
+src\components\library\settings-section.tsx:253:  useEffect(() => { const saved = Number(localStorage.getItem("reelcase.player-volume") ?? "85"); setDefaultVolume([25, 50, 70, 85, 100].includes(saved) ? saved : 85); setStartMuted(localStorage.getItem("reelcase.player-start-muted") === "true"); }, []);
+src\components\library\settings-section.tsx:254:  useEffect(() => { const saved = Number(localStorage.getItem("reelcase.twitch-refresh-seconds") ?? "30"); setTwitchRefreshSeconds([15, 30, 60, 120, 300].includes(saved) ? saved : 30); }, []);
+src\components\library\settings-section.tsx:256:    () => setSourceCacheFirst(localStorage.getItem("reelcase.source-cache-first") !== "false"),
+src\components\library\settings-section.tsx:259:  useEffect(() => { try { setDebugEnabled(localStorage.getItem("reelcase.debug-panel") === "true"); } catch { /* unavailable */ } }, []);
+src\components\library\settings-section.tsx:260:  useEffect(() => { try { const saved = localStorage.getItem("reelcase.theme") === "day" ? "day" : "night"; setTheme(saved); document.documentElement.dataset.theme = saved; } catch { /* unavailable */ } }, []);
+src\components\library\settings-section.tsx:261:  useEffect(() => setLiveDensity([3, 4, 6].includes(Number(localStorage.getItem("reelcase.live-columns") ?? "4")) ? Number(localStorage.getItem("reelcase.live-columns")) : 4), []);
+src\components\library\settings-section.tsx:264:    localStorage.setItem("reelcase.ui-zoom", String(value));
+src\components\library\settings-section.tsx:269:    localStorage.setItem("reelcase.theme", value);
+src\components\library\settings-section.tsx:276:    localStorage.setItem("reelcase.settings.v2", JSON.stringify(next));
+src\components\library\settings-section.tsx:280:    if (key === "playback-start-muted") localStorage.setItem("reelcase.player-start-muted", String(enabled));
+src\components\library\settings-section.tsx:282:    if (key === "display-compact-live-cards") { localStorage.setItem("reelcase.live-columns", enabled ? "6" : "4"); setLiveDensity(enabled ? 6 : 4); }
+src\components\library\settings-section.tsx:283:    if (key === "performance-use-cached-sources-first") { localStorage.setItem("reelcase.source-cache-first", String(enabled)); setSourceCacheFirst(enabled); }
+src\components\library\settings-section.tsx:284:    if (key === "performance-low-memory-grids") { localStorage.setItem("reelcase.grid-page-size", enabled ? "24" : "48"); setGridPageSize(enabled ? 24 : 48); }
+src\components\library\settings-section.tsx:285:    if (key === "performance-small-home-shelves") { localStorage.setItem("reelcase.home-rail-limit", enabled ? "8" : "16"); setRailLimit(enabled ? 8 : 16); }
+src\components\library\settings-section.tsx:289:        if (permission !== "granted") { setPreferences((current) => ({ ...current, [key]: false })); localStorage.setItem("reelcase.settings.v2", JSON.stringify({ ...next, [key]: false })); setServiceNote("Desktop notifications were not granted. In-app alerts remain available."); }
+src\components\library\settings-section.tsx:491:          <Button size="sm" variant={debugEnabled ? "default" : "secondary"} className="mt-4" onClick={() => { const next = !debugEnabled; setDebugEnabled(next); localStorage.setItem("reelcase.debug-panel", String(next)); window.dispatchEvent(new Event("reelcase:diagnostics-settings")); if (!next) setDebugReport(""); }}>
+src\components\library\settings-section.tsx:529:          <div className="mt-4 flex flex-wrap gap-2">{[3, 4, 6].map((value) => <Button key={value} size="sm" variant={liveDensity === value ? "default" : "secondary"} onClick={() => { setLiveDensity(value); localStorage.setItem("reelcase.live-columns", String(value)); }}>{value === 3 ? "Large · 3 columns" : `${value} columns`}</Button>)}</div>
+src\components\library\settings-section.tsx:548:                  localStorage.setItem("reelcase.home-rail-limit", String(value));
+src\components\library\settings-section.tsx:563:              localStorage.setItem("reelcase.source-cache-first", String(next));
+src\components\library\settings-section.tsx:573:        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Adult performance</h2><p className="mt-2 text-sm leading-6 text-muted">Tune Adult rails and one catalog request separately. Smaller choices reduce decoding and keep filtering responsive.</p><p className="mt-4 text-xs text-muted">Cards per Adult rail</p><div className="mt-2 flex flex-wrap gap-2">{[16, 24, 48, 72].map((value) => <Button key={value} size="sm" variant={adultRailLimit === value ? "default" : "secondary"} onClick={() => { setAdultRailLimit(value); localStorage.setItem("reelcase.adult-rail-limit", String(value)); window.dispatchEvent(new Event("reelcase:adult-render-settings")); }}>{value} cards</Button>)}</div><p className="mt-4 text-xs text-muted">Batch limits and automatic pacing are in Pull management above.</p></div>
+src\components\library\settings-section.tsx:585:        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Grid memory budget</h2><p className="mt-2 text-sm leading-6 text-muted">Sets the poster grid page size. Only a window of those cards stays mounted. Low memory caps pages at 24; your selection returns when standard budgets are active.</p><div className="mt-4 flex flex-wrap gap-2">{[24, 48, 96, 144].map((value) => <Button key={value} size="sm" variant={gridPageSize === value ? "default" : "secondary"} onClick={() => { setGridPageSize(value); localStorage.setItem("reelcase.grid-page-size", String(value)); window.dispatchEvent(new Event("reelcase:render-settings")); }}>{value} cards</Button>)}</div></div>
+src\components\library\settings-section.tsx:586:        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Artwork worker budget</h2><p className="mt-2 text-sm leading-6 text-muted">Controls concurrent local thumbnail extraction. Adaptive uses device cores, available memory, and foreground input pressure.</p><div className="mt-4 flex flex-wrap gap-2">{[[0, "Adaptive"], [1, "Text-first · 1"], [2, "Gentle · 2"], [3, "Balanced · 3"], [4, "Fast · 4"]].map(([value, label]) => <Button key={value} size="sm" variant={thumbnailWorkers === value ? "default" : "secondary"} onClick={() => { setThumbnailWorkers(value as number); localStorage.setItem("reelcase.thumbnail-workers", String(value)); }}>{label}</Button>)}</div><Button size="sm" variant={textFirstArtwork ? "default" : "secondary"} className="mt-4" onClick={() => setTextFirstArtwork(!textFirstArtwork)}> {textFirstArtwork ? "Text-first provider rows on" : "Use text-first provider rows"}</Button></div>
+src\components\library\settings-section.tsx:587:        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><PackageSearch className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Photo scan workers</h2><p className="mt-2 text-sm leading-6 text-muted">Sets background folder workers for cached photo metadata. Adaptive protects browsing; use Fast when you want a newly added photo source ready sooner.</p><div className="mt-4 flex flex-wrap gap-2">{[[0, "Adaptive"], [2, "Gentle · 2"], [4, "Balanced · 4"], [6, "Fast · 6"], [8, "Max · 8"], [12, "Turbo · 12"]].map(([value, label]) => <Button key={value} size="sm" variant={photoWorkers === value ? "default" : "secondary"} onClick={() => { setPhotoWorkers(value as number); localStorage.setItem("reelcase.photo-scan-workers", String(value)); }}>{label}</Button>)}</div></div>
+src\components\library\settings-section.tsx:588:        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Settings2 className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Player sound</h2><p className="mt-2 text-sm leading-6 text-muted">Sets the starting volume for local video and whether a newly opened player starts muted. Provider embeds keep their own service-level audio controls.</p><div className="mt-4 flex flex-wrap gap-2">{[25, 50, 70, 85, 100].map((value) => <Button key={value} size="sm" variant={defaultVolume === value ? "default" : "secondary"} onClick={() => { setDefaultVolume(value); localStorage.setItem("reelcase.player-volume", String(value)); }}>{value}%</Button>)}</div><Button className="mt-3" size="sm" variant={startMuted ? "default" : "secondary"} onClick={() => { const next = !startMuted; setStartMuted(next); localStorage.setItem("reelcase.player-start-muted", String(next)); }}>{startMuted ? "Start muted" : "Start with sound"}</Button></div>
+src\components\library\settings-section.tsx:589:        <div className="rounded-lg bg-elevated p-5 shadow-border"><span className="text-accent"><Radio className="size-5" /></span><h2 className="mt-3 font-display text-2xl text-fg">Twitch live & archive refresh</h2><p className="mt-2 text-sm leading-6 text-muted">Checks 12 rotating channels while this tab is visible, adding up to 100 recent VODs and 24 clips sampled across recent and older time ranges. Focused pulls continue through deeper VOD and clip history with saved cursors. Earlier items stay saved if a provider response is partial. Thirty seconds is the default.</p><div className="mt-4 flex flex-wrap gap-2">{[[15, "15 sec"], [30, "30 sec"], [60, "1 min"], [120, "2 min"], [300, "5 min"]].map(([value, label]) => <Button key={value} size="sm" variant={twitchRefreshSeconds === value ? "default" : "secondary"} onClick={() => { setTwitchRefreshSeconds(value as number); localStorage.setItem("reelcase.twitch-refresh-seconds", String(value)); window.dispatchEvent(new Event("reelcase:refresh-settings")); }}>{label}</Button>)}</div></div>
+src\components\library\settings-section.tsx:704:          localStorage.setItem("reelcase.alexa.scene", scene);
+src\components\library\settings-section.tsx:726:    setClientId(localStorage.getItem("reelcase.google.client-id") ?? "");
+src\components\library\settings-section.tsx:727:    setToken(sessionStorage.getItem("reelcase.google.youtube-token") ?? "");
+src\components\library\settings-section.tsx:735:    localStorage.setItem("reelcase.google.client-id", id);
+src\components\library\settings-section.tsx:758:            sessionStorage.setItem("reelcase.google.youtube-token", response.access_token);
+src\components\library\settings-section.tsx:878:              sessionStorage.removeItem("reelcase.google.youtube-token");
+src\components\library\sidebar.tsx:138:  useEffect(() => { try { setGroups(restoreSidebarGroups(localStorage.getItem(SIDEBAR_GROUPS_KEY))); } catch { /* session defaults */ } }, []);
+src\components\library\sidebar.tsx:145:    try { localStorage.setItem(SIDEBAR_GROUPS_KEY, JSON.stringify(next)); } catch { /* session */ }
+src\components\library\sidebar.tsx:148:  useEffect(() => { try { setFollowingOpen(localStorage.getItem("reelcase.sidebar.following-open") === "true"); setSourcesOpen(localStorage.getItem("reelcase.sidebar.sources-open") === "true"); setPrivateOpen(localStorage.getItem("reelcase.sidebar.private-open") === "true"); } catch { /* defaults */ } }, []);
+src\components\library\sidebar.tsx:149:  const toggleFollowing = () => setFollowingOpen((open) => { const next = !open; try { localStorage.setItem("reelcase.sidebar.following-open", String(next)); } catch { /* session */ } return next; });
+src\components\library\sidebar.tsx:150:  const toggleSources = () => setSourcesOpen((open) => { const next = !open; try { localStorage.setItem("reelcase.sidebar.sources-open", String(next)); } catch { /* session */ } return next; });
+src\components\library\sidebar.tsx:244:              {sectionToggle("Private sources", privateOpen, adultFolders.length, () => setPrivateOpen(value => { const next = !value; try { localStorage.setItem("reelcase.sidebar.private-open", String(next)); } catch { /* session */ } return next; }), "sidebar-private")}
+src\components\library\setup-checklist.tsx:35:      setChoices(parseSetup(localStorage.getItem(SETUP_KEY)));
+src\components\library\setup-checklist.tsx:43:          setChoices(parseSetup(localStorage.getItem(SETUP_KEY)));
+src\components\library\setup-checklist.tsx:48:    window.addEventListener("storage", sync);
+src\components\library\setup-checklist.tsx:53:      localStorage.setItem(SETUP_KEY, JSON.stringify(next));
+src\components\library\social-section.tsx:20:      const raw: unknown = JSON.parse(localStorage.getItem("reelcase.x-accounts") ?? "[]");
+src\components\library\social-section.tsx:23:      const seededFlag = localStorage.getItem("reelcase.x-adult-seeded") === "1";
+src\components\library\social-section.tsx:26:        localStorage.setItem("reelcase.x-accounts", JSON.stringify(saved));
+src\components\library\social-section.tsx:27:        localStorage.setItem("reelcase.x-adult-seeded", "1");
+src\components\library\social-section.tsx:29:        localStorage.setItem("reelcase.x-adult-seeded", "1");
+src\components\library\social-section.tsx:32:      const last = localStorage.getItem("reelcase.x-active") ?? "";
+src\components\library\social-section.tsx:35:      const reads: unknown = JSON.parse(localStorage.getItem("reelcase.x-last-read") ?? "{}");
+src\components\library\social-section.tsx:39:  const choose = (account: string) => { const at = Date.now(); setTopic(null); setActive(account); setLastRead((current) => { const next = { ...current, [account]: at }; try { localStorage.setItem("reelcase.x-last-read", JSON.stringify(next)); } catch { /* session only */ } return next; }); try { localStorage.setItem("reelcase.x-active", account); } catch { /* session only */ } };
+src\components\library\social-section.tsx:40:  const save = (next: string[]) => { setAccounts(next); try { localStorage.setItem("reelcase.x-accounts", JSON.stringify(next)); } catch { setError("Storage is full. Account changes will last for this session only."); } };
+src\components\library\spotify-section.tsx:18:          return JSON.parse(localStorage.getItem(key) ?? "null");
+src\components\library\spotify-section.tsx:26:        localStorage.getItem("reelcase.spotify.playlist"),
+src\components\library\spotify-section.tsx:50:      localStorage.setItem(SPOTIFY_SHORTCUTS_KEY, JSON.stringify(next));
+src\components\library\stable-diffusion-section.tsx:37:    try { return studioSettings(JSON.parse(localStorage.getItem(settingsKey) ?? 'null'), localStorage.getItem(`reelcase.studio.prompt.v1:${encodeURIComponent(owner)}`) ?? ''); }
+src\components\library\stable-diffusion-section.tsx:53:    try { localStorage.setItem(settingsKey, value); saved.current = value; if (report) setSaveError(''); }
+src\lib\remote\youtube-pull-feedback.ts:24:  try { window.localStorage.removeItem(KEY); } catch { /* Durable follows also clear recovered deadlines. */ }
+src\lib\remote\youtube-pull-feedback.ts:31:  try { window.localStorage.setItem(KEY, JSON.stringify(cooldown)); } catch { /* Follow ledger is the fallback. */ }
+src\lib\remote\youtube-pull-feedback.ts:39:    try { accept(JSON.parse(window.localStorage.getItem(KEY) ?? 'null')); } catch { /* Invalid or unavailable storage. */ }
+src\lib\videos\adult-archive-cursors.ts:18:    const raw = localStorage.getItem(KEY);
+src\lib\videos\adult-archive-cursors.ts:29:    localStorage.setItem(KEY, JSON.stringify(map));
+src\lib\videos\adult-archive-cursors.ts:79:      localStorage.removeItem(KEY);
+src\components\library\studio-output-library.tsx:36:      const row = JSON.parse(localStorage.getItem(key) ?? "null");
+src\components\library\studio-output-library.tsx:165:                localStorage.setItem(key, JSON.stringify({ version: 1, clearOnLeave: value }));
+src\components\library\studio-recipes.tsx:14:  const read = () => restoreRecipes(localStorage.getItem(key));
+src\components\library\studio-recipes.tsx:23:  useEffect(() => { mounted.current = true; const update = (event: StorageEvent) => { if (event.key === key) setRecipes(restoreRecipes(event.newValue)); }; window.addEventListener('storage', update); return () => { mounted.current = false; window.removeEventListener('storage', update); }; }, [key]);
+src\components\library\studio-recipes.tsx:24:  const commit = (rows: StudioRecipe[]) => { localStorage.setItem(key, JSON.stringify(rows)); setRecipes(rows); };
+src\lib\videos\adult-pull-plan.ts:27:    const raw: unknown = JSON.parse(localStorage.getItem(REDDIT_SOURCE_STORAGE_KEY) ?? '[]');
+src\lib\videos\adult-pull-plan.ts:43:  try { if (localStorage.getItem(`${REDDIT_SOURCE_STORAGE_KEY}.enabled`) === 'false') return undefined; } catch { return undefined; }
+src\lib\videos\adult-url-cache.ts:25:  try { cache.hydrate(JSON.parse(localStorage.getItem(LS_KEY) ?? '{}')); } catch { /* Empty cache remains usable. */ }
+src\lib\videos\adult-url-cache.ts:30:  try { localStorage.setItem(LS_KEY, JSON.stringify(cache.serialize())); dirty = false; } catch { /* Disk thumbnails remain the fallback. */ }
+src\lib\videos\adult-url-cache.ts:54:  window.addEventListener('storage', onStorage);
+src\components\library\use-adult-pulls.ts:25:    try { const saved = Number(localStorage.getItem(LAST_ATTEMPT_KEY)); if (Number.isFinite(saved) && saved <= Date.now()) lastAttempt = Math.max(lastAttempt, saved); } catch { /* Session pacing remains. */ }
+src\components\library\use-adult-pulls.ts:45:        try { localStorage.setItem(LAST_ATTEMPT_KEY, String(lastAttempt)); } catch { /* Session pacing remains. */ }
+src\lib\videos\catalog-mutations.ts:229:      text = localStorage.getItem(CATALOG_EDIT_MIRROR);
+src\lib\videos\catalog-mutations.ts:258:      localStorage.setItem(CATALOG_EDIT_MIRROR, text);
+src\lib\videos\catalog-mutations.ts:259:    } else localStorage.removeItem(CATALOG_EDIT_MIRROR);
+src\lib\videos\follow-collections.ts:23:  try { return normalizeCreatorCollections(JSON.parse(localStorage.getItem(FOLLOW_COLLECTIONS_KEY) ?? "[]")); }
+src\lib\videos\follow-collections.ts:31:    localStorage.setItem(FOLLOW_COLLECTIONS_KEY, JSON.stringify(normalized));
+src\components\library\use-provider-viewing.ts:6:export function useProviderView(provider:AdultPullProvider,href:string){const state=useProviderViewing(),choice=state.ledger.choices[provider];const mode=choice?.mode??'embedded';return {...state,mode,choose(next:ProviderViewMode){changeProviderViewing(l=>chooseProviderView(l,provider,next,href));if(provider==='myfreecams')try{localStorage.setItem('reelcase.mfc.view-mode.v1',next);}catch{/* The durable store reports save failure. */}}};}
+src\lib\videos\follow-removal.ts:35:      for (let index = 0; index < localStorage.length; index += 1) {
+src\lib\videos\follow-removal.ts:36:        const key = localStorage.key(index);
+src\lib\videos\follow-removal.ts:37:        if (key?.startsWith("reelcase.rating.") && Number(localStorage.getItem(key)) > 0) legacySavedIds.add(key.slice("reelcase.rating.".length));
+src\lib\videos\follow-removal.ts:38:        if (key?.startsWith("reelcase.note.") && localStorage.getItem(key)?.trim()) legacySavedIds.add(key.slice("reelcase.note.".length));
+src\lib\videos\import-session-storage.ts:11: try{value.review=JSON.parse(localStorage.getItem(`reelcase.import-review.${kind}`)??'null');value.draft=(localStorage.getItem(`reelcase.import-draft.${kind}`)??'').slice(0,500000);value.query=(localStorage.getItem(`reelcase.import-query.${kind}`)??'').slice(0,20000);value.profile=(localStorage.getItem(`reelcase.import-profile.${kind}`)??'').slice(0,200);const saved=JSON.parse(localStorage.getItem(`reelcase.import-history.${kind}`)??'[]');value.saved=Array.isArray(saved)?saved:[];value.updatedAt=Number(localStorage.getItem(`reelcase.import-updated.${kind}`))||0;}catch{/* IndexedDB recovery can still restore a blocked mirror. */}
+src\lib\videos\import-session-storage.ts:17: for(const [field,text] of [['draft',value.draft],['query',value.query],['profile',value.profile],['history',JSON.stringify(value.saved)],['review',JSON.stringify(value.review??null)]] as const){try{const key=`reelcase.import-${field}.${value.kind}`;if(localStorage.getItem(key)!==text)localStorage.setItem(key,text);}catch{mirror=false;}}
+src\lib\videos\import-session-storage.ts:18: if(mirror)try{localStorage.setItem(`reelcase.import-updated.${value.kind}`,String(value.updatedAt));}catch{mirror=false;}
+src\components\library\use-stream-signal.ts:66:        localStorage.removeItem(recoveryKey);
+src\components\library\use-stream-signal.ts:74:      localStorage.setItem(recoveryKey, text);
+src\components\library\use-stream-signal.ts:118:        if (localStorage.getItem(previous.key) === previous.text)
+src\components\library\use-stream-signal.ts:119:          localStorage.removeItem(previous.key);
+src\components\library\use-stream-signal.ts:243:          const previous = sessionStorage.getItem(prefix + "recovery-pointer");
+src\components\library\use-stream-signal.ts:245:          sessionStorage.setItem(prefix + "recovery-pointer", recoveryKey);
+src\components\library\use-stream-signal.ts:252:            text = localStorage.getItem(key);
+src\lib\videos\library-restore-repository.ts:160:    for (const k of RESTORE_MIRRORS) mirrors[k] = localStorage.getItem(k);
+src\lib\videos\library-restore-repository.ts:364:        if (value === null) localStorage.removeItem(key);
+src\lib\videos\library-restore-repository.ts:365:        else localStorage.setItem(key, value);
+src\components\library\video-card.tsx:585:          localStorage.setItem("reelcase.watch-room.pending-video", video.id);
+src\components\library\video-card.tsx:668:        <button type="button" className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-md bg-elevated px-2 text-xs text-fg" aria-label={'Watch ' + video.name + ' together'} onClick={() => { localStorage.setItem('reelcase.watch-room.pending-video', video.id); setSource('watch-room'); }}><Users className="size-4" />Together</button>
+src\components\library\x-timeline.tsx:30:  const [lastReadAt, setLastReadAt] = useState(() => typeof window === "undefined" ? 0 : Number(localStorage.getItem(deskKey) ?? 0));
+src\components\library\x-timeline.tsx:46:      if (frame) frame.addEventListener("load", () => { if (!cancelled) { clearTimeout(timeout); const now = Date.now(); localStorage.setItem(deskKey, String(now)); setLastReadAt(now); setPhase("ready"); setStatus("X embed loaded. If posts are blank, open the profile."); } }, { once: true });
+src\components\library\watch-room-section.tsx:186:  const [recentLocalRoom, setRecentLocalRoom] = useState(() => localStorage.getItem("reelcase.watch-room.last-host") ?? "");
+src\components\library\watch-room-section.tsx:187:  const [name, setName] = useState(() => localStorage.getItem("reelcase.profile-name") || (new URLSearchParams(window.location.search).get('theater')==='1'?'Guest':'Host'));
+src\components\library\watch-room-section.tsx:211:  const [reviewQueue, setReviewQueue] = useState(() => { try { return localStorage.getItem('reelcase.watch-room.review-queue') === 'true'; } catch { return false; } });
+src\components\library\watch-room-section.tsx:217:  const [guestQueueEnabled, setGuestQueueEnabled] = useState(() => localStorage.getItem('reelcase.watch-room.guest-queue') !== 'false');
+src\components\library\watch-room-section.tsx:218:  const [guestPlaybackEnabled,setGuestPlaybackEnabled]=useState(()=>{try{return localStorage.getItem('reelcase.watch-room.guest-playback')!=='false';}catch{return true;}});
+src\components\library\watch-room-section.tsx:219:  const [guestSeekingEnabled,setGuestSeekingEnabled]=useState(()=>{try{return localStorage.getItem('reelcase.watch-room.guest-seeking')!=='false';}catch{return true;}});
+src\components\library\watch-room-section.tsx:229:    for(const [field,key] of [['queue','guest-queue'],['review','review-queue'],['playback','guest-playback'],['seeking','guest-seeking']] as const){if(previous[field]===next[field])continue;try{localStorage.setItem('reelcase.watch-room.'+key,String(next[field]));}catch{/* Active room settings remain usable. */}}
+src\components\library\watch-room-section.tsx:233:    try { return readRoomQueueDraft(localStorage.getItem(ROOM_QUEUE_DRAFT_KEY)); } catch { return undefined; }
+src\components\library\watch-room-section.tsx:242:  const [autoAdvance,setAutoAdvance]=useState(()=>localStorage.getItem('reelcase.watch-room.auto-advance')!=='false');
+src\components\library\watch-room-section.tsx:250:    try { return normalizeGuestOffset(Number(localStorage.getItem("reelcase.watch-room.guest-offset.v1") ?? 0)); }
+src\components\library\watch-room-section.tsx:258:  const [watchHistory,setWatchHistory]=useState<RoomWatchEntry[]>(()=>{try{return readRoomHistory(localStorage.getItem(ROOM_HISTORY_KEY));}catch{return [];}});
+src\components\library\watch-room-section.tsx:280:    try { const saved = JSON.parse(localStorage.getItem("reelcase.lan-friends.v1") ?? "[]"); return Array.isArray(saved) ? saved.slice(0, 16) : []; } catch { return []; }
+src\components\library\watch-room-section.tsx:291:  useEffect(() => { localStorage.setItem("reelcase.profile-name", name.trim() || "Host"); }, [name]);
+src\components\library\watch-room-section.tsx:295:      const pending = localStorage.getItem("reelcase.watch-room.pending-video");
+src\components\library\watch-room-section.tsx:333:    try{localStorage.setItem(ROOM_HISTORY_KEY,JSON.stringify({version:1,entries:next}));setHistoryNotice('');}
+src\components\library\watch-room-section.tsx:338:    try{localStorage.removeItem(ROOM_HISTORY_KEY);setHistoryNotice('Your saved room history was cleared.');}
+src\components\library\watch-room-section.tsx:483:    try { localStorage.setItem("reelcase.watch-room.guest-offset.v1", String(value)); } catch { /* Session adjustment still works. */ }
+src\components\library\watch-room-section.tsx:501:    try { setReviewQueue(!joinedAsGuest && localStorage.getItem('reelcase.watch-room.review-queue') === 'true'); } catch { setReviewQueue(false); }
+src\components\library\watch-room-section.tsx:506:    if(!joinedAsGuest)try{permissions={queue:localStorage.getItem('reelcase.watch-room.guest-queue')!=='false',review:localStorage.getItem('reelcase.watch-room.review-queue')==='true',playback:localStorage.getItem('reelcase.watch-room.guest-playback')!=='false',seeking:localStorage.getItem('reelcase.watch-room.guest-seeking')!=='false'};}catch{}
+src\components\library\watch-room-section.tsx:522:      const stored = JSON.parse(localStorage.getItem(`reelcase.watch-room.ledger.v1:${room}`) ?? "[]");
+src\components\library\watch-room-section.tsx:529:    try { localStorage.setItem(`reelcase.watch-room.ledger.v1:${room}`, JSON.stringify(roomLedger.slice(-32))); } catch { /* diagnostics are best-effort */ }
+src\components\library\watch-room-section.tsx:546:    localStorage.removeItem("reelcase.watch-room.pending-video");
+src\components\library\watch-room-section.tsx:1344:      if (draft.media.length) localStorage.setItem(ROOM_QUEUE_DRAFT_KEY, JSON.stringify(draft));
+src\components\library\watch-room-section.tsx:1345:      else localStorage.removeItem(ROOM_QUEUE_DRAFT_KEY);
+src\components\library\watch-room-section.tsx:1708:    try {localStorage.setItem('reelcase.watch-room.auto-advance',String(autoAdvance));}catch{/* Session preference. */}
+src\components\library\watch-room-section.tsx:1803:                localStorage.setItem("reelcase.watch-room.last-host", roomCode);
+src\components\library\watch-room-section.tsx:1856:              <Button size="sm" variant="secondary" className="mt-2" disabled={!friendName.trim() || !friendCode.trim()} onClick={() => { const next = [{ name: friendName.trim(), code: friendCode.trim() }, ...friends.filter((friend) => friend.code !== friendCode.trim())].slice(0, 16); setFriends(next); localStorage.setItem("reelcase.lan-friends.v1", JSON.stringify(next)); setFriendName(""); setFriendCode(""); }}>Save friend</Button>
+src\components\library\watch-room-section.tsx:2198:                  localStorage.setItem("reelcase.roku", rokuAddress.trim());
+src\components\library\watch-room-section.tsx:2216:            {rokuDevices.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{rokuDevices.map((device) => <Button key={device.address} size="sm" variant="secondary" onClick={() => { setRokuAddress(device.address); setRokuReady(true); localStorage.setItem("reelcase.roku", device.address); }}>{device.address}</Button>)}</div>}
+src\components\library\watch-room-section.tsx:2236:                      localStorage.removeItem("reelcase.roku");
+src\components\library\youtube-cleanup-status.tsx:14:      try { sessionStorage.setItem('reelcase.settings-section', 'youtube-cleanup'); } catch { /* Settings still opens without storage. */ }
+src\lib\videos\persist.ts:207:    const raw = JSON.parse(localStorage.getItem(FOLLOWS_LS_KEY) ?? "null") as DurableFollows | FollowedChannel[] | null;
+src\lib\videos\persist.ts:223:  try { localStorage.setItem(FOLLOWS_LS_KEY, JSON.stringify(payload)); }
+src\lib\videos\persist.ts:372:    const raw = JSON.parse(localStorage.getItem(key) ?? "null");
+src\lib\videos\persist.ts:379:  try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+src\lib\videos\persist.ts:582:  else try { localStorage.removeItem(SHELF_EDITS_LS_KEY); } catch { /* old replay is idempotent */ }
+src\lib\videos\persist.ts:837:  try { return JSON.parse(localStorage.getItem(key) ?? "null") ?? fallback; }
+src\lib\videos\persist.ts:844:  try { localStorage.setItem(TAG_EDITS_KEY, JSON.stringify(edits)); } catch { /* IndexedDB still saves the full record. */ }
+src\lib\videos\persist.ts:855:  try { localStorage.setItem(TAG_PROVENANCE_EDITS_KEY, JSON.stringify(edits)); } catch { /* IndexedDB retains the full preference record. */ }
+src\lib\videos\persist.ts:1009:    const req = indexedDB.open(DB_NAME, 8);
+src\lib\videos\persist.ts:1452:  try { localStorage.setItem(HISTORY_PENDING_KEY, JSON.stringify([entry, ...pending].slice(0, 50))); } catch { /* journal remains primary */ }
+src\lib\videos\persist.ts:1476:  try { localStorage.removeItem(HISTORY_PENDING_KEY); } catch { /* optional fallback */ }
+src\lib\videos\persist.ts:1489:  try { localStorage.setItem(HISTORY_PENDING_KEY, JSON.stringify(readPending<HistoryEntry[]>(HISTORY_PENDING_KEY, []).filter((entry) => entry.at >= before))); } catch { /* optional fallback */ }
+src\lib\videos\persist.ts:1584:  try { localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(viewPrefs)); }
+src\lib\videos\persist.ts:1592:    const raw = localStorage.getItem(PREFS_KEY);
+src\lib\videos\persist.ts:1595:      const legacy = localStorage.getItem(key);
+src\lib\videos\persist.ts:1609:      const saved = JSON.parse(localStorage.getItem(VIEW_PREFS_KEY) ?? "null");
+src\lib\videos\persist.ts:1623:  // Keep large metadata out of synchronous, quota-limited localStorage.
+src\lib\videos\persist.ts:1637:      try { assertRestoreWritable();localStorage.setItem(PREFS_KEY, JSON.stringify(durablePrefs)); }
+src\lib\videos\storage-recovery.ts:64:      localKeys = localStorage.length;
+src\lib\videos\store.ts:541:    const existing = JSON.parse(localStorage.getItem(RESUME_QUEUE_KEY) ?? "{}") as Record<string, ResumeMark>;
+src\lib\videos\store.ts:544:    localStorage.setItem(RESUME_QUEUE_KEY, JSON.stringify(Object.fromEntries(kept)));
+src\lib\videos\store.ts:549:    const queued = JSON.parse(localStorage.getItem(RESUME_QUEUE_KEY) ?? "{}") as Record<string, ResumeMark>;
+src\lib\videos\store.ts:550:    localStorage.removeItem(RESUME_QUEUE_KEY);
+src\lib\videos\store.ts:595:      JSON.parse(localStorage.getItem("reelcase.settings.v2") ?? "{}")[
+src\lib\videos\store.ts:2239:            try { localStorage.setItem('reelcase.import-history.youtube', JSON.stringify(handles)); } catch { /* A full mirror must not block durable follow recovery. */ }
+src\lib\videos\store.ts:2280:      if(typeof window!=='undefined'){window.addEventListener(RESTORE_EVENT,changed);window.addEventListener('storage',storage);}
+src\lib\videos\store.ts:2343:      const cacheFirst = localStorage.getItem("reelcase.source-cache-first") !== "false";
+src\lib\videos\thumbs.ts:46:    const saved = Number(localStorage.getItem("reelcase.thumbnail-workers") ?? "0");

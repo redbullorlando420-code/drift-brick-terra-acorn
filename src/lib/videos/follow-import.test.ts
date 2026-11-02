@@ -37,6 +37,13 @@ test('failed Twitch imports remain retryable instead of counting as resolved fol
   assert(!resolved.has('newchannel'));
   assert(resolved.has('healthy'));
 });
+test('Twitch CSV imports logins instead of display names, IDs or headings', () => {
+  assert.deepEqual(parseFollowImport('user_id,user_login,display_name\n123,cohh_carnage,Cohh Carnage\n456,NotYoda,Not Yoda', 'twitch').map(row => row.query), ['cohh_carnage', 'NotYoda']);
+});
+test('a verified Twitch identity remains saved when only its archive request fails', () => {
+  const row = { id: 'tw:creator', kind: 'twitch' as const, handle: 'creator', title: 'Creator', channelId: '123', lastProviderFailure: { kind: 'unavailable' as const, message: 'Archive unavailable', recovery: 'Retry later', at: 1 } };
+  assert(resolvedFollowQueries([row], 'twitch').has('creator'));
+});
 test('Twitch rotating batches serve never-checked import stubs first and keep settled follows rotating', () => {
   const channels = [
     { id:'tw:old-a', kind:'twitch' as const, handle:'old-a', title:'Old A', channelId:'1', lastCheckedAt:100 },

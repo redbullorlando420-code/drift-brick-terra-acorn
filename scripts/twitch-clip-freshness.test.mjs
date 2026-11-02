@@ -39,7 +39,8 @@ const card = (at, views = 100) => ({
   addedAt: 100,
   duration: 30,
   poster: "new.jpg",
-  remote: { kind: "twitch", videoId: "one", views, observedAt: at },
+  // Begin with a normalized stored card: identity repair may allocate for a legacy URL-less record.
+  remote: { kind: "twitch", videoId: "one", views, observedAt: at,watchUrl:'https://clips.twitch.tv/one',embedUrl:'https://clips.twitch.tv/embed?clip=one',sourceIds:[ch.id] },
 });
 test("a warm retry advances only its attempt and retains original successful observation through reload", () => {
   const old = {

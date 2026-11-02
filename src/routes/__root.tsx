@@ -1,3 +1,5 @@
+import {ProfileBoundary} from '@/components/library/profile-boundary';
+import {RestoreBoundary} from '@/components/library/restore-boundary';
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
@@ -40,7 +42,7 @@ export const Route = createRootRoute({
         <PreviewHostBridge />
         <AuthProvider>
           <TooltipProvider>
-            <Outlet />
+            <ProfileBoundary><RestoreBoundary><Outlet /></RestoreBoundary></ProfileBoundary>
           </TooltipProvider>
         </AuthProvider>
         <Scripts />

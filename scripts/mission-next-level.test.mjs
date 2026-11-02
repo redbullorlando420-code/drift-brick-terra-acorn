@@ -19,12 +19,12 @@ test('all prerequisite references exist, are acyclic and precede dependent work'
  for(const [i,m]of NEXT_LEVEL_MISSIONS.entries())for(const id of m.brief.dependsOn){assert(positions.has(id),m.id+' unknown prerequisite '+id);assert(positions.get(id)<i,m.id+' cyclic/forward prerequisite '+id);}
 });
 test('roadmap migration appends briefs once without resetting prior manual choices or custom ideas',()=>{
- assert.equal(MISSION_PLAN_REVISION,77);
+ assert.equal(MISSION_PLAN_REVISION,87);
  const legacy=[{id:'old-complete',title:'Old complete',detail:'Keep complete',done:true,status:'complete'},{id:'old-reopened',title:'Old reopened',detail:'Keep reopened',done:false,status:'in-progress'}],custom={id:'custom-idea',title:'My idea',detail:'Preserve my words',done:false,status:'blocked'};
  const saved=[...legacy,custom],defaults=[...legacy,NEXT_LEVEL_MISSIONS[0],...NEXT_LEVEL_MISSIONS.slice(1)];
- const first=structuredClone(mergeMissionPlan(saved,defaults,25));assert.equal(first.length,103);assert.deepEqual(first.slice(0,3),saved);assert(first.slice(3).every(m=>m.done===NEXT_LEVEL_COMPLETED_IDS.includes(m.id)));assert.equal(first.slice(3).filter(m=>m.done).length,86);
- first.find(m=>m.id==='next-004').status='in-progress';first.find(m=>m.id==='next-006').done=true;first.find(m=>m.id==='next-006').status='complete';
- const reloaded=mergeMissionPlan(JSON.parse(JSON.stringify(first)),defaults,26);assert.equal(reloaded.length,103);assert.equal(reloaded.find(m=>m.id==='next-004').status,'in-progress');assert.equal(reloaded.find(m=>m.id==='next-006').done,true);assert.deepEqual(reloaded.find(m=>m.id===custom.id),custom);
+ const first=structuredClone(mergeMissionPlan(saved,defaults,25));assert.equal(first.length,103);assert.deepEqual(first.slice(0,3),saved);assert(first.slice(3).every(m=>m.done===NEXT_LEVEL_COMPLETED_IDS.includes(m.id)));assert.equal(first.slice(3).filter(m=>m.done).length,96);
+ first.find(m=>m.id==='next-004').done=false;first.find(m=>m.id==='next-004').status='in-progress';first.find(m=>m.id==='next-006').done=true;first.find(m=>m.id==='next-006').status='complete';
+ const reloaded=mergeMissionPlan(JSON.parse(JSON.stringify(first)),defaults,MISSION_PLAN_REVISION);assert.equal(reloaded.length,103);assert.equal(reloaded.find(m=>m.id==='next-004').status,'in-progress');assert.equal(reloaded.find(m=>m.id==='next-006').done,true);assert.deepEqual(reloaded.find(m=>m.id===custom.id),custom);
 });
 test('known brief updates retain saved status while adopting the current implementation contract',()=>{
  const m=NEXT_LEVEL_MISSIONS[0],saved={...m,done:false,status:'blocked',brief:{...m.brief,steps:['Outdated instruction']}};
@@ -39,5 +39,5 @@ test('copied briefs include concrete scope, dependency status, acceptance and sa
 });
 test('checked-in roadmap is reproducible and exports all 100 full briefs without completing work',()=>{
  const document=readFileSync(new URL('../NEXT_LEVEL_MILESTONES.md',import.meta.url),'utf8');assert.equal(document,formatNextLevelRoadmap());assert.equal((document.match(/^# next-\d{3} — /gm)??[]).length,100);
- const current=NEXT_LEVEL_MISSIONS.map((m,i)=>i?m:{...m,done:false,status:'in-progress'});assert(formatNextLevelRoadmap(current).includes('Status: in-progress'));assert.equal(NEXT_LEVEL_MISSIONS.filter(m=>m.done).length,86);
+ const current=NEXT_LEVEL_MISSIONS.map((m,i)=>i?m:{...m,done:false,status:'in-progress'});assert(formatNextLevelRoadmap(current).includes('Status: in-progress'));assert.equal(NEXT_LEVEL_MISSIONS.filter(m=>m.done).length,96);
 });

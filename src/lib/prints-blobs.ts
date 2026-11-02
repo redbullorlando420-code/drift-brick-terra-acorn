@@ -1,6 +1,8 @@
+import {profileDatabaseName,assertProfileContext} from './local-profile-storage.ts';
+import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
 /** Local IndexedDB store for 3D print file bytes (viewer only). Metadata stays in localStorage. */
 
-const DB_NAME = "reelcase-prints";
+const DB_NAME = profileDatabaseName("reelcase-prints");
 const DB_VERSION = 1;
 const STORE = "blobs";
 const MAX_BLOBS = 32;
@@ -18,6 +20,7 @@ export type PrintBlobRecord = {
 };
 
 function openDb(): Promise<IDBDatabase> {
+  assertProfileContext();
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {

@@ -1,0 +1,2 @@
+src/lib/local-profiles.ts 126ms
+scripts/profile-portability-browser-check.mjs 66ms

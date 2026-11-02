@@ -1,0 +1,33 @@
+✖ Adult multi-window pulls save accepted rows before a later failure and retain the latest resume page (529.1398ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1171.5693
+
+✖ failing tests:
+
+test at scripts\pull-entry-limits.test.mjs:744:1
+✖ Adult multi-window pulls save accepted rows before a later failure and retain the latest resume page (529.1398ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      1,
+  +   1,
+      2
+    ]
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/pull-entry-limits.test.mjs:748:9)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 1, 1, 2 ],
+    expected: [ 1, 2 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

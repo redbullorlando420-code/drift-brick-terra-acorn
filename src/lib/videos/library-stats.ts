@@ -1,3 +1,4 @@
+import {videoIsPrivate} from './public-visibility.ts';
 import type { LibraryState } from './store';
 import type { WatchTime } from '../media-feedback';
 import type { LibraryVideo, ResumeMark } from './types';
@@ -133,7 +134,7 @@ export function calculateLibraryStats(input: StatsInput) {
     const adultIds = new Set(folders.filter(folder => folder.adult).map(folder => folder.id));
     const queue: LibraryVideo[] = [];
     for (const video of videos) {
-      if (!adultIds.has(video.folderId) && !isAdultPullKind(video.remote?.kind) && !topicsForVideo(video, tags[video.id]).length) queue.push(video);
+      if (!videoIsPrivate(adultIds,video) && !topicsForVideo(video, tags[video.id]).length) queue.push(video);
       if (queue.length >= 500) break;
     }
     return queue;

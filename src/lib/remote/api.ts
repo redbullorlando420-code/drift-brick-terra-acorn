@@ -1,3 +1,5 @@
+import {assertTwitchContinuity,parseTwitchAliasResponse,twitchUserId,bindTwitchSource} from '../videos/twitch-channel-identity';
+import {createTwitchMediaChecker} from './twitch-media-health';
 import { markPlaylistWalk, normalizePlaylistWalk, type PlaylistWalk } from '../videos/youtube-playlist-walk';
 import { advanceYoutubeEvents } from '../videos/youtube-events';
 import { projectTwitchArchiveUser } from './provider-projection';
@@ -1140,6 +1142,7 @@ async function twitchLiveForFollow(channel: FollowedChannel): Promise<FollowResu
 function twitchLiveObservation(channel:FollowedChannel,login:string,rawUser:GqlUser,warning?:string):FollowResult {
    const user=validateTwitchLiveUser(rawUser);
   if(!user?.id || user.stream===undefined)throw new Error(`Twitch could not confirm live status for ${login}`);
+  assertTwitchContinuity(channel,{channelId:user.id});
   const now = Date.now();
   const videos = user.stream ? twitchVideos(login, { ...user, videos: { edges: [] } }, 0) : [];
   return {
@@ -1157,7 +1160,7 @@ function twitchLiveObservation(channel:FollowedChannel,login:string,rawUser:GqlU
       lastLiveFailure: undefined,
       lastLiveWarning: warning ? {at:now,message:warning} : undefined,
     },
-    videos,
+    videos:videos.map(v=>bindTwitchSource(v,channel)),
   };
 }
 
@@ -1456,10 +1459,11 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
           const next = data.twitchContinueArchive
             ? await followTwitch(ch.handle, false, 0, ch.twitchArchiveCursor, undefined, TWITCH_REFRESH_VOD_LIMIT)
             : await followTwitch(ch.handle, true, policy&&!policy.clips?0:undefined, undefined, undefined, policy&&!policy.vods?0:undefined);
+          assertTwitchContinuity(ch,next.channel);
           const freshLive=(next.channel.liveCheckedAt??0)>=Math.max(ch.liveCheckedAt??0,ch.lastLiveFailure?.at??0)&&Boolean(next.channel.liveCheckedAt);
           if(freshLive)liveCheckedIds.push(ch.id);
           channels.push({ ...ch, ...next.channel, id: ch.id, ...(data.twitchContinueArchive ? { twitchArchiveCheckedAt: Date.now(), ...twitchRetryPatch(ch, 'archive', next.channel.lastProviderFailure) } : { twitchArchiveCheckedAt: ch.twitchArchiveCheckedAt, lastProviderFailure: ch.lastProviderFailure, recentPull: next.channel.lastProviderFailure ? recentPullFailure(ch, next.channel.lastProviderFailure) : recentPullSuccess(ch, next.channel) }), ...(freshLive?twitchRetryPatch(ch, 'live'):{live:ch.live,liveCheckedAt:ch.liveCheckedAt,lastLiveFailure:ch.lastLiveFailure}) });
-          videos.push(...next.videos.filter(video=>freshLive||!video.remote?.live).map((video) => ({ ...video, folderId: ch.id })));
+          videos.push(...next.videos.filter(video=>freshLive||!video.remote?.live).map((video) => bindTwitchSource(video,ch)));
         } else if (data.youtubeLiveOnly) {
           if ((ch.lastLiveFailure?.at === undefined || ch.lastLiveFailure.at >= (ch.liveCheckedAt ?? 0)) && (ch.lastLiveFailure?.retryAt ?? 0) > Date.now()) { channels.push(ch); return; }
           const next = await youtubeLiveForFollow(ch);
@@ -1532,9 +1536,9 @@ export async function runRefreshRemotes(dataRaw: unknown): Promise<RefreshResult
 
 type ImportItemIn = { query: string; kind: "youtube" | "twitch" };
 
-function parseImport(data: unknown): { items: ImportItemIn[] } {
+function parseImport(data: unknown): { items: ImportItemIn[]; identityOnly?: boolean } {
   if (typeof data !== "object" || data === null) return { items: [] };
-  const rec = data as { items?: unknown };
+  const rec = data as { items?: unknown; identityOnly?: unknown };
   if (!Array.isArray(rec.items)) return { items: [] };
   const items: ImportItemIn[] = [];
   for (const raw of rec.items) {
@@ -1547,7 +1551,7 @@ function parseImport(data: unknown): { items: ImportItemIn[] } {
       kind: row.kind === "twitch" ? "twitch" : "youtube",
     });
   }
-  return { items: items.slice(0, 80) };
+  return { items: items.slice(0, 80), identityOnly: rec.identityOnly === true };
 }
 
 async function mapPool<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>): Promise<R[]> {
@@ -1585,7 +1589,10 @@ export async function runImportChannels(dataRaw: unknown): Promise<ImportBatchRe
     const rows = await mapPool(data.items, PROVIDER_BUDGETS.importWorkers, async (item) => {
       for (let attempt = 0; attempt < PROVIDER_BUDGETS.importAttempts; attempt += 1) {
         try {
-          if (item.kind === "twitch") return await followTwitch(item.query, compact);
+          if (item.kind === "twitch") {
+            const result = data.identityOnly ? await followTwitch(item.query, true, 0, undefined, undefined, 0) : await followTwitch(item.query, compact);
+            return { ...result, channel: { ...result.channel, importQuery: item.query }, ...(data.identityOnly ? { videos: [] } : {}) };
+          }
           // Bulk imports used to request only eight entries per creator, which
           // made a healthy library look arbitrarily capped. RSS availability
           // ultimately controls the ceiling, but ask for a practical window.
@@ -1593,6 +1600,7 @@ export async function runImportChannels(dataRaw: unknown): Promise<ImportBatchRe
           if (youtubePlaylistId(item.query)) result = await youtubeFromPlaylist(item.query, !compact);
           else {
             const channelId = await resolveYoutubeCreator(item.query);
+            if (data.identityOnly) return { channel: { id: `yt:${channelId}`, kind: 'youtube' as const, channelId, handle: `https://www.youtube.com/channel/${channelId}`, title: item.query, importQuery: item.query }, videos: [] };
             // Identity verification survives an empty/private/unavailable
             // uploads catalog. Keep its honest failure for the archive queue.
             result = await youtubeFromChannel(channelId, 24, false, true, undefined, undefined, undefined, item.query).catch(error => ({
@@ -1894,17 +1902,9 @@ async function fetchEpornerPage(query: string, order: string, page: number, perP
   totalPages: number;
   totalCount: number;
 }> {
-  try {
-    const primary = await fetchEpornerPageOnce(query, order, page, perPage);
-    return primary;
-  } catch {
-    // Fall through to alternate order / smaller page backup.
-  }
-  // Secondary path: different sort + smaller page keeps shelves filled when the
-  // primary ranking edge is empty or rate-limited, without scraping HTML.
-  const backupOrder = order === "latest" ? "top-weekly" : "latest";
-  const backupPerPage = Math.min(perPage, 120);
-  return fetchEpornerPageOnce(query, backupOrder, page, backupPerPage);
+  // Page and offset only identify a position within the same sort/page size.
+  // A fallback sort could silently skip or repeat whole archive windows.
+  return fetchEpornerPageOnce(query, order, page, perPage);
 }
 
 type RedtubeTag = { tag_name?: string } | { tag?: { tag_name?: string } };
@@ -3328,9 +3328,7 @@ async function pullProviderPages(
       const batch = await fetchRedgifsFeed(query, LIBRARY_LIMITS.redgifsPageSize, page);
       rows = batch.videos; following = page < batch.totalPages ? page + 1 : null; totalCount = batch.totalCount;
     } else {
-      const varietyOrders = ["top-weekly", "latest", "top-rated", "most-popular", "top-monthly"];
-      const sort = query.trim().toLowerCase() === 'all' ? varietyOrders[(page - 1) % varietyOrders.length]! : order;
-      const batch = provider === 'redtube' ? await fetchRedtubePage(query, sort, page) : await fetchEpornerPage(query, sort, page, LIBRARY_LIMITS.epornerPageSize);
+      const batch = provider === 'redtube' ? await fetchRedtubePage(query, order, page) : await fetchEpornerPage(query, order, page, LIBRARY_LIMITS.epornerPageSize);
       rows = batch.videos; following = page < batch.totalPages ? page + 1 : null; totalCount = batch.totalCount;
     }
     }catch(error){if(!videos.length)throw error;warning=adultPullFailureDetail(error);nextPage=page;nextOffset=offset;break;}
@@ -4081,3 +4079,14 @@ export async function runSearchRedtubeStars(dataRaw: unknown): Promise<{ stars: 
 
 const readSelectedTwitchChapters=createTwitchChapterReader(id=>twitchGqlJson(TWITCH_CHAPTER_QUERY,{id}));
 export const runFetchTwitchChapters=(raw:unknown)=>readSelectedTwitchChapters(raw&&typeof raw==='object'?(raw as {videoId?:unknown}).videoId:undefined);
+
+const selectedTwitchMediaCheck=createTwitchMediaChecker(twitchGqlJson);
+export const runCheckTwitchMedia=(raw:unknown)=>selectedTwitchMediaCheck(raw&&typeof raw==='object'?(raw as {url?:unknown}).url:undefined);
+
+/** Explicit, one-account lookup by stable Twitch user ID; no login search or catalog walk. */
+export async function runCheckTwitchAlias(raw:unknown){
+ const r=raw as {userId?:unknown;from?:unknown};
+ if(!twitchUserId(r?.userId)||typeof r.from!=='string'||!/^[a-z0-9_]{1,25}$/.test(r.from))throw Error('A verified Twitch user ID and saved login are required.');
+ const json=await twitchGqlJson('query($id:ID!){user(id:$id){id login}}',{id:r.userId});
+ return {alias:parseTwitchAliasResponse(json,r.userId,r.from)};
+}

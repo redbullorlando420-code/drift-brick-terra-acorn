@@ -31,6 +31,20 @@ test('an exact real channel remains verified when its public uploads are unavail
     assert.equal(result.ok[0].videos.length,0); assert.match(result.ok[0].channel.lastProviderFailure.message,/No public uploads/);
   } finally {globalThis.fetch=original;}
 });
+test('identity-only name catch-up makes no uploads, archive or detail requests and rejects ambiguous names', async () => {
+  const calls=[];
+  globalThis.fetch=async (url,init)=>{
+    calls.push(String(url));assert(String(url).includes('/search?'));
+    const query=JSON.parse(init.body).query;
+    const result=(channelId)=>({channelRenderer:{channelId,title:{simpleText:query}}});
+    return Response.json({contents:query==='Shared Name'?[result(id),result('UCabcdef1234567890123456')]:[result(id)]});
+  };
+  try {
+    const result=await runImportChannels({items:[{kind:'youtube',query:'New Unique Name'},{kind:'youtube',query:'Shared Name'}],identityOnly:true,youtubeRequestGapMs:0});
+    assert.equal(result.ok.length,1);assert.equal(result.ok[0].channel.channelId,id);assert.deepEqual(result.ok[0].videos,[]);
+    assert.deepEqual(result.failedQueries,['Shared Name']);assert.equal(calls.length,2);
+  } finally {globalThis.fetch=original;}
+});
 test('explicit handles require a channel endpoint and preserve channel ID case', async () => {
   globalThis.fetch = async (url,init) => { assert(String(url).includes('/navigation/resolve_url')); assert.equal(JSON.parse(init.body).url,'https://www.youtube.com/@Exact'); return Response.json({endpoint:{browseEndpoint:{browseId:id}}}); };
   try {
@@ -38,6 +52,17 @@ test('explicit handles require a channel endpoint and preserve channel ID case',
     globalThis.fetch = async () => Response.json({endpoint:{watchEndpoint:{videoId:'abcdefghijk'}}});
     await assert.rejects(resolveYoutubeCreator('@Exact'),/unique exact/);
   } finally { globalThis.fetch=original; }
+});
+test('Twitch identity-only checks request user metadata without VOD or clip archives', async () => {
+  const calls=[];
+  globalThis.fetch=async(url,init)=>{
+    calls.push(String(url));const body=JSON.parse(init.body);assert(!/videos\(|clips\(/.test(body.query));
+    return Response.json({data:{user:{id:'123456789',displayName:'Review Fixture',profileImageURL:'',stream:null}}});
+  };
+  try {
+    const result=await runImportChannels({items:[{kind:'twitch',query:'review_fixture'}],identityOnly:true});
+    assert.equal(result.ok.length,1);assert.equal(result.ok[0].channel.channelId,'123456789');assert.deepEqual(result.ok[0].videos,[]);assert.equal(calls.length,1);
+  } finally {globalThis.fetch=original;}
 });
 test('live checks follow actual Streams params and retain multiple simultaneous broadcasts, excluding upcoming/recorded', async () => {
   const targets=[];

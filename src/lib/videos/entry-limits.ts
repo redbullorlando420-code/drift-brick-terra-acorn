@@ -3,6 +3,7 @@ import type { PullSettings } from '../pull-settings.ts';
 import { forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
 import { catalogIdentityKeys, catalogIdentityKey, lookupCatalogIdentity } from './catalog-identity.ts';
 import { remoteVideoIndexAsync } from './remote-merge.ts';
+import { adultMediaClass, rememberAdultGrowthCounts, type AdultGrowthCounts } from './adult-growth.ts';
 
 export type EntryGroup = 'youtube' | 'twitch' | 'adult' | 'other';
 export type EntryCounts = Record<EntryGroup | 'total', number>;
@@ -22,10 +23,12 @@ export function remoteEntryCounts(videos: LibraryVideo[]): Promise<EntryCounts> 
   const running = pending.get(videos);
   if (running) return running;
   const counts = { ...EMPTY_ENTRY_COUNTS };
+  const growth: AdultGrowthCounts = {archivedVideos:0,photos:0,liveRooms:0,unknown:0};
   const work = forEachCatalogSlice(videos, video => {
     const group = entryGroup(video);
     if (group) { counts[group]++; counts.total++; }
-  }, yieldCatalogTask).then(() => { completed.set(videos, counts); return counts; }).finally(() => pending.delete(videos));
+    if (group === 'adult') { const kind = adultMediaClass(video); if (kind) growth[kind]++; }
+  }, yieldCatalogTask).then(() => { completed.set(videos, counts); rememberAdultGrowthCounts(videos,growth); return counts; }).finally(() => pending.delete(videos));
   pending.set(videos, work);
   return work;
 }

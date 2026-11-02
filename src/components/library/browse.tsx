@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { ChevronDown, ChevronRight, Heart, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VideoCard } from "./video-card";

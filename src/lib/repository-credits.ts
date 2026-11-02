@@ -7,6 +7,7 @@ export const REPOSITORY_CREDITS = [
   { name: 'shadcn/ui', url: 'https://github.com/shadcn-ui/ui', license: 'MIT', use: 'Accessible component patterns and adapted Card primitives, styled with Realhub tokens.' },
   { name: 'youtube-dl', url: 'https://github.com/ytdl-org/youtube-dl', license: 'Unlicense', use: 'Local YouTube video downloads through Companion; official nightly distribution.' },
   { name: 'yt-dlp', url: 'https://github.com/yt-dlp/yt-dlp', license: 'Unlicense', use: 'Local YouTube downloads with opt-in browser-session authentication and playback of completed files. Official checksum-verified release; account access is still required. Its Twitch extractor was also used to cross-check the public VOD chapter schema; the chapter adapter is independently implemented.' },
+  { name: '@noble/hashes', url: 'https://github.com/paulmillr/noble-hashes', license: 'MIT', use: 'Incremental SHA-256 in a short-lived local worker for explicit file identity verification. Files are read in 1 MiB chunks and never uploaded.' },
   { name: 'React', url: 'https://github.com/facebook/react', license: 'MIT', use: 'Application rendering.' },
   { name: 'TanStack Router / Start', url: 'https://github.com/TanStack/router', license: 'MIT', use: 'Routing and server functions.' },
   { name: 'Radix UI', url: 'https://github.com/radix-ui/primitives', license: 'MIT', use: 'Accessible dialogs and interactive primitives.' },

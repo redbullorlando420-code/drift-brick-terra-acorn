@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
 /**
  * Durable Adult preview/poster URL cache.
  * localStorage for instant recall; IndexedDB thumb-cache for the same URLs

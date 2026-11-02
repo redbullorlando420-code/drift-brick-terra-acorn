@@ -17,8 +17,9 @@ export function parseFollowImport(value: string, kind: FollowKind): ImportCandid
   flush(); if (row.some(Boolean)) rows.push(row);
   const header = rows[0]?.map(value => value.trim().replace(/^\uFEFF/, '').toLowerCase()) ?? [];
   const urlColumn = header.indexOf('channel url'), idColumn = header.indexOf('channel id');
+  const twitchColumn = kind === 'twitch' ? header.findIndex(value => ['login', 'user_login', 'username', 'channel login', 'channel url'].includes(value)) : -1;
   const table = kind === 'youtube' && (urlColumn >= 0 || idColumn >= 0);
-  const entries = table ? rows.slice(1).map(row => row[urlColumn] || row[idColumn] || '') : fields;
+  const entries = twitchColumn >= 0 ? rows.slice(1).map(row => row[twitchColumn] || '') : table ? rows.slice(1).map(row => row[urlColumn] || row[idColumn] || '') : fields;
   const queries = entries.flatMap(raw => {
     const text = raw.trim().replace(/^\uFEFF/, '').replaceAll('\\_', '_');
     const words = text.split(/\s+/).filter(Boolean);
@@ -72,7 +73,7 @@ export function resolvedFollowQueries(follows: FollowedChannel[], kind: FollowKi
   const keys = new Set<string>(), titles = new Map<string, number>();
   for (const channel of follows) {
     if (channel.kind !== kind || channel.importNeedsReview || !(kind === 'twitch'
-      ? channel.lastCheckedAt && !channel.lastProviderFailure
+      ? /^\d{1,40}$/.test(channel.channelId ?? '') || channel.lastCheckedAt && !channel.lastProviderFailure
       : verifiedYoutubeSource(channel))) continue;
     keys.add(canonicalFollowHandle(kind, channel.handle));
     if (channel.importQuery) keys.add(canonicalFollowHandle(kind, channel.importQuery));

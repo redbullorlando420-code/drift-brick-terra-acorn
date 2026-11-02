@@ -1,0 +1,27 @@
+✔ consumer acknowledgement prevents a second read while admission is slow (3.9288ms)
+✔ 100k records pause, cancel mid-page and resume from the last acknowledged cursor exactly once (15.4147ms)
+✔ cancellation while waiting for permission to read creates no new page (0.4109ms)
+✔ invalid pages and stalled cursors reject instead of spinning (0.3677ms)
+✔ watch history reset preserves all unrelated personal fields and does not mutate its recovery snapshot (0.4451ms)
+✔ hidden source ledger rejects future versions, duplicate identities and oversized journals (0.3915ms)
+✔ hidden private folders keep retained titles outside public surfaces even when the visible folder array is unchanged (3.1027ms)
+✔ history index retains repeats, latest played timestamps, recovery thresholds and orphan counts (3.3695ms)
+✔ source/window filters preserve event order, duplicates, inclusive cutoff and scoped card visibility (0.6582ms)
+✔ historical tag counts retain per-event weighting, exclusions and deterministic ties (8.1804ms)
+✔ chunked history export preserves existing schema, Unicode, event identity and local date formatting (13.3368ms)
+✔ filtering and exporting reuse the index without reading unrelated card metadata (17.6323ms)
+✔ index, tags, selection and export yield before row inspection and stop on cancellation (12.1581ms)
+✔ private shelves group full scoped lists once and preserve stable organization and newest-24 ties (108.9985ms)
+✔ all private sort modes exactly match existing native stable ordering without mutating membership (62.4995ms)
+✔ rank resolution reuses the index and cannot introduce missing or out-of-scope rows (0.8437ms)
+✔ indexing, sorting, rank resolution and tag filtering yield before metadata reads and accept cancellation (0.8643ms)
+✔ photo sources restoring before video folders retain saved private classification (0.35ms)
+✔ photo metadata arriving after video restore preserves current privacy and folder order (0.177ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 342.9571

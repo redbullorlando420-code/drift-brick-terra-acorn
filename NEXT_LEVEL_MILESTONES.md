@@ -128,7 +128,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-004 — Atomic restore with recovery slot
-Status: planned
+Status: complete
 Track: Data durability
 Priority: P0
 
@@ -149,8 +149,11 @@ An interrupted restore must not leave half of a new library installed.
 - next-003 — Backup preflight report [complete]
 
 ## Start in
-- src/lib/videos/persist.ts
-- src/lib/videos/store.ts
+- src/lib/videos/library-restore-repository.ts
+- src/lib/videos/library-restore-plan.ts
+- src/lib/videos/restore-snapshot.ts
+- src/lib/restore-epoch.ts
+- src/components/library/restore-boundary.tsx
 
 ## Implementation
 1. Build on backup preflight and stage incoming data under a temporary restore generation.
@@ -247,7 +250,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-007 — Deletion and undo tombstones
-Status: planned
+Status: complete
 Track: Data durability
 Priority: P1
 
@@ -268,8 +271,10 @@ Late provider responses can revive intentionally removed media across sessions.
 - next-006 — Cross-tab catalog writer lease [complete]
 
 ## Start in
+- src/lib/videos/deletion-tombstones.ts
 - src/lib/videos/store.ts
 - src/lib/videos/persist.ts
+- src/components/library/removed-titles-panel.tsx
 
 ## Implementation
 1. Audit every remote admission path against removal and existing cleanup suppression.
@@ -286,7 +291,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-008 — Backup conflict review
-Status: planned
+Status: complete
 Track: Data durability
 Priority: P1
 
@@ -304,11 +309,13 @@ Import merging needs explainable choices when two backups disagree about persona
 
 ## Dependencies
 - next-003 — Backup preflight report [complete]
-- next-004 — Atomic restore with recovery slot [planned]
+- next-004 — Atomic restore with recovery slot [complete]
 
 ## Start in
-- src/lib/videos/persist.ts
-- src/lib/videos/types.ts
+- src/lib/videos/pack-conflicts.ts
+- src/lib/videos/pack-review-repository.ts
+- src/components/library/library-pack-transfer.tsx
+- src/lib/videos/library-restore-repository.ts
 
 ## Implementation
 1. Define field-level conflict policy for ratings, tags, locks, categories and resume timestamps.
@@ -325,7 +332,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-009 — File identity migration ledger
-Status: planned
+Status: complete
 Track: Data durability
 Priority: P1
 
@@ -343,12 +350,15 @@ Renamed or moved local files need verified identity continuity without guessing 
 
 ## Dependencies
 - next-001 — Crash-safe catalog mutations [complete]
-- next-007 — Deletion and undo tombstones [planned]
+- next-007 — Deletion and undo tombstones [complete]
 
 ## Start in
-- src/lib/videos/types.ts
+- src/lib/videos/local-identity.ts
+- src/lib/videos/identity-repository.ts
+- src/lib/videos/file-fingerprint.worker.ts
+- src/components/library/file-identity-panel.tsx
+- src/lib/videos/scan.ts
 - src/lib/videos/store.ts
-- companion/reelcase-companion.mjs
 
 ## Implementation
 1. Map current path/fingerprint matching and define confidence tiers using approved-root metadata.
@@ -365,7 +375,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-010 — Portable profile boundaries
-Status: planned
+Status: complete
 Track: Data durability
 Priority: P1
 
@@ -382,12 +392,18 @@ Optional multiple local profiles require explicit isolation of personal and priv
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-004 — Atomic restore with recovery slot [planned]
+- next-004 — Atomic restore with recovery slot [complete]
 - next-006 — Cross-tab catalog writer lease [complete]
 
 ## Start in
+- src/lib/local-profile-storage.ts
+- src/lib/local-profiles.ts
+- src/components/library/local-profiles-panel.tsx
+- src/components/library/profile-boundary.tsx
 - src/lib/videos/store.ts
 - src/lib/videos/persist.ts
+- scripts/local-profiles-browser-check.mjs
+- scripts/profile-switch-store.test.mjs
 
 ## Implementation
 1. Inventory all localStorage and IndexedDB keys and document which may be shared as disposable cache.
@@ -526,7 +542,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-014 — IndexedDB cursor backpressure
-Status: planned
+Status: complete
 Track: Performance at scale
 Priority: P1
 
@@ -543,11 +559,13 @@ Paged hydration should pause when UI admission is busy rather than accumulating 
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-010 — Portable profile boundaries [planned]
+- next-010 — Portable profile boundaries [complete]
 
 ## Start in
+- src/lib/videos/catalog-page-reader.ts
 - src/lib/videos/persist.ts
 - src/lib/videos/store.ts
+- src/lib/navigation-work.ts
 
 ## Implementation
 1. Trace hydration page production, queue depth and commit cost under slow-device settings.
@@ -787,7 +805,7 @@ Performance changes need comparable measurements across builds and data sizes.
 ## Dependencies
 - next-011 — Eight-hour lifecycle soak harness [planned]
 - next-012 — Provider payload allocation budget [complete]
-- next-014 — IndexedDB cursor backpressure [planned]
+- next-014 — IndexedDB cursor backpressure [complete]
 - next-015 — Budget expensive recommendation passes [complete]
 
 ## Start in
@@ -1317,7 +1335,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-034 — Twitch channel rename evidence
-Status: planned
+Status: complete
 Track: Twitch depth and coverage
 Priority: P1
 
@@ -1334,16 +1352,18 @@ Renamed channels should keep their history only when a stable Twitch identity pr
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-009 — File identity migration ledger [planned]
+- next-009 — File identity migration ledger [complete]
 
 ## Start in
+- src/lib/videos/twitch-channel-identity.ts
+- src/lib/videos/twitch-alias-repository.ts
 - src/lib/remote/api.ts
 - src/lib/videos/store.ts
-- src/components/library/follow-manager.tsx
+- src/components/library/twitch-alias-review.tsx
 
 ## Implementation
 1. Compare resolved stable user IDs before treating a new login as an existing creator.
-2. Offer a reviewable alias update and migrate source references through the identity journal.
+2. Offer a reviewable alias update through a fenced identity journal; retain canonical source IDs and bind future live/VOD/clip results to them.
 3. Retain old bookmarks as aliases while detecting a recycled login belonging to another user.
 
 ## Acceptance checks
@@ -1356,7 +1376,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-035 — Expired Twitch media recovery
-Status: planned
+Status: complete
 Track: Twitch depth and coverage
 Priority: P1
 
@@ -1373,9 +1393,13 @@ Expired VODs and removed clips need a non-destructive unavailable workflow.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-007 — Deletion and undo tombstones [planned]
+- next-007 — Deletion and undo tombstones [complete]
 
 ## Start in
+- src/lib/remote/twitch-media-health.ts
+- src/lib/videos/media-health.ts
+- src/lib/videos/media-health-repository.ts
+- src/components/library/media-recovery-panel.tsx
 - src/lib/videos/store.ts
 - src/components/library/pre-video.tsx
 
@@ -2440,7 +2464,7 @@ Different cuts or resolutions of one film should be grouped without discarding c
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-009 — File identity migration ledger [planned]
+- next-009 — File identity migration ledger [complete]
 - next-061 — Film identity review [complete]
 
 ## Start in
@@ -2891,7 +2915,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-074 — Local media health remediation
-Status: planned
+Status: complete
 Track: Desktop and local workflows
 Priority: P2
 
@@ -2908,13 +2932,15 @@ Disconnected files need grouped repair actions with verified matching and no des
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-009 — File identity migration ledger [planned]
+- next-009 — File identity migration ledger [complete]
 - next-073 — Approved-root change audit [complete]
 
 ## Start in
-- src/lib/videos/local-runtime.ts
+- src/lib/videos/local-media-health.ts
+- src/lib/videos/media-recovery-groups.ts
+- src/components/library/media-recovery-panel.tsx
 - src/lib/videos/store.ts
-- companion/reelcase-companion.mjs
+- src/lib/videos/sources.ts
 
 ## Implementation
 1. Group unavailable local entries by approved source and distinguish missing permission from missing files.
@@ -3718,7 +3744,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-094 — Destructive action recovery design
-Status: planned
+Status: complete
 Track: Trust, accessibility and release
 Priority: P2
 
@@ -3736,12 +3762,14 @@ Removal, reset and replacement actions need consistent previews and meaningful u
 
 ## Dependencies
 - next-001 — Crash-safe catalog mutations [complete]
-- next-004 — Atomic restore with recovery slot [planned]
-- next-007 — Deletion and undo tombstones [planned]
+- next-004 — Atomic restore with recovery slot [complete]
+- next-007 — Deletion and undo tombstones [complete]
 
 ## Start in
-- src/lib/videos/store.ts
-- src/components/library/settings-section.tsx
+- src/components/library/consequence-action.tsx
+- src/lib/videos/source-visibility.ts
+- src/components/library/hidden-sources-panel.tsx
+- src/lib/videos/history-reset.ts
 - src/components/library/mission-plan-section.tsx
 
 ## Implementation
@@ -3944,7 +3972,7 @@ A release needs a rehearsed recovery path for stored data and browser assets.
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-004 — Atomic restore with recovery slot [planned]
+- next-004 — Atomic restore with recovery slot [complete]
 - next-020 — Performance release artifact comparison [planned]
 - next-091 — Sensitive export redaction review [complete]
 

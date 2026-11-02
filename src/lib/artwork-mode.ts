@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
 export const ARTWORK_MODE_KEY = 'reelcase.artwork-mode';
 let textFirst: boolean | undefined;
 const listeners = new Set<() => void>();

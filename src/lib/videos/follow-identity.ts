@@ -1,3 +1,4 @@
+import {separateTwitchIdentity,twitchUserId,retainTwitchSourceIdentity} from './twitch-channel-identity.ts';
 import { retainTwitchPullPolicy } from './twitch-pull-policy.ts';
 import type { FollowKind, FollowedChannel } from "./types";
 
@@ -36,7 +37,7 @@ export function dedupeFollows(rows: FollowedChannel[]): FollowedChannel[] {
     const id = `${row.kind}:${row.id}`;
     const handle = canonicalFollowHandle(row.kind, row.handle || row.id);
     const key = `${row.kind}:${handle}`;
-    const channel = confirmedYoutubeChannelId(row) ?? "";
+    const channel = row.kind==='twitch'&&twitchUserId(row.channelId)?'twitch:'+row.channelId:confirmedYoutubeChannelId(row) ?? "";
     // Confirmed distinct channel IDs take precedence over display-name/handle
     // collisions. Only unverified aliases may collapse by their query.
     const handleKey = channel ? `${key}:${channel}` : key;
@@ -52,6 +53,13 @@ export function dedupeFollows(rows: FollowedChannel[]): FollowedChannel[] {
 /** Resolution replaces its pending query, while confirmed provider identities
  * remain authoritative even when two channels share a display name. */
 export function mergeResolvedFollow(rows: FollowedChannel[], resolved: FollowedChannel): FollowedChannel[] {
+  resolved=separateTwitchIdentity(rows,resolved);
+  if(resolved.kind==='twitch'&&twitchUserId(resolved.channelId)){
+    const owner=rows.find(r=>r.kind==='twitch'&&r.channelId===resolved.channelId);
+    // A changed login needs an explicit journaled review; importing does not rename the owner.
+    if(owner&&canonicalFollowHandle('twitch',owner.handle)!==canonicalFollowHandle('twitch',resolved.handle))return rows;
+    if(owner)resolved=retainTwitchSourceIdentity(owner,resolved);
+  }
   const keys = new Set([resolved.handle, resolved.importQuery].filter(Boolean).map(value => canonicalFollowHandle(resolved.kind, value!)));
   const ambiguous = new Set<string>();
   const resolvedChannel = resolved.kind === 'youtube' ? confirmedYoutubeChannelId(resolved) : resolved.channelId;

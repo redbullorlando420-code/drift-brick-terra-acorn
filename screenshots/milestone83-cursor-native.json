@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "records": 100000,
+  "accepted": 100000,
+  "maxPending": 1,
+  "checkpointBeforeResume": 511,
+  "readsBeforeResume": 2,
+  "checks": [
+    "Real IndexedDB 100k rows",
+    "Consumer pause blocks producer",
+    "Mid-page cancellation keeps last acknowledged key",
+    "Resume retains every ID exactly once",
+    "One pending page maximum"
+  ]
+}

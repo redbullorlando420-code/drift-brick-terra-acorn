@@ -1,0 +1,15 @@
+✔ Default retains legacy keys in place and excludes all other profiles from enumeration (1.4131ms)
+✔ profile storage cannot read, enumerate, overwrite or clear another profile (0.5505ms)
+✔ an old asynchronous writer keeps its original namespace after another profile is chosen (0.1854ms)
+✔ storage transport drops foreign personal changes and translates own keys without changing auth events (0.1792ms)
+✔ quota failure leaves an existing personal value intact (0.1537ms)
+✔ enumeration stays fresh when another writer replaces keys at the same total size (0.1465ms)
+✔ profile registry rejects future versions, duplicate IDs, duplicate labels and capacity overflow (0.2459ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 127.4065

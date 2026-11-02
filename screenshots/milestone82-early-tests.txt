@@ -1,0 +1,11 @@
+✔ real activity, preferences and dedicated stores clone sparse updates and recover old plus recent records (133.1236ms)
+✔ tiny saved edits survive failures, acknowledge only committed values and compact behind complete snapshots (374.9824ms)
+✔ real startup rebases a catalog restore around a concurrent pull, unfollow, favorite, resume and navigation (808.534ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1267.7495

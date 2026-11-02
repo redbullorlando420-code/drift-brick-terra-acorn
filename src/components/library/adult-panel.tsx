@@ -1,7 +1,9 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { REDDIT_SOURCE_STORAGE_KEY, readRedditSourceSettings, type RedditSourceSetting } from "@/lib/videos/adult-pull-plan";
 import { DEFAULT_PULL_SETTINGS, getPullSettings, subscribePullSettings } from '@/lib/pull-settings';
 import { getPullCancellationRevision } from '@/lib/pull-control';
 import { memo, useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {AdultArchiveProgress} from './adult-archive-progress';
 import { ChevronDown, ChevronRight, ExternalLink, Flag, LoaderCircle, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -43,6 +45,7 @@ const ORDERS: { id: string; label: string }[] = [
   { id: "most-popular", label: "Most popular" },
   { id: "latest", label: "Latest" },
   { id: "top-rated", label: "Top rated" },
+  { id: "top-monthly", label: "Top this month" },
 ];
 
 const ALL_PROVIDER_CHOICES: { id: AdultPullProvider[] | "all"; label: string }[] = [
@@ -608,11 +611,10 @@ export const AdultPanel = memo(function AdultPanel({
         setNextPage((resume ? Math.max(2, ...Object.values(cursors).map((c) => c.page)) : page) + 1);
         if (['adults', 'adult-fetishes'].includes(useLibrary.getState().sourceId)) setTagFilter("all");
         refreshArchiveLabel(q, order);
-        toast.success(
-          n
-            ? `${append || resume ? "Catalog now has" : "Loaded"} ${n.toLocaleString()} adult titles`
-            : "No results",
-        );
+        const status=useLibrary.getState().adultPullStatus;
+        if(status?.diagnostics.some(row=>row.status==='failed'))toast.warning('Some providers could not finish. Saved titles and resume positions were kept.');
+        else if(n)toast.success(`${append || resume ? "Catalog now has" : "Loaded"} ${n.toLocaleString()} adult titles`);
+        else toast.message('No new entries in this window. Saved titles are kept; check archive progress for remaining pages.');
       })
       .catch((err: unknown) => {
         toast.error(err instanceof Error ? err.message : "Search failed");
@@ -811,6 +813,7 @@ export const AdultPanel = memo(function AdultPanel({
             {discoveryCollapsed ? "Expand" : "Minimize"}
           </Button>
         </div>
+        <AdultArchiveProgress/>
         {!discoveryCollapsed && (
           <div className="mt-4">
         <p className="max-w-2xl text-sm text-muted">
@@ -975,6 +978,7 @@ export const AdultPanel = memo(function AdultPanel({
         <p id="adult-provider-query-help" className="mt-3 text-xs leading-5 text-muted">{selectedCapabilities.directoryOnly?'This filters the fetched public room directory, not a full-site search. Archive and sort controls do not apply to live rosters.':selectedCapabilities.query==='feed-filter'?'Search filters the fetched public community window, not all Reddit.':'Source-specific search and paging use the existing adapters. The selected sources may use different search/sort rules.'}</p>{selectedCapabilities.directoryOnly&&<Button className="mt-2 min-h-11" variant="secondary" onClick={()=>setSource('live')}>Open Live directory paging</Button>}
         <ProviderCapabilityPanel/><ProviderViewingDesk/>
         <p className="mt-2 text-xs text-muted">Pull cap: {pullSettings.adultBatchVideos.toLocaleString()} new entries · unused capacity rolls to the next provider when a source is empty, unavailable, or mostly duplicates. Change pace and catalog target in Settings.</p>
+        <p className="mt-2 text-xs text-muted">Continue archive resumes older pages. Pull catalog restarts the selected listing at page 1; saved titles are kept and deduplicated.</p>
         <div className="mt-4 rounded-md bg-bg/40 p-3">
           <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">RedTube creator search</p>
           <div className="mt-2 flex flex-wrap gap-2">

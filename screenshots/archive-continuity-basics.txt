@@ -1,0 +1,19 @@
+✔ actual Adult automatic owner recovers a failed count, holds idle/pause gates and releases its schedule (104.3295ms)
+✔ versioned operations accept bounded deltas, not future or oversized batches (1.9596ms)
+✔ manual records validate paired tags, provenance, field clocks and category shape (0.3481ms)
+✔ unknown and corrupt control generations remain rejected instead of reset (0.1817ms)
+✔ explicit snapshot retry invalidates only the slice writer reference cache (0.1945ms)
+✔ field clocks restore category separately from newer automatic tags without walking base dictionaries (4.5802ms)
+✔ single-provider writes preserve other resume points and failures preserve partial offsets (3.9643ms)
+✔ quota failure still returns the accepted in-session cursor without overwriting another provider from a stale mirror (1.3695ms)
+✔ independent sort lanes rotate without starving other providers or retrying a failed source (2.4675ms)
+✔ all lanes cooling down create no eligible job and limits bound provider fanout (0.2156ms)
+✔ legacy rotating cursors restart once while stable cursors and query-specific depths remain intact (0.9196ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 239.5323

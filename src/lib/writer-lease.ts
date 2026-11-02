@@ -1,3 +1,5 @@
+import {profileChannelName} from './local-profile-storage.ts';
+import {guardRestoreEpoch} from './restore-epoch.ts';
 import { createLocalId } from "./local-id.ts";
 
 export const WRITER_LEASE_MS = 15_000;
@@ -115,7 +117,7 @@ export function createWriterLease(
   const listen = () => {
     if (disposed || channel || typeof window === "undefined" || options.transport === false) return;
     if (typeof BroadcastChannel !== "undefined") {
-      channel = new BroadcastChannel("reelcase-writers.v1");
+      channel = new BroadcastChannel(profileChannelName("reelcase-writers.v1"));
       channel.onmessage = (event) => receive(event.data);
     }
   };
@@ -216,6 +218,7 @@ export function createWriterLease(
     body: () => void,
     failed?: (error: unknown) => void,
     dirty = true,
+    restore = false,
   ) {
     const request = tx.objectStore("remote-cache").get(key);
     request.onsuccess = () => {
@@ -223,7 +226,7 @@ export function createWriterLease(
         assert(request.result, token);
         if (dirty && !request.result.dirty)
           tx.objectStore("remote-cache").put({ ...request.result, dirty: true }, key);
-        body();
+        guardRestoreEpoch(tx,body,failed,restore);
       } catch (error) {
         publish({
           phase: "error",

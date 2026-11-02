@@ -15,10 +15,10 @@ test('real activity, preferences and dedicated stores clone sparse updates and r
   const disk = new Map(), local = new Map();
   let fail = false;
   const db = { close() {}, transaction(store) {
-    assert.equal(store, 'activity'); const tx = {};
-    tx.objectStore = () => ({ put(value, key) {
+    assert(store==='activity'||Array.isArray(store)&&store.includes('activity')&&store.includes('remote-cache')); const tx = {};
+    tx.objectStore = name => ({ put(value, key) {
       if (fail) throw Error('storage unavailable'); disk.set(key, structuredClone(value));
-    }, get(key) { const req = {}; setImmediate(() => { req.result = structuredClone(disk.get(key)); req.onsuccess(); }); return req; } });
+    }, get(key) { const req = {}; setImmediate(() => { req.result = name==='remote-cache'?undefined:structuredClone(disk.get(key)); req.onsuccess(); }); return req; } });
     setImmediate(() => tx.oncomplete?.()); return tx;
   } };
   Object.defineProperty(globalThis, 'indexedDB', { configurable: true, value: { open() {

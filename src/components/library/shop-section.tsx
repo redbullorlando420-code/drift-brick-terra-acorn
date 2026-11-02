@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { createLocalId } from "@/lib/local-id";
 import { useMemo, useState } from "react";
 import { ExternalLink, PackageSearch, Search, ShoppingBag } from "lucide-react";

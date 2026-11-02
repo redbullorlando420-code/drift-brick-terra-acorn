@@ -253,7 +253,7 @@ try {
         buffer: fixture,
       });
       await region.getByRole("heading", { name: "Ready for review" }).waitFor();
-      await region.getByLabel("I reviewed the differing records and import policy").check();
+      await region.getByLabel("I reviewed the source, current destination, differing records and import policy").check();
       await region.getByRole("button", { name: "Apply reviewed import", exact: true }).click();
       await region.getByRole("status").filter({ hasText: "Import applied" }).waitFor();
       await page.waitForFunction(

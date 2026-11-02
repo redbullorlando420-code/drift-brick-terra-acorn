@@ -1,3 +1,6 @@
+import {ConsequenceAction} from './consequence-action';
+import {twitchCreatorSignal} from '@/lib/videos/twitch-channel-identity';
+import {TwitchAliasReview} from './twitch-alias-review';
 import { PlaylistReconciliation } from './playlist-reconciliation';
 import { TwitchPolicySummary, TwitchPullPolicyControls } from './twitch-pull-policy';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
@@ -164,7 +167,7 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
       .filter((channel) => !needle || `${creatorLabel(channel)} ${channel.handle}`.toLocaleLowerCase().includes(needle))
       .map((channel) => {
         const label = creatorLabel(channel);
-        return { channel, label, favorite: creatorIsFavorited(label), rating: getCreatorRating(label), checkedAt: channel.kind === "youtube" ? channel.catalogCheckedAt ?? channel.lastCheckedAt ?? 0 : channel.lastCheckedAt ?? 0 };
+        return { channel, label, favorite: creatorIsFavorited(twitchCreatorSignal(channel)), rating: getCreatorRating(twitchCreatorSignal(channel)), checkedAt: channel.kind === "youtube" ? channel.catalogCheckedAt ?? channel.lastCheckedAt ?? 0 : channel.lastCheckedAt ?? 0 };
       });
     rows.sort((left, right) => {
       const byName = nameCollator.compare(left.label, right.label) || left.channel.id.localeCompare(right.channel.id);
@@ -195,6 +198,7 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
     return () => { cancelled = true; };
   }, [missingCreatorIds, updateFollowProfiles]);
   const selectedName = selected ? creatorLabel(selected) : "";
+  const selectedSignal=selected?twitchCreatorSignal(selected):"";
   const creatorCatalog = useCreatorVideoCatalog(videos, selected, hiddenVideos, favorites, history, creatorVideoSort, creatorVideoFilter, settledCreatorQuery);
   const creatorPending = creatorCatalog.pending || settledCreatorQuery !== creatorVideoQuery;
   const selectedVideoStats = creatorCatalog.stats;
@@ -205,8 +209,8 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const selectedYoutubeCount = useMemo(() => follows.reduce((count, channel) => count + Number(channel.kind === 'youtube' && selectedIdSet.has(channel.id)), 0), [follows, selectedIdSet]);
   const selectedPage = selected?.kind === "youtube" ? selected.channelId ? `https://www.youtube.com/channel/${encodeURIComponent(selected.channelId)}` : selected.handle.startsWith("http") ? selected.handle : selected.handle.startsWith('@') ? `https://www.youtube.com/${encodeURI(selected.handle)}` : `https://www.youtube.com/results?search_query=${encodeURIComponent(selected.handle)}&sp=EgIQAg%3D%3D` : selected ? `https://www.twitch.tv/${encodeURIComponent(selected.handle.replace(/^@/, ""))}` : "";
-  const selectedRating = selected ? getCreatorRating(selectedName) : 0;
-  const selectedFavorite = selected ? creatorIsFavorited(selectedName) : false;
+  const selectedRating = selected ? getCreatorRating(selectedSignal) : 0;
+  const selectedFavorite = selected ? creatorIsFavorited(selectedSignal) : false;
   const removalPlan = useMemo(() => reviewingRemoval
     ? planFollowRemoval({ follows, videos, favorites, likes, progress, resumeProgress, history }, selectedIds, exportFeedback())
     : null, [reviewingRemoval, follows, videos, favorites, likes, progress, resumeProgress, history, selectedIds]);
@@ -217,16 +221,16 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
 
   const changeFavorite = () => {
     if (!selected) return;
-    toggleCreatorFavorite(selectedName);
+    toggleCreatorFavorite(selectedSignal);
     setFeedbackRevision((revision) => revision + 1);
   };
   const rate = (rating: number) => {
     if (!selected) return;
-    setCreatorRating(selectedName, selectedRating === rating ? 0 : rating);
+    setCreatorRating(selectedSignal, selectedRating === rating ? 0 : rating);
     setFeedbackRevision((revision) => revision + 1);
   };
   const remove = () => {
-    if (!selected || !window.confirm(`Remove ${selectedName} from your followed creators? Saved videos and favorites stay in your library.`)) return;
+    if (!selected) return;
     unfollow(selected.id);
     setSelectedId(null);
   };
@@ -323,8 +327,8 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
           <div className="grid grid-cols-[repeat(auto-fill,minmax(4rem,4rem))] gap-3">
             {shown.map((channel) => {
               const label = creatorLabel(channel);
-              const favorite = creatorIsFavorited(label);
-              const rating = getCreatorRating(label);
+              const favorite = creatorIsFavorited(twitchCreatorSignal(channel));
+              const rating = getCreatorRating(twitchCreatorSignal(channel));
               const active = selectionMode ? selectedIdSet.has(channel.id) : selected?.id === channel.id;
               return <button key={channel.id} type="button" onClick={() => selectionMode ? toggleSelected(channel.id) : setSelectedId(active ? null : channel.id)} aria-label={`${selectionMode ? "Select" : "Manage"} ${label}`} aria-pressed={active} title={label} className={cn("group relative flex size-16 items-center justify-center overflow-visible rounded-full border bg-elevated text-sm font-semibold text-fg shadow-border transition-[transform,background-color,border-color] duration-150 hover:-translate-y-0.5 hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", active ? "border-accent ring-2 ring-accent/40" : "border-border")}>
                 <span className="flex size-full items-center justify-center overflow-hidden rounded-full bg-bg/60"><CreatorAvatar channel={channel} label={label} /></span>
@@ -352,12 +356,13 @@ function FollowManagerExpanded({ kind, initialSelectedId, sort, setSort, onColla
             <p className="text-xs text-muted">Latest saved upload · {selectedVideoStats?.newest ? new Date(selectedVideoStats.newest).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) : "No saved uploads yet"}</p>
             <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => void pullCreators([selected.id])} disabled={refreshing || pullingSelection || selected.kind !== "youtube"}>{refreshing || pullingSelection ? "Pulling videos…" : "Pull creator videos"}</Button><Button size="sm" variant="secondary" onClick={() => setSource(selected.id)}>Open creator catalog</Button><a href={selectedPage} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 rounded-md bg-bg/55 px-3 text-xs text-fg">Channel page <ExternalLink className="size-3" /></a></div>
             <div className="min-w-0" data-creator-video-browser aria-busy={creatorPending} data-creator-video-pending={creatorPending}><div className="mb-2 flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-medium tracking-wide text-subtle uppercase">Creator videos · {creatorPending ? "…" : filteredCreatorVideos.length.toLocaleString()}</p><select aria-label="Sort creator videos" value={creatorVideoSort} onChange={(event) => setCreatorVideoSort(event.target.value as typeof creatorVideoSort)} className="h-11 rounded-md border border-border bg-bg px-2 text-xs text-fg">{selected.id.startsWith('ytpl:')&&<option value="playlist">Playlist order</option>}<option value="newest">Newest</option><option value="oldest">Oldest</option><option value="popular">Most views</option><option value="title">Title A–Z</option></select></div><div className="mb-2 flex flex-wrap gap-1" aria-label="Filter creator videos">{(["all", "unwatched", "favorites"] as const).map(value => <Button key={value} size="sm" variant={creatorVideoFilter === value ? "default" : "ghost"} aria-pressed={creatorVideoFilter === value} onClick={() => { setCreatorVideoFilter(value); setCreatorVideoVisible(24); }}>{value === "all" ? "All" : value === "unwatched" ? "Unwatched" : "Favorites"}</Button>)}</div><Input value={creatorVideoQuery} onChange={(event) => { setCreatorVideoQuery(event.target.value); setCreatorVideoVisible(24); }} className="mb-2 h-9" placeholder="Search this creator’s videos" aria-label="Search creator videos" /><div key={`${selectedId}:${creatorPage}:${creatorVideoSort}:${creatorVideoFilter}:${settledCreatorQuery}`} className="max-h-72 min-w-0 space-y-1 overflow-y-auto" aria-label="Creator video results">{creatorRows.map((video) => <button data-creator-video-id={video.id} key={video.id} type="button" className="block min-w-0 w-full rounded-md bg-bg/55 px-2 py-2 text-left text-xs text-fg hover:text-accent" title={video.name} onClick={() => openPreview(video.id)}><span className="block truncate">{video.name}</span><span className="mt-1 block text-[11px] text-muted">{video.addedAt > 0 && video.addedAt < Date.now() ? new Date(video.addedAt).toLocaleDateString() : "Date unavailable"} · {video.duration ? `${Math.round(video.duration / 60)} min` : "runtime unknown"} · {(video.remote?.views ?? 0).toLocaleString()} views</span></button>)}{creatorCatalog.failed ? <div role="alert" className="px-2 py-3 text-xs text-muted">Could not prepare these videos.<Button type="button" size="sm" variant="ghost" onClick={creatorCatalog.retry}>Retry creator videos</Button></div> : creatorPending ? <p role="status" className="px-2 py-3 text-xs text-muted">Preparing creator videos…</p> : !filteredCreatorVideos.length && <p className="px-2 py-3 text-xs text-muted">{creatorCatalog.total ? "No videos match this search." : "No saved videos yet. Pull this creator’s public archive to start the list."}</p>}</div>{!creatorPending && filteredCreatorVideos.length > 24 && <nav className="mt-2 flex flex-wrap items-center justify-between gap-1" aria-label="Creator video pages"><Button type="button" size="sm" variant="ghost" disabled={creatorPage === 0} onClick={() => setCreatorVideoVisible(creatorPage)}>Previous videos</Button><span className="text-xs text-muted">{(creatorPage + 1).toLocaleString()}–{Math.min(creatorPage + 24, filteredCreatorVideos.length).toLocaleString()} of {filteredCreatorVideos.length.toLocaleString()}</span><Button type="button" size="sm" variant="ghost" disabled={creatorPage + 24 >= filteredCreatorVideos.length} onClick={() => setCreatorVideoVisible(creatorPage + 48)}>Next videos</Button></nav>}</div>
-            <Button type="button" aria-pressed={creatorIsLiked(selectedName)} variant={creatorIsLiked(selectedName) ? "default" : "secondary"} onClick={() => { toggleCreatorLike(selectedName); setFeedbackRevision(value => value + 1); }}><ThumbsUp aria-hidden="true" className="size-4" />{creatorIsLiked(selectedName) ? "Creator liked" : "Like creator"}</Button>
+            {selected.kind==='twitch'&&<TwitchAliasReview key={selected.id+':'+(selected.twitchAliasRevision??0)} channel={selected}/>}
+            <Button type="button" aria-pressed={creatorIsLiked(selectedSignal)} variant={creatorIsLiked(selectedSignal) ? "default" : "secondary"} onClick={() => { toggleCreatorLike(selectedSignal); setFeedbackRevision(value => value + 1); }}><ThumbsUp aria-hidden="true" className="size-4" />{creatorIsLiked(selectedSignal) ? "Creator liked" : "Like creator"}</Button>
             <Button type="button" aria-pressed={selectedFavorite} variant={selectedFavorite ? "default" : "secondary"} onClick={changeFavorite}><Heart aria-hidden="true" className={cn("size-4", selectedFavorite && "fill-current")} />{selectedFavorite ? "Creator favorite" : "Favorite creator"}</Button>
             <div><p className="mb-2 text-xs font-medium tracking-wide text-subtle uppercase">Creator rating</p><div className="flex gap-1" aria-label={`Rate ${selectedName}`}>
               {[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" onClick={() => rate(rating)} className="flex size-11 items-center justify-center rounded-md text-accent hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`${rating} star${rating === 1 ? "" : "s"}`} aria-pressed={selectedRating === rating}><Star aria-hidden="true" className={cn("size-5", rating <= selectedRating && "fill-current")} /></button>)}
             </div><p className="mt-1 text-xs text-muted">{selectedRating ? `${selectedRating} of 5 stars` : "Not rated"}</p></div>
-            <Button type="button" variant="danger" onClick={remove}><Trash2 aria-hidden="true" className="size-4" />Remove following</Button>
+            <ConsequenceAction label="Remove following" title="Unfollow this creator?" confirm="Unfollow creator" onConfirm={remove}><p>This removes {selectedName} from followed creators and can prune unprotected cached videos. Favorites, liked or watched titles, ratings, notes and resume marks remain protected.</p><p>There is no whole-follow Undo here. Re-follow the creator and pull again to rebuild disposable catalog rows. Export a library pack first to preserve custom pull settings.</p></ConsequenceAction>
           </div>
           <div className="mt-5 border-t border-border pt-4 text-xs text-muted"><p className="flex items-center gap-2"><Radio aria-hidden="true" className="size-3.5 text-accent" />{selected.live ? "Live status is active." : "Follow remains locally stored."}</p>{selected.cache && <p className="mt-2">{selected.cache.scope === "catalog" ? "Focused catalog" : selected.cache.scope === "feed" ? "Routine feed" : "No retained"} cache · {Math.round(selected.cache.hits / Math.max(1, selected.cache.hits + selected.cache.misses) * 100)}% hit rate</p>}</div>
         </aside>}

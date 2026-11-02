@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { createLocalId } from "@/lib/local-id";
 import { useState } from "react";
 import { Rocket } from "lucide-react";

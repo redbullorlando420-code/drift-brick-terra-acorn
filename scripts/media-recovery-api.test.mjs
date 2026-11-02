@@ -1,0 +1,9 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {registerHooks} from 'node:module';
+registerHooks({resolve(s,c,n){if(s.startsWith('@/'))return n(new URL('../src/'+s.slice(2)+'.ts',import.meta.url).href,c);try{return n(s,c);}catch(e){if(s.startsWith('.')&&!/\.[a-z]+$/i.test(s))return n(s+'.ts',c);throw e;}}});
+const {runCheckTwitchMedia}=await import('../src/lib/remote/api.ts');
+test('the server adapter performs one fixed-host item query and classifies clean null versus transport failures',async()=>{
+ const real=globalThis.fetch;let count=0,state='null';globalThis.fetch=async(url,init)=>{count++;assert.equal(String(url),'https://gql.twitch.tv/gql');assert.equal(init.method,'POST');assert(init.signal);const {query,variables}=JSON.parse(init.body);assert(!query.includes('user('));assert(!query.includes('videos('));if(state==='503')return new Response('Service unavailable',{status:503});const field=variables.id?'video':'clip';return new Response(JSON.stringify(state==='errors'?{data:{[field]:null},errors:[{message:'Temporary field error'}]}:{data:{[field]:state==='null'?null:variables.id?{id:variables.id}:{id:'opaque',slug:variables.slug}}}),{headers:{'content-type':'application/json'}});};
+ try{assert.equal((await runCheckTwitchMedia({url:'https://www.twitch.tv/videos/1234'})).state,'publicly-unavailable');state='ready';assert.equal((await runCheckTwitchMedia({url:'https://clips.twitch.tv/SomeClip'})).state,'available');state='503';assert.equal((await runCheckTwitchMedia({url:'https://www.twitch.tv/videos/1234'})).state,'unknown');state='errors';assert.equal((await runCheckTwitchMedia({url:'https://clips.twitch.tv/SomeClip'})).state,'unknown');assert.equal(count,4);await assert.rejects(runCheckTwitchMedia({url:'https://untrusted.test/videos/1234'}));assert.equal(count,4);}finally{globalThis.fetch=real;}
+});

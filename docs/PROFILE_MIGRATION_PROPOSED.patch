@@ -1,0 +1,694 @@
+===================================================================
+--- a/src/components/library/adult-panel.tsx
++++ b/src/components/library/adult-panel.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { REDDIT_SOURCE_STORAGE_KEY, readRedditSourceSettings, type RedditSourceSetting } from "@/lib/videos/adult-pull-plan";
+ import { DEFAULT_PULL_SETTINGS, getPullSettings, subscribePullSettings } from '@/lib/pull-settings';
+ import { getPullCancellationRevision } from '@/lib/pull-control';
+===================================================================
+--- a/src/components/library/browse.tsx
++++ b/src/components/library/browse.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { ChevronDown, ChevronRight, Heart, Play } from "lucide-react";
+ import { Button } from "@/components/ui/button";
+ import { VideoCard } from "./video-card";
+===================================================================
+--- a/src/components/library/companion-update-panel.tsx
++++ b/src/components/library/companion-update-panel.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import {diagnosticText} from '@/lib/diagnostic-export';
+ import {DiagnosticExportPreview} from './diagnostic-export-preview';
+ import { useState } from "react";
+===================================================================
+--- a/src/components/library/desktop-sidebar.tsx
++++ b/src/components/library/desktop-sidebar.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { memo, useEffect, useRef, useSyncExternalStore } from 'react';
+ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+ import { Button } from '@/components/ui/button';
+===================================================================
+--- a/src/components/library/global-search.tsx
++++ b/src/components/library/global-search.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { shortcutBlocked, shortcutEnabled } from '@/lib/keyboard-commands';
+ import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+ import { FolderSearch, Search, Sparkles, X } from 'lucide-react';
+===================================================================
+--- a/src/components/library/hub-shared.tsx
++++ b/src/components/library/hub-shared.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { type ReactNode } from "react";
+ import { Card, CardContent } from '@/components/ui/card';
+ import { ExternalLink } from "lucide-react";
+===================================================================
+--- a/src/components/library/keyboard-help.tsx
++++ b/src/components/library/keyboard-help.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { useEffect, useRef, useState } from 'react';
+ import * as Dialog from '@radix-ui/react-dialog';
+ import { Keyboard, X } from 'lucide-react';
+===================================================================
+--- a/src/components/library/library-app.tsx
++++ b/src/components/library/library-app.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import {ConsequenceAction} from './consequence-action';
+ import {clearWatchHistoryWithRecovery} from '@/lib/videos/store';
+ import { CatalogWriterStatus } from './catalog-writer-status';
+===================================================================
+--- a/src/components/library/light-home.tsx
++++ b/src/components/library/light-home.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import {SetupChecklist} from './setup-checklist';
+ import { ArrowRight, Box, ChevronDown, Clapperboard, Heart, LayoutDashboard, Lock, MonitorPlay, Radio, Settings2, Sparkles, Users } from 'lucide-react';
+ import { useLayoutEffect, useState } from 'react';
+===================================================================
+--- a/src/components/library/live-desk.tsx
++++ b/src/components/library/live-desk.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { YoutubeUpcoming } from './youtube-upcoming';
+ import { forEachCatalogSlice, yieldCatalogTask } from '@/lib/catalog-work';
+ import { useLiveRoomPage } from './use-live-room-page';
+===================================================================
+--- a/src/components/library/mission-plan-section.tsx
++++ b/src/components/library/mission-plan-section.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import {ConsequenceAction} from './consequence-action';
+ import { NEXT_LEVEL_MISSIONS, NEXT_LEVEL_TRACKS, formatMissionBrief, formatNextLevelRoadmap } from '@/lib/mission-next-level';
+ import {FeatureReadinessPanel} from './feature-readiness-panel';
+===================================================================
+--- a/src/components/library/photos-section.tsx
++++ b/src/components/library/photos-section.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import {BrowserPermissionControl} from './capability-permissions';
+ import { companionFetch } from '@/lib/companion';
+ import { decodeArtworkBitmap } from '@/lib/videos/bitmap-pool';
+===================================================================
+--- a/src/components/library/player.tsx
++++ b/src/components/library/player.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import {ConsequenceAction} from './consequence-action';
+ import {TwitchChapters} from './twitch-chapters';
+ import {twitchChapterEmbed} from '@/lib/remote/twitch-chapters';
+===================================================================
+--- a/src/components/library/print-save-panel.tsx
++++ b/src/components/library/print-save-panel.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { useEffect, useRef, useState } from "react";
+ import { Button } from "@/components/ui/button";
+ import { Input } from "@/components/ui/input";
+===================================================================
+--- a/src/components/library/private-web-shortcuts-section.tsx
++++ b/src/components/library/private-web-shortcuts-section.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { createLocalId } from "@/lib/local-id";
+ import { useState } from "react";
+ import { Rocket } from "lucide-react";
+===================================================================
+--- a/src/components/library/provider-recovery.tsx
++++ b/src/components/library/provider-recovery.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import {DiagnosticExportPreview} from './diagnostic-export-preview';
+ import {useEffect,useState} from 'react';
+ import {Button} from '@/components/ui/button';
+===================================================================
+--- a/src/components/library/pull-settings-panel.tsx
++++ b/src/components/library/pull-settings-panel.tsx
+@@ -1,3 +1,4 @@
++import {profileSessionStorage as sessionStorage} from "../../lib/local-profile-storage.ts";
+ import { PullDispatchPanel } from './pull-dispatch-panel';
+ import { useEffect, useState, useSyncExternalStore } from 'react';
+ import { Button } from '@/components/ui/button';
+===================================================================
+--- a/src/components/library/room-device-captions.tsx
++++ b/src/components/library/room-device-captions.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { memo, useEffect, useRef, useState, type RefObject } from "react";
+ import { Button } from "@/components/ui/button";
+ import { Input } from "@/components/ui/input";
+===================================================================
+--- a/src/components/library/room-invitation.tsx
++++ b/src/components/library/room-invitation.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { memo, useCallback, useEffect, useMemo, useState } from "react";
+ import qrcode from "qrcode-generator";
+ import { Copy, QrCode } from "lucide-react";
+===================================================================
+--- a/src/components/library/room-playlists-panel.tsx
++++ b/src/components/library/room-playlists-panel.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { memo, useEffect, useState } from 'react';
+ import { Bookmark, Plus } from 'lucide-react';
+ import { Button } from '@/components/ui/button';
+===================================================================
+--- a/src/components/library/settings-section.tsx
++++ b/src/components/library/settings-section.tsx
+@@ -1,3 +1,6 @@
++import {LocalProfilesPanel} from './local-profiles-panel';
++import {activateLocalProfile} from '@/lib/local-profiles';
++import {profileLocalStorage as localStorage, profileSessionStorage as sessionStorage} from "../../lib/local-profile-storage.ts";
+ import {HiddenSourcesPanel} from './hidden-sources-panel';
+ import {LibraryRestoreRecovery} from './restore-boundary';
+ import {MediaRecoveryPanel} from './media-recovery-panel';
+@@ -479,7 +482,7 @@
+         </div>
+       </div>
+       <LibraryPackTransfer/>
+-      <LibraryRestoreRecovery/>
++      <LibraryRestoreRecovery/><LocalProfilesPanel onSwitch={async target=>{const {checkpointLibraryForProfileSwitch}=await import('@/lib/videos/store');await checkpointLibraryForProfileSwitch();await activateLocalProfile(target);}}/>
+       <section className="mt-6 rounded-lg bg-elevated p-5 shadow-border"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Connected services</p><h2 className="mt-2 font-display text-2xl text-fg">Independent caches, on your schedule.</h2><p className="mt-1 text-sm text-muted">Twitch and YouTube refresh together from your saved follows. Photo imports, Roku discovery, and Spotify remain independently local and refresh only when you ask.</p><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">{[{ name: "YouTube", detail: "Saved channels", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows("youtube", { catalog: true }); const status = useLibrary.getState().remoteRefreshStatus; setServiceNote(status?.failed === status?.checked ? "YouTube refresh failed. Check channel health." : `Refreshed YouTube catalog · ${result.newVideos.length} videos added from ${status?.refreshed ?? 0} channels.`); } }, { name: "Twitch", detail: "Live + VOD cache", checked: remoteCheckedAt, action: async () => { const result = await refreshFollows("twitch"); setServiceNote(`Refreshed Twitch catalog · ${result.newVideos.length} new videos from ${result.pull?.done ?? 0} channels.`); } }, { name: "Photos", detail: `${folders.filter((folder) => folder.photoCount).length} source folders`, checked: Math.max(0, ...folders.map((folder) => folder.lastCheckedAt ?? 0)), action: async () => { const sources = folders.filter((folder) => folder.photoCount && (folder.kind === "directory" || folder.kind === "files")); const counts = await Promise.all(sources.map((folder) => refreshSourcePhotos(folder.id))); setServiceNote(`Refreshed local photo sources · ${counts.reduce((sum, count) => sum + count, 0)} photos found.`); } }, { name: "Roku", detail: "Companion-assisted", checked: 0, action: async () => { try { const res = await companionFetch("/roku/discover"); const data = await res.json() as { devices?: unknown[] }; setServiceNote(`Roku refresh complete · ${(data.devices ?? []).length} device(s) found.`); } catch { setServiceNote("Roku refresh needs the local Realhub Companion running."); } } }, { name: "Spotify", detail: "Saved music shortcuts", checked: 0, action: async () => { setServiceNote("Spotify shortcuts are local and ready. Open Spotify from its library section to refresh provider content."); } }].map((service) => <div key={service.name} className="rounded-md bg-bg/45 p-3 shadow-border"><p className="text-sm font-medium text-fg">{service.name}</p><p className="mt-1 text-xs text-muted">{service.detail}</p><p className="mt-1 text-[11px] text-subtle">{service.checked ? `Last refreshed ${new Date(service.checked).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "Not refreshed this session"}</p><Button size="sm" variant="secondary" className="mt-3" onClick={() => void service.action()}>Refresh</Button></div>)}</div>{serviceNote && <p className="mt-3 text-xs text-accent">{serviceNote}</p>}</section>
+       <section className="mt-6"><div className="mb-3"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Device & performance</p><p className="mt-1 text-sm text-muted">The controls that change how Realhub runs and fits your screen.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+         <div className={`rounded-lg bg-elevated p-5 shadow-border ${debugEnabled ? 'sm:col-span-2 xl:col-span-4' : ''}`}>
+===================================================================
+--- a/src/components/library/setup-checklist.tsx
++++ b/src/components/library/setup-checklist.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { useEffect, useState } from "react";
+ import { ChevronDown, Check, ArrowRight } from "lucide-react";
+ import { Button } from "@/components/ui/button";
+===================================================================
+--- a/src/components/library/shop-section.tsx
++++ b/src/components/library/shop-section.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { createLocalId } from "@/lib/local-id";
+ import { useMemo, useState } from "react";
+ import { ExternalLink, PackageSearch, Search, ShoppingBag } from "lucide-react";
+===================================================================
+--- a/src/components/library/sidebar.tsx
++++ b/src/components/library/sidebar.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import {ConsequenceAction} from './consequence-action';
+ import { useEffect, useMemo, useState } from "react";
+ import {
+===================================================================
+--- a/src/components/library/social-section.tsx
++++ b/src/components/library/social-section.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { useEffect, useMemo, useState } from "react";
+ import { X } from "lucide-react";
+ import { Button } from "@/components/ui/button";
+===================================================================
+--- a/src/components/library/spotify-section.tsx
++++ b/src/components/library/spotify-section.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { useState } from "react";
+ import { ExternalLink, Music2 } from "lucide-react";
+ import { Button } from "@/components/ui/button";
+===================================================================
+--- a/src/components/library/stable-diffusion-section.tsx
++++ b/src/components/library/stable-diffusion-section.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { StudioOutputLibrary } from './studio-output-library';
+ import { StudioModelLibrary } from './studio-model-library';
+ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+===================================================================
+--- a/src/components/library/studio-output-library.tsx
++++ b/src/components/library/studio-output-library.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { useEffect, useMemo, useRef, useState } from "react";
+ import { Button } from "@/components/ui/button";
+ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+===================================================================
+--- a/src/components/library/studio-recipes.tsx
++++ b/src/components/library/studio-recipes.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { useEffect, useRef, useState } from 'react';
+ import * as Dialog from '@radix-ui/react-dialog';
+ import { BookmarkPlus, Download, Upload, Undo2, X } from 'lucide-react';
+===================================================================
+--- a/src/components/library/use-adult-pulls.ts
++++ b/src/components/library/use-adult-pulls.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { useEffect } from 'react';
+ import { useLibrary } from '@/lib/videos/store';
+ import { ADULT_REDDIT_SUBS } from '@/lib/videos/adult-sites';
+===================================================================
+--- a/src/components/library/use-provider-viewing.ts
++++ b/src/components/library/use-provider-viewing.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import {useEffect,useSyncExternalStore} from 'react';
+ import {getProviderViewing,getServerProviderViewing,subscribeProviderViewing,hydrateProviderViewing,changeProviderViewing} from '@/lib/provider-viewing-store';
+ import {chooseProviderView,type ProviderViewMode} from '@/lib/videos/provider-viewing';
+===================================================================
+--- a/src/components/library/use-stream-signal.ts
++++ b/src/components/library/use-stream-signal.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage, profileSessionStorage as sessionStorage} from "../../lib/local-profile-storage.ts";
+ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+ import { listWorkspaceDocuments, signalRevisions } from "@/lib/videos/persist";
+ import { createLocalId } from "@/lib/local-id";
+===================================================================
+--- a/src/components/library/video-card.tsx
++++ b/src/components/library/video-card.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { dataSaverActive } from '@/lib/data-saver';
+ import { useRecommendationExposure } from './use-recommendation-exposure';
+ import { twitchContentLabel } from '@/lib/videos/twitch-content';
+===================================================================
+--- a/src/components/library/watch-room-section.tsx
++++ b/src/components/library/watch-room-section.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { companionFetch } from '@/lib/companion';
+ import { RoomDeviceCaptions } from './room-device-captions';
+ import { RoomLiveGuidance } from './room-live-guidance';
+===================================================================
+--- a/src/components/library/x-timeline.tsx
++++ b/src/components/library/x-timeline.tsx
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+ import { useEffect, useRef, useState } from "react";
+ import { ExternalLink, RefreshCw, Search, ShieldCheck } from "lucide-react";
+ import { Button } from "@/components/ui/button";
+===================================================================
+--- a/src/components/library/youtube-cleanup-status.tsx
++++ b/src/components/library/youtube-cleanup-status.tsx
+@@ -1,3 +1,4 @@
++import {profileSessionStorage as sessionStorage} from "../../lib/local-profile-storage.ts";
+ import { useSyncExternalStore } from 'react';
+ import { Button } from '@/components/ui/button';
+ import { DEFAULT_PULL_SETTINGS, getPullSettings, subscribePullSettings } from '@/lib/pull-settings';
+===================================================================
+--- a/src/lib/artwork-mode.ts
++++ b/src/lib/artwork-mode.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ export const ARTWORK_MODE_KEY = 'reelcase.artwork-mode';
+ let textFirst: boolean | undefined;
+ const listeners = new Set<() => void>();
+===================================================================
+--- a/src/lib/capability-consent.ts
++++ b/src/lib/capability-consent.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ export const BROWSER_PERMISSION_KEY = "reelcase.optional-permissions.v1";
+ export const BROWSER_SCOPES = ["draft-composer", "local-vision"] as const;
+ export type BrowserScope = (typeof BROWSER_SCOPES)[number];
+@@ -154,10 +155,10 @@
+ };
+ export const browserConsent = createBrowserConsent({
+   getItem: (key) =>
+-    typeof window === "undefined" ? noStorage.getItem() : window.localStorage.getItem(key),
++    typeof window === "undefined" ? noStorage.getItem() : localStorage.getItem(key),
+   setItem: (key, value) => {
+     if (typeof window === "undefined") return noStorage.setItem();
+-    window.localStorage.setItem(key, value);
++    localStorage.setItem(key, value);
+   },
+ });
+ export function refreshBrowserConsent() {
+===================================================================
+--- a/src/lib/data-saver.ts
++++ b/src/lib/data-saver.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ export const DATA_SAVER_KEY = "reelcase.data-saver.v1";
+ export type DataSaverMode = "adaptive" | "save-data";
+ let mode: DataSaverMode | undefined;
+===================================================================
+--- a/src/lib/game-icons.ts
++++ b/src/lib/game-icons.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ import { companionFetch } from './companion.ts';
+ /** Local cache for desktop game icons (data URLs). Kept separate from hub metadata to avoid blowing reelcase.hub.v1. */
+ 
+===================================================================
+--- a/src/lib/media-feedback.ts
++++ b/src/lib/media-feedback.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ import { getTopicAliasRevision } from './videos/topic-aliases';
+ import { canonicalTopic } from './videos/topics';
+ import { recordRatingForStreak } from "./rating-streaks";
+===================================================================
+--- a/src/lib/multiplayer/room-device-captions.ts
++++ b/src/lib/multiplayer/room-device-captions.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ export const ROOM_CAPTIONS_KEY = "reelcase.watch-room.captions.v1";
+ export type RoomCaptionPreference = { enabled: boolean; language: string };
+ export const DEFAULT_ROOM_CAPTIONS: RoomCaptionPreference = { enabled: false, language: "" };
+===================================================================
+--- a/src/lib/network-presence.ts
++++ b/src/lib/network-presence.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ export type NetworkDevice = {
+   id: string;
+   label: string;
+===================================================================
+--- a/src/lib/performance-profile.ts
++++ b/src/lib/performance-profile.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ import { LIBRARY_LIMITS } from './library-limits.ts';
+ export type PerformanceMode = 'adaptive' | 'low-memory';
+ export type DeviceBudgetHints = { cores?: number; memoryGiB?: number; saveData?: boolean };
+===================================================================
+--- a/src/lib/print-edit-state.ts
++++ b/src/lib/print-edit-state.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ /** Persist lightweight print viewer/editor transforms per model key (local only). */
+ 
+ export type PrintEditState = {
+===================================================================
+--- a/src/lib/print-save.ts
++++ b/src/lib/print-save.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ import type { Object3D, Mesh, Vector3, Material } from "three";
+ import type { PrintEditState } from "./print-edit-state";
+ export const PRINT_SAVE_LIMIT = 48 * 1024 * 1024;
+===================================================================
+--- a/src/lib/prints-blobs.ts
++++ b/src/lib/prints-blobs.ts
+@@ -1,6 +1,8 @@
++import {profileDatabaseName,assertProfileContext} from './local-profile-storage.ts';
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ /** Local IndexedDB store for 3D print file bytes (viewer only). Metadata stays in localStorage. */
+ 
+-const DB_NAME = "reelcase-prints";
++const DB_NAME = profileDatabaseName("reelcase-prints");
+ const DB_VERSION = 1;
+ const STORE = "blobs";
+ const MAX_BLOBS = 32;
+@@ -17,7 +19,8 @@
+   blob: Blob;
+ };
+ 
+-function openDb(): Promise<IDBDatabase> {
++function openDb(): Promise<IDBDatabase> {
++  assertProfileContext();
+   return new Promise((resolve, reject) => {
+     const req = indexedDB.open(DB_NAME, DB_VERSION);
+     req.onupgradeneeded = () => {
+===================================================================
+--- a/src/lib/provider-viewing-store.ts
++++ b/src/lib/provider-viewing-store.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ import {loadProviderViewingSync,restoreProviderViewing,saveProviderViewing} from './videos/persist';
+ import {EMPTY_PROVIDER_VIEWING,newestProviderViewing,normalizeProviderViewing,parseProviderViewing,type ProviderViewing} from './videos/provider-viewing.ts';
+ type Snapshot={ledger:ProviderViewing;status:'saved'|'pending'|'failed';ready:boolean;legacyMfc:boolean};
+===================================================================
+--- a/src/lib/pull-control.ts
++++ b/src/lib/pull-control.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ import { pullDispatchTrace, type PullOperation } from './pull-dispatch-trace.ts';
+ import { getPullSettings, subscribePullSettings } from './pull-settings.ts';
+ import { createPullScheduler } from './pull-scheduler.ts';
+===================================================================
+--- a/src/lib/pull-settings.ts
++++ b/src/lib/pull-settings.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ export type PullSettings = {
+   requestGapMs: number;
+   youtubeRequestGapMs: number;
+===================================================================
+--- a/src/lib/rating-streaks.ts
++++ b/src/lib/rating-streaks.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ export type RatingStreakSnapshot = {
+   weekKey: string;
+   thisWeek: number;
+===================================================================
+--- a/src/lib/remote/adult-pull-cache.ts
++++ b/src/lib/remote/adult-pull-cache.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ import { fetchProviderMetadata } from './provider-body.ts';
+ import { PROVIDER_BUDGETS } from '../provider-budgets.ts';
+ 
+===================================================================
+--- a/src/lib/remote/pull-ledger.ts
++++ b/src/lib/remote/pull-ledger.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ export type PullProvider = "youtube" | "twitch" | "adult" | "photos" | "multi";
+ export type PullActivity = {
+   id: string;
+@@ -25,7 +26,7 @@
+ export function loadPullHistory(): PullRecord[] {
+   if (typeof window === "undefined") return [];
+   try {
+-    const value: unknown = JSON.parse(window.localStorage.getItem(KEY) ?? "[]");
++    const value: unknown = JSON.parse(localStorage.getItem(KEY) ?? "[]");
+     if (!Array.isArray(value)) return [];
+     return value.filter((row): row is PullRecord => Boolean(row && typeof row === "object"
+       && typeof row.id === "string" && typeof row.startedAt === "number"
+@@ -36,7 +37,7 @@
+ 
+ export function savePullHistory(records: PullRecord[]) {
+   if (typeof window === "undefined") return;
+-  try { window.localStorage.setItem(KEY, JSON.stringify(records.slice(0, MAX_RECORDS))); } catch { /* Pull reporting must never interrupt playback or refresh. */ }
++  try { localStorage.setItem(KEY, JSON.stringify(records.slice(0, MAX_RECORDS))); } catch { /* Pull reporting must never interrupt playback or refresh. */ }
+ }
+ 
+ export function makePullId() { return `pull:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`; }
+===================================================================
+--- a/src/lib/remote/youtube-pull-feedback.ts
++++ b/src/lib/remote/youtube-pull-feedback.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ import type { FollowedChannel, LibraryVideo } from '../videos/types';
+ import type { PullRecord } from './pull-ledger';
+ 
+@@ -21,14 +22,14 @@
+ 
+ export function clearYoutubeCooldown() {
+   if (typeof window === 'undefined') return;
+-  try { window.localStorage.removeItem(KEY); } catch { /* Durable follows also clear recovered deadlines. */ }
++  try { localStorage.removeItem(KEY); } catch { /* Durable follows also clear recovered deadlines. */ }
+ }
+ 
+ /** Small independent checkpoint; the durable follow ledger also retains this
+  * deadline when localStorage is full. Never store the video catalog here. */
+ export function saveYoutubeCooldown(cooldown: YoutubeCooldown) {
+   if (typeof window === 'undefined') return;
+-  try { window.localStorage.setItem(KEY, JSON.stringify(cooldown)); } catch { /* Follow ledger is the fallback. */ }
++  try { localStorage.setItem(KEY, JSON.stringify(cooldown)); } catch { /* Follow ledger is the fallback. */ }
+ }
+ export function restoreYoutubeCooldown(follows: readonly FollowedChannel[], now = Date.now()): YoutubeCooldown | null {
+   let latest: YoutubeCooldown | null = null;
+@@ -36,7 +37,7 @@
+     if (value && (value.cooldownScope === 'catalog' || value.cooldownScope === 'all') && Number.isFinite(value.retryAt) && value.retryAt > now && value.retryAt > (latest?.retryAt ?? 0)) latest = value;
+   };
+   if (typeof window !== 'undefined') {
+-    try { accept(JSON.parse(window.localStorage.getItem(KEY) ?? 'null')); } catch { /* Invalid or unavailable storage. */ }
++    try { accept(JSON.parse(localStorage.getItem(KEY) ?? 'null')); } catch { /* Invalid or unavailable storage. */ }
+   }
+   for (const follow of follows) {
+     const failure = follow.kind === 'youtube' ? follow.lastProviderFailure : undefined;
+===================================================================
+--- a/src/lib/restore-epoch.ts
++++ b/src/lib/restore-epoch.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ export const RESTORE_CONTROL = "library-restore:v1";
+ export const RESTORE_HEAD = "reelcase.restore-head.v1";
+ export const RESTORE_EVENT = "reelcase:restore-state";
+===================================================================
+--- a/src/lib/studio-documents.ts
++++ b/src/lib/studio-documents.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+ import { readWorkspaceDocument, saveWorkspaceDocuments } from './videos/persist';
+ import { EMPTY_MODEL_NOTES, readModelNotes } from './studio-model-notes';
+ import { EMPTY_STUDIO_JOBS, readStudioJobs, type StudioJob } from './studio-jobs';
+===================================================================
+--- a/src/lib/videos/adult-archive-cursors.ts
++++ b/src/lib/videos/adult-archive-cursors.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ import { ADULT_PULL_PROVIDERS, type AdultPullProvider } from './adult-providers.ts';
+ 
+ const KEY = "reelcase.adult-archive-cursors.v1";
+===================================================================
+--- a/src/lib/videos/adult-pull-plan.ts
++++ b/src/lib/videos/adult-pull-plan.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ import { ADULT_PULL_PROVIDERS, type AdultPullProvider } from './adult-providers.ts';
+ import type { AdultArchiveCursorMap } from './adult-archive-cursors.ts';
+ 
+===================================================================
+--- a/src/lib/videos/adult-url-cache.ts
++++ b/src/lib/videos/adult-url-cache.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ /**
+  * Durable Adult preview/poster URL cache.
+  * localStorage for instant recall; IndexedDB thumb-cache for the same URLs
+===================================================================
+--- a/src/lib/videos/catalog-mutations.ts
++++ b/src/lib/videos/catalog-mutations.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ import {assertRestoreWritable} from '../restore-epoch';
+ import type { WriterLease } from '../writer-lease.ts';
+ import {FILE_IDENTITIES_KEY,readIdentityLedger,identityAdmissionAllowed} from './local-identity';
+===================================================================
+--- a/src/lib/videos/follow-collections.ts
++++ b/src/lib/videos/follow-collections.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ import {assertRestoreWritable} from '../restore-epoch';
+ export const FOLLOW_COLLECTIONS_KEY = "reelcase.follow-collections.v1";
+ export const FOLLOW_COLLECTIONS_CHANGED = "reelcase:follow-collections-change";
+===================================================================
+--- a/src/lib/videos/follow-removal.ts
++++ b/src/lib/videos/follow-removal.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ import type { FollowedChannel, HistoryEntry, LibraryVideo, ProgressMark } from "./types";
+ 
+ export type FollowRemovalState = {
+===================================================================
+--- a/src/lib/videos/import-session-storage.ts
++++ b/src/lib/videos/import-session-storage.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ import { readWorkspaceDocument, saveWorkspaceDocuments } from './persist';
+ import { CoalescedWriter } from '../coalesced-writer';
+ import { cleanImportSession, emptyImportSession, importSessionKey, mergeImportSessions, type ImportSession } from './import-session';
+===================================================================
+--- a/src/lib/videos/library-restore-repository.ts
++++ b/src/lib/videos/library-restore-repository.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ import type { WriterLease } from "../writer-lease";
+ import {
+   RESTORE_CONTROL,
+===================================================================
+--- a/src/lib/videos/persist.ts
++++ b/src/lib/videos/persist.ts
+@@ -1,3 +1,5 @@
++import {profileDatabaseName,assertProfileContext} from '../local-profile-storage.ts';
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ import {consumeCatalogPages,type CatalogReadOptions} from './catalog-page-reader';
+ import {createSourceVisibilityRepository} from './source-visibility';
+ import {createLibraryRestoreRepository} from './library-restore-repository';
+@@ -55,7 +57,7 @@
+ 
+ export function signalRevisions(owner:string){return createSignalRevisions(openDb,owner);}
+ export function studioOutputs(owner:string){return createStudioOutputs(openDb,owner);}
+-const DB_NAME = "reelcase";
++const DB_NAME = profileDatabaseName("reelcase");
+ export const catalogWriter=createWriterLease(openDb,"catalog");
+ const sourceVisibility=createSourceVisibilityRepository(openDb,catalogWriter);
+ export function loadHiddenSources(){return sourceVisibility.load();}
+@@ -1005,6 +1007,7 @@
+ }
+ 
+ function openDb(): Promise<IDBDatabase> {
++  assertProfileContext();
+   return new Promise((resolve, reject) => {
+     const req = indexedDB.open(DB_NAME, 8);
+     req.onupgradeneeded = () => {
+===================================================================
+--- a/src/lib/videos/storage-recovery.ts
++++ b/src/lib/videos/storage-recovery.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ import { yieldCatalogTask } from "../catalog-work.ts";
+ export type StorageInventory = {
+   at: number;
+===================================================================
+--- a/src/lib/videos/store.ts
++++ b/src/lib/videos/store.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ import {yieldNavigationTask} from '../navigation-work';
+ import {RESTORE_EVENT,RESTORE_HEAD} from '../restore-epoch';
+ import {hideLocalSource,hiddenSourceFolders,loadHiddenSources} from './persist';
+@@ -4204,3 +4205,14 @@
+  await prepareLibraryRestore('Clear watching history',{},'0'.repeat(64),async base=>withoutWatchHistory(base));
+  await activateLibraryRestore();location.reload();
+ }
++
++/** Flush the old namespace before full reload; late transactions remain in its DB. */
++export async function checkpointLibraryForProfileSwitch(){
++ const current=useLibrary.getState();
++ if(current.remoteBusy||current.refreshing||current.scanning)throw Error('Finish the active pull or source scan before switching profiles.');
++ cancelCatalogHydration();current.closePlayer();current.closePreview();
++ if(restoreCompletion)await restoreCompletion;
++ await checkpointLibraryForRestore();
++ const {catalogWriter}=await import('./persist');
++ if(catalogWriter.current())throw Error('A catalog write is still finishing. The current profile was kept; retry when it completes.');
++}
+===================================================================
+--- a/src/lib/videos/thumbs.ts
++++ b/src/lib/videos/thumbs.ts
+@@ -1,3 +1,4 @@
++import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+ import {localIdentitySnapshot} from './local-identity';
+ import { create } from "zustand";
+ import type { LibraryVideo } from "./types";
+===================================================================
+--- a/src/lib/writer-lease.ts
++++ b/src/lib/writer-lease.ts
+@@ -1,3 +1,4 @@
++import {profileChannelName} from './local-profile-storage.ts';
+ import {guardRestoreEpoch} from './restore-epoch.ts';
+ import { createLocalId } from "./local-id.ts";
+ 
+@@ -116,7 +117,7 @@
+   const listen = () => {
+     if (disposed || channel || typeof window === "undefined" || options.transport === false) return;
+     if (typeof BroadcastChannel !== "undefined") {
+-      channel = new BroadcastChannel("reelcase-writers.v1");
++      channel = new BroadcastChannel(profileChannelName("reelcase-writers.v1"));
+       channel.onmessage = (event) => receive(event.data);
+     }
+   };
+===================================================================
+--- a/src/routes/__root.tsx
++++ b/src/routes/__root.tsx
+@@ -1,3 +1,4 @@
++import {ProfileBoundary} from '@/components/library/profile-boundary';
+ import {RestoreBoundary} from '@/components/library/restore-boundary';
+ import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+ import { AuthProvider } from "@/lib/auth/provider";
+@@ -41,7 +42,7 @@
+         <PreviewHostBridge />
+         <AuthProvider>
+           <TooltipProvider>
+-            <RestoreBoundary><Outlet /></RestoreBoundary>
++            <ProfileBoundary><RestoreBoundary><Outlet /></RestoreBoundary></ProfileBoundary>
+           </TooltipProvider>
+         </AuthProvider>
+         <Scripts />

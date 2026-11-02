@@ -1,3 +1,5 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+import {ConsequenceAction} from './consequence-action';
 import { useEffect, useMemo, useState } from "react";
 import {
   Clapperboard,
@@ -21,6 +23,7 @@ import {
   MonitorPlay,
   Music2,
   Users,
+  UserRound,
   Wifi,
   Smartphone,
   X as XIcon,
@@ -42,6 +45,7 @@ import { DEFAULT_SIDEBAR_GROUPS, SIDEBAR_GROUPS_KEY, restoreSidebarGroups, type 
 import { useContinueCount } from './use-continue-count';
 import { useCatalogCounts } from "./use-catalog-counts";
 import { useBrowseLibrary } from "./use-browse-library";
+import { ProfileIdentity } from './profile-identity';
 
 const NAV_GROUPS = [
   { id: "library", label: "Library", items: [
@@ -57,7 +61,7 @@ const NAV_GROUPS = [
   ] },
   { id: "tools", label: "Tools", items: [
     ["connection", "Connection guide", Wifi], ["find-phone", "Find my phone", Smartphone], ["assistant", "AI guide", Sparkles],
-    ["mission-plan", "Mission plan", Clapperboard], ["settings", "Settings", Settings2], ["stats", "Stats", BarChart3],
+    ["accounts", "Accounts", UserRound], ["mission-plan", "Mission plan", Clapperboard], ["settings", "Settings", Settings2], ["stats", "Stats", BarChart3],
   ] },
 ] as const;
 
@@ -197,6 +201,7 @@ export function SidebarNav({
             {compact ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
           </Button>}
         </div>
+        {!compact && <div className="py-2"><ProfileIdentity onOpen={onNavigate}/></div>}
         <div id={onToggleCompact ? "desktop-sidebar-navigation" : "mobile-sidebar-navigation"} className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2">
           <nav aria-label="Library navigation" className="space-y-2">
             {NAV_GROUPS.map(group => {
@@ -226,7 +231,7 @@ export function SidebarNav({
               {demo && <NavItem active={sourceId === demo.id} onClick={() => go(demo.id)} icon={Film} label={demo.name} count={demo.videoCount} />}
               {folderRows(publicFolders, sourceLimit).map(folder => <FolderRow key={folder.id} folder={folder} active={sourceId === folder.id}
                 onClick={() => { if (folder.needsPermission) void restoreOne(folder.id); else go(folder.id); }}
-                onRemove={() => void removeFolder(folder.id)} onToggleAdult={() => setFolderAdult(folder.id, true)} />)}
+                onRemove={() => removeFolder(folder.id)} onToggleAdult={() => setFolderAdult(folder.id, true)} />)}
               {publicFolders.length > sourceLimit && <Button variant="ghost" size="sm" onClick={() => setSourceLimit(value => value + 80)}>Show 80 more sources</Button>}
             </div>}
             {networkFolders.length > 0 && <>
@@ -270,7 +275,7 @@ function FolderRow({
   folder: Folder;
   active: boolean;
   onClick: () => void;
-  onRemove: () => void;
+  onRemove: () => void|Promise<void>;
   onToggleAdult: () => void;
   hideAdult?: boolean;
 }) {
@@ -283,8 +288,7 @@ function FolderRow({
         className="flex size-11 shrink-0 items-center justify-center rounded-sm text-subtle hover:bg-elevated hover:text-fg focus-visible:outline-accent">
         {folder.adult ? <LockOpen className="size-3.5" /> : <Lock className="size-3.5" />}
       </button>}
-      <button type="button" aria-label={`Remove ${folder.name}`} onClick={onRemove}
-        className="flex size-11 shrink-0 items-center justify-center rounded-sm text-subtle hover:bg-elevated hover:text-fg focus-visible:outline-accent"><X className="size-3.5" /></button>
+      <ConsequenceAction label={`Hide ${folder.name}`} title="Hide this local source?" confirm="Hide source" onConfirm={onRemove}><p>This hides {folder.videoCount??0} cached titles from this source. Native files, saved folder grants, tags, ratings, favorites, history and resume positions are kept. Selected files may need reattaching.</p><p>Restore it at any time from Settings → Hidden sources. There is no automatic expiry.</p></ConsequenceAction>
     </div>
   );
 }

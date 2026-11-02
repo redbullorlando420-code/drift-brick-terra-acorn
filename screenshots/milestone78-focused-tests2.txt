@@ -1,0 +1,93 @@
+✔ versioned operations accept bounded deltas, not future or oversized batches (1.3742ms)
+✔ manual records validate paired tags, provenance, field clocks and category shape (0.2988ms)
+✔ unknown and corrupt control generations remain rejected instead of reset (0.1245ms)
+✔ explicit snapshot retry invalidates only the slice writer reference cache (0.1196ms)
+✔ field clocks restore category separately from newer automatic tags without walking base dictionaries (4.9223ms)
+✔ canonical provider identity suppresses a different saved row ID without matching another video by title (0.569ms)
+✔ deletion recovery rejects future, duplicate, malformed and over-budget records without normalizing them away (0.9189ms)
+✔ recovery cards omit blobs, transient URLs and provider transcripts while retaining verified clip aliases (0.4509ms)
+✔ real store metadata actions return before catalog parsing, honor locks, save compact provider provenance, and hold during a viewer (137.1424ms)
+✔ real smart tags retain source/creator filters and manual locks without a catalog-sized click stack (1.4571ms)
+✔ manual and accepted inspection edits never enumerate the existing tag ledgers (1.9361ms)
+✔ removing a folder removes only its sparse enrichment records as well as its catalog metadata (1.283ms)
+✔ cached YouTube repair replaces saturated provider tags, preserves manual locks and saves idempotent versioned rows (4.9052ms)
+✔ real creator repair returns before scans, patches only 48 names/tags, honors locks and writes only changed rows (223.6637ms)
+✔ creator repair waits behind a viewer, recovers from failed storage, and rebases a concurrent manual lock (26.1769ms)
+✔ removing exact follow evidence while repair is saving prevents stale publication (4.3897ms)
+✔ explicit watch metadata persists compact evidence and rechecks manual locks after asynchronous saving (7.3927ms)
+✔ real YouTube confidence review accepts weak evidence explicitly and preserves it across later provider refreshes (2.4965ms)
+✔ hashtag-only YouTube titles cannot bypass review policy through automatic topic enrichment (0.7238ms)
+✔ official clip forms and VOD routes derive typed case-sensitive identities (2.0688ms)
+✔ a numeric provider ID aliases a slug only with the explicit response pair (92.5116ms)
+✔ all admission merges retain the saved ID and union source edges, never title-match (170.9237ms)
+✔ aliases consume one entry slot, refresh at the cap and share one room identity (63.8126ms)
+✔ one temporary result survives a long run without retaining prior blobs or writing their bytes into job receipts (17.1631ms)
+✔ preview cleanup is reviewable, cancellable and cannot clear a newer result (0.3377ms)
+✔ explicit clear-on-navigation releases the buffer including a result completed after navigation (0.3543ms)
+✔ expired preview cleanup leaves the completed image intact (0.2842ms)
+✔ oversized engine PNG does not replace the last completed preview (864.5825ms)
+✔ older clip pages may add verified aliases and memberships without replacing fresh observations (48.9819ms)
+✔ only a reviewed current content mapping enters an active alias (1.2226ms)
+✖ undo reopens the raw destination while superseded locations remain fenced (0.9564ms)
+✔ future, malformed, duplicate and over-budget history fails without normalization (0.9434ms)
+✔ already-owned destinations require conflict review, including hidden and sparse signals (0.4641ms)
+✔ private recovery stays private even after its original folder disappears (0.1268ms)
+✔ lease tokens are bounded, versioned generations rather than timestamps used as ownership (0.7338ms)
+✔ legacy packs migrate additively; pack and affected platform revisions advance together (1.7573ms)
+✔ conflict recovery reapplies only locally changed fields and preserves newer platform text and manual receipts (0.5692ms)
+✔ manual checklist undo and restoring a prior edit are revisioned without publication claims (1.9072ms)
+✔ history is bounded and schema corruption never silently truncates saved edit evidence (1.412ms)
+✔ channel setup keeps legacy values and rejects future versioned records (0.1633ms)
+✔ private shelves group full scoped lists once and preserve stable organization and newest-24 ties (139.9296ms)
+✔ all private sort modes exactly match existing native stable ordering without mutating membership (69.1486ms)
+✔ rank resolution reuses the index and cannot introduce missing or out-of-scope rows (1.1128ms)
+✔ indexing, sorting, rank resolution and tag filtering yield before metadata reads and accept cancellation (0.8834ms)
+✔ photo sources restoring before video folders retain saved private classification (0.2808ms)
+✔ photo metadata arriving after video restore preserves current privacy and folder order (0.1855ms)
+✔ worker positions resolve a sparse search without rescanning 100,000 catalog rows (35.3759ms)
+✔ stale worker offsets cannot resolve a different video (0.7394ms)
+✔ ranking preserves exact title, creator, tag and reaction weights; metadata-only matches survive (1.6289ms)
+✔ source scope, privacy, unavailable rows and hidden titles apply before scoring (10.3421ms)
+✔ top tags count each matching video once and omit transport tags (0.5734ms)
+✔ 100,000 broad matches retain every row and yield throughout scoring, sorting and resolution (364.3611ms)
+✔ superseding input cancels during scoring or sorting (22.2576ms)
+✔ a no-match response needs no catalog reads; equal ranked titles keep catalog order (0.6858ms)
+✔ indexed suggestions visit matching positions rather than the full library (15.9862ms)
+✔ 100,000 matched titles yield between slices and keep only the six newest suggestions (74.1896ms)
+✔ suggestions preserve source scopes, privacy, hidden titles, and sample visibility (0.7796ms)
+✔ fallback lookup matches metadata and retains stable ordering for equal dates (0.4331ms)
+✔ cancelled suggestion scans stop before traversing the rest of the catalog (1.4313ms)
+✔ removed or unavailable media never occupy a suggestion slot (0.339ms)
+✔ idle cleanup revokes temporary blobs while keeping the current player and file access (21.3723ms)
+✔ watch room source stays playable across idle trimming until it is released (5.725ms)
+ℹ tests 62
+ℹ suites 0
+ℹ pass 61
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2248.5108
+
+✖ failing tests:
+
+test at scripts\local-identity.test.mjs:24:1
+✖ undo reopens the raw destination while superseded locations remain fenced (0.9564ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/local-identity.test.mjs:29:9)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

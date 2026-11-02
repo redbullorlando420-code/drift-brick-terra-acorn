@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { memo, useEffect, useState } from 'react';
 import { Bookmark, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';

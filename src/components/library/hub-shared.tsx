@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { type ReactNode } from "react";
 import { Card, CardContent } from '@/components/ui/card';
 import { ExternalLink } from "lucide-react";

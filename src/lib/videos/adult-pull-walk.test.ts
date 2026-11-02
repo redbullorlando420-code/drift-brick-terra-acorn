@@ -12,8 +12,8 @@ test('a 10,000-entry pull walks 100-entry pages with bounded requests', async ()
     return { videos: Array.from({ length: Math.min(100, limit) }, (_, i) => ({ id: `${(page - 1) * 100 + i}` })), nextPage: page + 1, nextOffset: 0 };
   }, async () => { turns++; });
   assert.equal(result.videos.length, 10_000); assert.equal(requests, 100); assert.equal(turns, 100); assert.equal(result.latest?.nextPage, 101);
-  assert.equal(DEFAULT_PULL_SETTINGS.adultBatchVideos, 2000);
-  assert.equal(normalizePullSettings({ adultBatchVideos: 1_000_000 }).adultBatchVideos, 10000);
+  assert.equal(DEFAULT_PULL_SETTINGS.adultBatchVideos, 10000);
+  assert.equal(normalizePullSettings({ adultBatchVideos: 1_000_000 }).adultBatchVideos, 50000);
   assert.equal(normalizePullSettings({ adultBatchVideos: 100 }).adultBatchVideos, 100);
 });
 test('partial pages retain offsets, dedupe ids and stop at exhaustion', async () => {

@@ -7,6 +7,7 @@ globalThis.__startupStoreFixture = fixture;
 const asModule = source => `data:text/javascript,${encodeURIComponent(source)}`;
 const names = [...readFileSync(new URL('../src/lib/videos/persist.ts', import.meta.url), 'utf8').matchAll(/export (?:async )?function (\w+)/g)].map(match => match[1]);
 const bodies = {
+  isCatalogDeleted:'return false;',mediaHealthSnapshot:'return {version:1,revision:0,entries:{}};',
   loadPrefs: 'return null;', loadRemoteSnapshot: 'return globalThis.__startupStoreFixture.snapshot;',
   loadCatalogVideos: 'return globalThis.__startupStoreFixture.local;',
   restoreEnrichmentRows: 'return arguments[0];', restoreDurableResume: 'return {progress:{},resumeProgress:{}};',
@@ -14,7 +15,7 @@ const bodies = {
   restoreDurablePhotos: 'return {sources:[]};', loadActivitySnapshot: 'return undefined;',
 };
 const persistence = names.map(name => `export async function ${name}(){${bodies[name] ?? 'return [];'}}`).join('\n')
-  .replace('export async function loadPrefs()', 'export function loadPrefs()') + '\nexport const PHOTO_META_LS_KEY="test-photos";';
+  .replace('export async function hiddenSourceFolders()', 'export function hiddenSourceFolders()').replace('export async function isCatalogDeleted()', 'export function isCatalogDeleted()').replace('export async function mediaHealthSnapshot()', 'export function mediaHealthSnapshot()').replace('export async function loadPrefs()', 'export function loadPrefs()') + '\nexport const PHOTO_META_LS_KEY="test-photos";';
 registerHooks({ resolve(specifier, context, next) {
   if (specifier === './persist' && context.parentURL?.endsWith('/videos/store.ts')) return { url: asModule(persistence), shortCircuit: true };
   if (specifier === '../idle-work' && context.parentURL?.endsWith('/videos/store.ts')) return { url: asModule('export const idleEnrichment={enqueue:async()=>({})}; export function setEnrichmentViewerOpen(){};'), shortCircuit: true };

@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import {BrowserPermissionControl} from './capability-permissions';
 import { companionFetch } from '@/lib/companion';
 import { decodeArtworkBitmap } from '@/lib/videos/bitmap-pool';

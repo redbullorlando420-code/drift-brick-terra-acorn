@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
 const moduleUrl = source => `data:text/javascript,${encodeURIComponent(source)}`;
 const names = [...readFileSync(new URL('../src/lib/videos/persist.ts', import.meta.url), 'utf8').matchAll(/export (?:async )?function (\w+)/g)].map(match => match[1]);
-const persistence = names.map(name => name === 'loadPrefs' ? 'export function loadPrefs(){return null;}' : `export async function ${name}(){return [];}`).join('\n') + '\nexport const PHOTO_META_LS_KEY="test-photos";';
+const persistence = names.map(name => name === 'hiddenSourceFolders' ? 'export function hiddenSourceFolders(){return [];}' : name === 'isCatalogDeleted' ? 'export function isCatalogDeleted(){return false;}' : name === 'mediaHealthSnapshot' ? 'export function mediaHealthSnapshot(){return {version:1,revision:0,entries:{}};}' : name === 'loadPrefs' ? 'export function loadPrefs(){return null;}' : `export async function ${name}(){return [];}`).join('\n') + '\nexport const PHOTO_META_LS_KEY="test-photos";';
 registerHooks({ resolve(specifier, context, next) {
   if (specifier === './persist' && context.parentURL?.endsWith('/videos/store.ts')) return { url: moduleUrl(persistence), shortCircuit: true };
   if (specifier === '@/lib/remote/functions') return { url: moduleUrl('export function followRemote(){};export function importChannels(){};export function refreshRemotes(){};export function searchAdultVideos(){};'), shortCircuit: true };
@@ -16,6 +16,13 @@ registerHooks({ resolve(specifier, context, next) {
 const { useLibrary, selectContinue, selectHistory, selectVisible, selectYoutube, selectTwitch, selectFavorites, selectAdultRemote, prepareContinueSelection, prepareHistorySelection, prepareRecoveryBrowse, clearCatalogSelectorCaches, trimCatalogSelectorCaches } = await import('../src/lib/videos/store.ts');
 const { rememberVideo } = await import('../src/lib/videos/video-lookup.ts');
 const { LIBRARY_LIMITS } = await import('../src/lib/library-limits.ts');
+const {rememberDirHandle}=await import('../src/lib/videos/sources.ts');
+
+test('artwork retries check the existing grant without rebuilding a folder or reading fingerprints',async()=>{
+ let walked=0;rememberDirHandle('artwork-root',{name:'Artwork root',queryPermission:async()=> 'granted',entries(){walked++;throw Error('Artwork must not rescan this folder');}});
+ assert.equal(await useLibrary.getState().repairArtworkSource('artwork-root'),true);assert.equal(walked,0);
+ rememberDirHandle('denied-artwork-root',{name:'Denied',queryPermission:async()=> 'denied'});assert.equal(await useLibrary.getState().repairArtworkSource('denied-artwork-root'),false);
+});
 
 test('heart and like actions do not enumerate/copy large saved records and preserve old snapshots', () => {
   const base = new Proxy({ kept: true, remove: true }, { ownKeys() { throw Error('Input enumerated entire saved list'); } });
@@ -121,4 +128,9 @@ test('real playback actions do not enumerate full activity maps and progress his
   useLibrary.getState().markProgress(card.id, 50, 100);
   assert.equal(useLibrary.getState().history.length, LIBRARY_LIMITS.historyMemoryEntries);
   assert.equal(useLibrary.getState().history[0].id, card.id);
+});
+
+test('hiding a source shared with Watch Room is rejected before changing its catalog',async()=>{
+ const {pinPlayUrl}=await import('../src/lib/videos/sources.ts'),previous=useLibrary.getState(),video={id:'pinned-source-title',folderId:'dir:pinned',name:'Pinned',path:'pinned.mp4',extension:'mp4',mime:'video/mp4',size:1,addedAt:1},release=pinPlayUrl(video.id);
+ try{useLibrary.setState({folders:[{id:'dir:pinned',name:'Pinned source',kind:'directory',videoCount:1}],videos:[video],activeId:null,previewId:null,scanning:null});await assert.rejects(useLibrary.getState().removeFolder('dir:pinned'),/Watch Room/);assert.equal(useLibrary.getState().videos[0],video);assert.equal(useLibrary.getState().folders.length,1);}finally{release();useLibrary.setState(previous);}
 });

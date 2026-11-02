@@ -1,0 +1,81 @@
+✔ versioned operations accept bounded deltas, not future or oversized batches (1.2531ms)
+✔ manual records validate paired tags, provenance, field clocks and category shape (0.2384ms)
+✔ unknown and corrupt control generations remain rejected instead of reset (0.1587ms)
+✔ explicit snapshot retry invalidates only the slice writer reference cache (0.1726ms)
+✔ field clocks restore category separately from newer automatic tags without walking base dictionaries (3.7052ms)
+✔ canonical provider identity suppresses a different saved row ID without matching another video by title (0.4957ms)
+✔ deletion recovery rejects future, duplicate, malformed and over-budget records without normalizing them away (0.8638ms)
+✔ recovery cards omit blobs, transient URLs and provider transcripts while retaining verified clip aliases (0.3934ms)
+✔ real store metadata actions return before catalog parsing, honor locks, save compact provider provenance, and hold during a viewer (115.6819ms)
+✔ real smart tags retain source/creator filters and manual locks without a catalog-sized click stack (0.9556ms)
+✔ manual and accepted inspection edits never enumerate the existing tag ledgers (2.0294ms)
+✔ removing a folder removes only its sparse enrichment records as well as its catalog metadata (0.7624ms)
+✔ cached YouTube repair replaces saturated provider tags, preserves manual locks and saves idempotent versioned rows (2.6339ms)
+✔ real creator repair returns before scans, patches only 48 names/tags, honors locks and writes only changed rows (166.1282ms)
+✔ creator repair waits behind a viewer, recovers from failed storage, and rebases a concurrent manual lock (11.5761ms)
+✔ removing exact follow evidence while repair is saving prevents stale publication (1.3575ms)
+✔ explicit watch metadata persists compact evidence and rechecks manual locks after asynchronous saving (5.8988ms)
+✔ real YouTube confidence review accepts weak evidence explicitly and preserves it across later provider refreshes (1.5258ms)
+✔ hashtag-only YouTube titles cannot bypass review policy through automatic topic enrichment (0.4621ms)
+✔ official clip forms and VOD routes derive typed case-sensitive identities (2.1158ms)
+✔ a numeric provider ID aliases a slug only with the explicit response pair (132.2499ms)
+✔ all admission merges retain the saved ID and union source edges, never title-match (264.8306ms)
+✔ aliases consume one entry slot, refresh at the cap and share one room identity (78.4382ms)
+✔ one temporary result survives a long run without retaining prior blobs or writing their bytes into job receipts (13.5531ms)
+✔ preview cleanup is reviewable, cancellable and cannot clear a newer result (0.3206ms)
+✔ explicit clear-on-navigation releases the buffer including a result completed after navigation (0.3578ms)
+✔ expired preview cleanup leaves the completed image intact (0.2486ms)
+✔ oversized engine PNG does not replace the last completed preview (823.7477ms)
+✔ older clip pages may add verified aliases and memberships without replacing fresh observations (51.3924ms)
+✔ only a reviewed current content mapping enters an active alias (1.253ms)
+✔ undo reopens the raw destination while superseded locations remain fenced (0.2646ms)
+✔ future, malformed, duplicate and over-budget history fails without normalization (0.9233ms)
+✔ already-owned destinations require conflict review, including hidden and sparse signals (0.5157ms)
+✔ private recovery stays private even after its original folder disappears (0.1485ms)
+✔ lease tokens are bounded, versioned generations rather than timestamps used as ownership (0.8413ms)
+✔ legacy packs migrate additively; pack and affected platform revisions advance together (2.7465ms)
+✔ conflict recovery reapplies only locally changed fields and preserves newer platform text and manual receipts (0.5537ms)
+✔ manual checklist undo and restoring a prior edit are revisioned without publication claims (2.3212ms)
+✔ history is bounded and schema corruption never silently truncates saved edit evidence (0.6762ms)
+✔ channel setup keeps legacy values and rejects future versioned records (0.1913ms)
+✔ private shelves group full scoped lists once and preserve stable organization and newest-24 ties (121.6663ms)
+✔ all private sort modes exactly match existing native stable ordering without mutating membership (69.5821ms)
+✔ rank resolution reuses the index and cannot introduce missing or out-of-scope rows (1.3547ms)
+✔ indexing, sorting, rank resolution and tag filtering yield before metadata reads and accept cancellation (0.7387ms)
+✔ photo sources restoring before video folders retain saved private classification (0.2699ms)
+✔ photo metadata arriving after video restore preserves current privacy and folder order (0.1677ms)
+node:internal/modules/esm/resolve:272
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'E:\codex\drift-brick-terra-acorn\src\lib\videos\file-fingerprint' imported from E:\codex\drift-brick-terra-acorn\src\lib\videos\sources.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:272:11)
+    at moduleResolve (node:internal/modules/esm/resolve:879:10)
+    at defaultResolve (node:internal/modules/esm/resolve:1006:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)
+    at #resolve (node:internal/modules/esm/loader:687:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:276:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:381:17) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///E:/codex/drift-brick-terra-acorn/src/lib/videos/file-fingerprint'
+}
+
+Node.js v24.22.1
+✖ src\lib\videos\sources.test.ts (105.2645ms)
+ℹ tests 47
+ℹ suites 0
+ℹ pass 46
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1734.9213
+
+✖ failing tests:
+
+test at src\lib\videos\sources.test.ts:1:1
+✖ src\lib\videos\sources.test.ts (105.2645ms)
+  'test failed'

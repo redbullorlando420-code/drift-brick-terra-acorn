@@ -1,0 +1,21 @@
+{
+  "ok": false,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [],
+      "errors": [],
+      "ok": false,
+      "error": "page.evaluate: TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:8080/__media-health-probe.mjs\n    at probe (E:\\codex\\drift-brick-terra-acorn\\scripts\\media-recovery-browser-check.mjs:103:12)\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\media-recovery-browser-check.mjs:132:91",
+      "body": "Realhub\n\nVault · networks · live\n\nLibrary\nHome\nLanding page\n0\nMovies\nAnime\nTopics\nYouTube\n0\nTwitch\n0\nLive\n0\nFavorites\n0\nContinue\nHistory\n0\nAdults\n0\nFetish Explorer\nWorkspace\nStable Diffusion\nRemote desktop\nPhotos\nSpotify\n3D prints\nGames\nShop\nStreaming\nStream Signal\nWatch room\nX accounts\nTools\nConnection guide\nFind my phone\nAI guide\nMission plan\nSettings\nStats\nLocal sources\n0\nAdd folder\n\nHome\n\n0 indexed\n\nSearch\nDate added\n5:24 PM\nResume pulls\nFolder\nREALHUB · YOUR WORKSPACE\nMake yourself at Home.\n\nPick up a video, find a live stream, or open a workspace. Everything has a place below.\n\nContinue watching\nLive now\nWatch together\nLanding page\nYour setup\n\nStart with local files or saved sources. Companion and AI are optional.\n\nDismiss checklist\n\nThese checks use saved metadata. Playback and external accounts are not verified by a saved source or permission. Reviewing or dismissing a step starts no work.\n\nLibrary\n\nNo saved titles yet\n\nChoose local files\nI reviewed this option\nSaved sources\n\nNo saved sources yet\n\nReview sources\nI reviewed this option\nOptional permissions\n\nOptional access not reviewed\n\nReview optional permissions\nI reviewed this option\nLocal Companion\n\nNot checked on this device\n\nOpen connection guide\nCheck local Companion\nI reviewed this option\n\nUse Realhub with browser-local files and bookmarks while Companion is offline. Folder picking, provider imports and model downloads start only from their own explicit controls.\n\nExplore your spaces\nExpand a section\nWatch & discover\nChannels, films, and something new.\nYour library\nReturn to the things you saved.\nCreate & play\nImages, games, and projects.\nShare & listen\nWatch rooms and creator tools.\nManage & connect\nDevices, guidance, and app controls.\nPrivate areas\nOpen your private workspace."
+    },
+    {
+      "mobile": true,
+      "checks": [],
+      "errors": [],
+      "ok": false,
+      "error": "page.evaluate: TypeError: Failed to fetch dynamically imported module: http://127.0.0.1:8080/__media-health-probe.mjs\n    at probe (E:\\codex\\drift-brick-terra-acorn\\scripts\\media-recovery-browser-check.mjs:103:12)\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\media-recovery-browser-check.mjs:132:91",
+      "body": "Home\n\n0 indexed\n\nSearch\nDate added\nResume pulls\nREALHUB · YOUR WORKSPACE\nMake yourself at Home.\n\nPick up a video, find a live stream, or open a workspace. Everything has a place below.\n\nContinue watching\nLive now\nWatch together\nLanding page\nYour setup\n\nStart with local files or saved sources. Companion and AI are optional.\n\nDismiss checklist\n\nThese checks use saved metadata. Playback and external accounts are not verified by a saved source or permission. Reviewing or dismissing a step starts no work.\n\nLibrary\n\nNo saved titles yet\n\nChoose local files\nI reviewed this option\nSaved sources\n\nNo saved sources yet\n\nReview sources\nI reviewed this option\nOptional permissions\n\nOptional access not reviewed\n\nReview optional permissions\nI reviewed this option\nLocal Companion\n\nNot checked on this device\n\nOpen connection guide\nCheck local Companion\nI reviewed this option\n\nUse Realhub with browser-local files and bookmarks while Companion is offline. Folder picking, provider imports and model downloads start only from their own explicit controls.\n\nExplore your spaces\nExpand a section\nWatch & discover\nChannels, films, and something new.\nYour library\nReturn to the things you saved.\nCreate & play\nImages, games, and projects.\nShare & listen\nWatch rooms and creator tools.\nManage & connect\nDevices, guidance, and app controls.\nPrivate areas\nOpen your private workspace."
+    }
+  ]
+}

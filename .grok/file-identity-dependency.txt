@@ -1,0 +1,4 @@
+npm error code EALLOWREMOTE
+npm error Fetching packages of type "remote" have been disabled
+npm error Refusing to fetch "https://registry.npmjs.org/@tailwindcss/oxide-wasm32-wasi/-/oxide-wasm32-wasi-4.3.3.tgz"
+npm error A complete log of this run can be found in: C:\Users\icecr\AppData\Local\Packages\sandbox.{***}\AC\npm-cache\_logs\2026-10-31T20_33_20_698Z-debug-0.log

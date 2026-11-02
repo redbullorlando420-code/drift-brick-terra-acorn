@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage, profileSessionStorage as sessionStorage} from "../../lib/local-profile-storage.ts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listWorkspaceDocuments, signalRevisions } from "@/lib/videos/persist";
 import { createLocalId } from "@/lib/local-id";

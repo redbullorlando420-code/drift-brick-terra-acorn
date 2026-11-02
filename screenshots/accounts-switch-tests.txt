@@ -1,0 +1,12 @@
+✔ account switching observes a finishing writer once and releases its listener without polling (1.0177ms)
+✔ an account wait times out safely and releases the listener (21.0596ms)
+✔ switching rechecks the complete checkpoint after a writer finishes before activating (1.591ms)
+✔ busy pulls, failed persistence and a newly busy checkpoint cannot activate another account (0.4081ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 156.3295

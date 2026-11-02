@@ -1,0 +1,21 @@
+✔ Default retains legacy keys in place and excludes all other profiles from enumeration (1.0517ms)
+✔ profile storage cannot read, enumerate, overwrite or clear another profile (0.9292ms)
+✔ an old asynchronous writer keeps its original namespace after another profile is chosen (0.168ms)
+✔ storage transport drops foreign personal changes and translates own keys without changing auth events (0.2134ms)
+✔ quota failure leaves an existing personal value intact (0.7262ms)
+✔ enumeration stays fresh when another writer replaces keys at the same total size (0.1414ms)
+✔ profile registry rejects future versions, duplicate IDs, duplicate labels and capacity overflow (0.3558ms)
+✔ profile labels validate trimmed length, reserved names and control characters (1.3181ms)
+✔ shared registry consumers open one subscription and reuse unchanged snapshots (1.2158ms)
+✔ an invalidation burst coalesces and cannot publish stale profile names (0.4185ms)
+✔ registry failures expose unavailable names and recover after an explicit refresh (0.3165ms)
+✔ a detached registry read cannot replace a new subscription’s snapshot (0.2324ms)
+✔ registry refresh with no consumers does no background work (0.0967ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 154.8998

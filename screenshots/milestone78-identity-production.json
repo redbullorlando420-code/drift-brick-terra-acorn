@@ -1,0 +1,41 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Same-size files with different complete hashes are rejected by the real worker and UI",
+        "Full-content verification and explicit review move the location while retaining the original ID in one durable transaction",
+        "Source rescans verify the approved alias, skip the old duplicate and retain exactly one canonical row",
+        "Reload preserves original ratings, manual tags and favorites; the moved file plays from its granted directory",
+        "Explicit Undo restores both previous metadata mappings without erasing subsequent saved marks",
+        "After Undo, different bytes reused at the original path receive a new ID without inherited saved marks",
+        "Quota failures roll back removal, restore, file move and Undo atomically",
+        "Stale review, mismatched contents and already-owned destinations are rejected",
+        "Delayed catalog journal cannot revive an old mapping or deliberately removed alias",
+        "Reload and Undo preserve the canonical ID and byte-identical personal records",
+        "Unsupported future identity records remain intact"
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Same-size files with different complete hashes are rejected by the real worker and UI",
+        "Full-content verification and explicit review move the location while retaining the original ID in one durable transaction",
+        "Source rescans verify the approved alias, skip the old duplicate and retain exactly one canonical row",
+        "Reload preserves original ratings, manual tags and favorites; the moved file plays from its granted directory",
+        "Explicit Undo restores both previous metadata mappings without erasing subsequent saved marks",
+        "After Undo, different bytes reused at the original path receive a new ID without inherited saved marks",
+        "Quota failures roll back removal, restore, file move and Undo atomically",
+        "Stale review, mismatched contents and already-owned destinations are rejected",
+        "Delayed catalog journal cannot revive an old mapping or deliberately removed alias",
+        "Reload and Undo preserve the canonical ID and byte-identical personal records",
+        "Unsupported future identity records remain intact"
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

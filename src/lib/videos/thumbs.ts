@@ -1,3 +1,5 @@
+import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+import {localIdentitySnapshot} from './local-identity';
 import { create } from "zustand";
 import type { LibraryVideo } from "./types";
 import { resolvePlayUrl } from "./sources";
@@ -219,7 +221,9 @@ export const useThumbs = create<ThumbState>((set, get) => ({
           if (thumb !== cached.thumb) void saveThumbCache({ ...cached, thumb }).catch(() => undefined);
           return;
         }
-        const src = await resolvePlayUrl(video);
+        // Full identity reads belong to explicit playback/review, never a thumbnail rail.
+        if(video.localIdentity||localIdentitySnapshot().fingerprints[video.id])return;
+        const src = await resolvePlayUrl(video,signal);
         if (signal.aborted) return;
         const { thumb, duration } = await capture(src, signal);
         if (signal.aborted) return;

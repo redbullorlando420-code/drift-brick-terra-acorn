@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { useEffect, useState } from "react";
 import { ChevronDown, Check, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";

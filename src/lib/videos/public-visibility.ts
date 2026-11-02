@@ -4,6 +4,7 @@ const adult = new Set<string>(ADULT_PULL_PROVIDERS);
 export type PublicFolder = { id: string; adult?: boolean };
 export function videoIsPrivate(privateIds: ReadonlySet<string>, video: LibraryVideo) {
   return (
+    video.privateRetention === true ||
     adult.has(video.remote?.kind ?? "") ||
     privateIds.has(video.folderId) ||
     (video.remote?.sourceIds ?? []).some((id) => privateIds.has(id))

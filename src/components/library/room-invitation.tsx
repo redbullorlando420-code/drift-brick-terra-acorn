@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import qrcode from "qrcode-generator";
 import { Copy, QrCode } from "lucide-react";

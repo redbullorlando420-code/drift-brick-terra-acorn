@@ -1,3 +1,6 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+import { ProfileIdentity } from './profile-identity';
+import {ConsequenceAction} from './consequence-action';
 import {TwitchChapters} from './twitch-chapters';
 import {twitchChapterEmbed} from '@/lib/remote/twitch-chapters';
 import {officialAdultUrl} from '@/lib/videos/provider-viewing';
@@ -65,7 +68,7 @@ const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const EMPTY_TAGS: string[] = [];
 const TAG_PRESETS = ["watch-later", "favorite", "family", "4k", "short", "documentary", "how-to", "comfort"];
 
-export function Player({ playlist }: { playlist: string[] }) {
+export function Player({ playlist, onNavigate }: { playlist: string[]; onNavigate?: (delta:number)=>void }) {
   const closeFocus = useViewerInitialFocus();
   const activeId = useLibrary((s) => s.activeId);
   const card = useLibrary((s) => lookupVideo(s.videos, s.activeId));
@@ -76,7 +79,8 @@ export function Player({ playlist }: { playlist: string[] }) {
   const providerPlayback = Boolean(video?.remote) && !directAdultMedia;
   const closePlayer = useLibrary((s) => s.closePlayer);
   const openVideo = useLibrary((s) => s.openVideo);
-  const playRelative = useLibrary((s) => s.playRelative);
+  const advancePlaylist = useLibrary((s) => s.playRelative);
+  const playRelative = useCallback((delta:number, ids:string[])=>{if(onNavigate)onNavigate(delta);else advancePlaylist(delta,ids);},[advancePlaylist,onNavigate]);
   const markProgress = useLibrary((s) => s.markProgress);
   const toggleFavorite = useLibrary((s) => s.toggleFavorite);
   const toggleLike = useLibrary((s) => s.toggleLike);
@@ -120,7 +124,7 @@ export function Player({ playlist }: { playlist: string[] }) {
   const [hw, setHw] = useState<HwInfo | null>(null);
   const [vrAvailable, setVrAvailable] = useState(false);
   const [vrStatus, setVrStatus] = useState("");
-  const [removeReady, setRemoveReady] = useState(false);
+
   const [twitchTheater, setTwitchTheater] = useState(true);
   const [chapterStart,setChapterStart]=useState<{id:string;seconds:number;revision:number}|null>(null);
   const capturedDur = useThumbs((s) => (video ? s.durations[video.id] : undefined));
@@ -174,12 +178,13 @@ export function Player({ playlist }: { playlist: string[] }) {
       return;
     }
     let cancelled = false;
+    const sourceController=new AbortController();
     setSrcError(null);
     setLoadError(null);
     setPlaying(false);
     setCurrent(0);
     setHw(null);
-    void resolvePlayUrl(video)
+    void resolvePlayUrl(video,sourceController.signal)
       .then((url) => {
         if (!cancelled) setSrc(url);
       })
@@ -191,7 +196,7 @@ export function Player({ playlist }: { playlist: string[] }) {
       if (!cancelled) setHw(info);
     });
     return () => {
-      cancelled = true;
+      cancelled = true;sourceController.abort();
     };
   }, [video]);
 
@@ -555,15 +560,16 @@ export function Player({ playlist }: { playlist: string[] }) {
         data-player-controls
         inert={!officialPlayer && !chrome}
         className={cn(
-          "relative z-10 flex items-center justify-between gap-3 px-4 py-3 transition-[opacity,transform] duration-200 ease-[var(--ease-smooth-out)] sm:px-6",
+          "relative z-10 flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-[opacity,transform] duration-200 ease-[var(--ease-smooth-out)] sm:px-6",
           officialPlayer ? "order-1 shrink-0 flex-wrap border-b border-border bg-surface" : chrome ? "opacity-100" : "pointer-events-none opacity-0 -translate-y-1",
+          !officialPlayer && "sm:flex-nowrap",
         )}
       >
-        <div className="flex min-w-0 items-center gap-2">
-          <Button ref={closeFocus} variant="ghost" size="icon" aria-label="Back to library" onClick={closePlayer}>
+        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:flex-1">
+          <Button ref={closeFocus} variant="ghost" size="icon" className="shrink-0" aria-label="Back to library" onClick={closePlayer}>
             {fs ? <X className="size-5" /> : <ChevronLeft className="size-5" />}
           </Button>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="truncate font-display text-xl leading-tight text-fg sm:text-2xl">
               {video.name.replace(/\.[^/.]+$/, "")}
             </h2>
@@ -587,8 +593,9 @@ export function Player({ playlist }: { playlist: string[] }) {
               )}
             </p>
           </div>
+          <div className="shrink-0"><ProfileIdentity /></div>
         </div>
-        <div className={cn("flex max-w-full items-center gap-1", officialPlayer ? "flex-wrap" : "overflow-x-auto")}>
+        <div className={cn("flex w-full min-w-0 max-w-full items-center gap-1 sm:w-auto", officialPlayer ? "flex-wrap" : "overflow-x-auto")}>
           {!officialPlayer && <span className="mr-1 hidden items-center gap-1 rounded-full bg-elevated px-2 py-1 text-xs text-muted shadow-border sm:inline-flex">
             <Cpu className="size-3" />
             {hwLabel}
@@ -663,7 +670,7 @@ export function Player({ playlist }: { playlist: string[] }) {
               Save offline
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={() => { if (removeReady) removeVideo(video.id); else setRemoveReady(true); }}>{removeReady ? "Confirm remove" : "Remove"}</Button>
+          <ConsequenceAction label="Remove" title="Remove this title from the catalog?" confirm="Remove title" onConfirm={()=>removeVideo(video.id)}><p>This removes one title from browsing and keeps it excluded from later pulls. Its saved ratings, tags, history and resume marks stay intact. Native media is never deleted.</p><p>Restore it from Settings → Removed titles. Removal records do not expire; at most 1,024 are retained, and a full journal refuses new removals.</p></ConsequenceAction>
         </div>
       </div>
 

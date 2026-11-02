@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
 export const DATA_SAVER_KEY = "reelcase.data-saver.v1";
 export type DataSaverMode = "adaptive" | "save-data";
 let mode: DataSaverMode | undefined;

@@ -1,0 +1,17 @@
+✔ identity-only review bypasses full catalog admission and preserves source IDs, media references and cursors (6.6107ms)
+✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (165.7296ms)
+✔ removed cached Reddit images and confirmed unavailable photos leave Adult shelves without deleting saves (1.7205ms)
+✔ Adult pulls rotate at full capacity across providers, retain protected entries and stop at the whole-pull budget (977.7454ms)
+✔ automatic Adult pulls stop at the archived-video goal while manual pulls can use the larger source cap (344.5113ms)
+✔ photos and room cards do not prematurely fill the automatic video goal; accepted refreshes retain manual tags (405.4187ms)
+✔ Adult multi-window pulls save accepted rows before a later failure and retain the latest resume page (294.8334ms)
+✔ a live check during an Adult pull preserves that pull owner and newer state wins a delayed reply (110.3275ms)
+✔ explicitly saved live rooms persist one descriptor with Adult isolation, without copying unrelated saved records (91.6954ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2967.0708

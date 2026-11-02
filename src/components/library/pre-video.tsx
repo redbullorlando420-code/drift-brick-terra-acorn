@@ -1,5 +1,9 @@
+import {videoCreatorSignal} from '@/lib/videos/twitch-channel-identity';
+import { ProfileIdentity } from './profile-identity';
+import {MediaHealthActions} from './media-recovery-panel';
 import {TwitchChapters} from './twitch-chapters';
 import {twitchChapterEmbed} from '@/lib/remote/twitch-chapters';
+import {FileIdentityReview} from './file-identity-panel';
 import { DeferredVideoReviews } from './deferred-video-reviews';
 import { RecommendationButton } from './recommendation-button';
 import { RecommendationChoices } from './recommendation-choices';
@@ -24,7 +28,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ExternalLink, Glasses, Heart, Play, RefreshCw, Star, Tag, ThumbsUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useLibrary } from "@/lib/videos/store";
+import { useLibrary,resumeForVideo } from "@/lib/videos/store";
 import { creatorIsFavorited, toggleCreatorFavorite, creatorIsLiked, getCreatorRating, recordWatchTime, setCreatorRating, setRating as saveRating, tagIsLiked, toggleCreatorLike, toggleTagLike } from "@/lib/media-feedback";
 import { useMediaRating } from './use-media-rating';
 import { resolvePlayUrl } from "@/lib/videos/sources";
@@ -115,6 +119,7 @@ export function PreVideo() {
     return () => { savePreviewWatch(); task.cancel(); };
   }, [markProgress, video?.id, video?.remote]);
   const creator = video?.remote?.channelName?.trim() ?? "";
+  const creatorSignal=video?videoCreatorSignal(video):"";
   const creatorKeyword = creator.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   // Provider and derived creator tags can normalize to the same display
   // label. De-duplicate after normalization so React keys stay stable and a
@@ -132,9 +137,9 @@ export function PreVideo() {
     .filter(source => typeof source === 'string' && Boolean(source.trim()))
     .map((source) => source === "manual" ? "your edit" : source === "local-name" ? "local filename" : source === "companion-inspection" ? "Companion inspection" : source === "local-vision" ? "local vision" : source === "youtube-review" ? "your tag review" : source === "legacy" ? "saved library" : source.replace(/^provider:/, "provider · "))
     .join(", ");
-  const creatorRating = creator ? getCreatorRating(creator) : 0;
-  const creatorFavorite = creator ? creatorIsFavorited(creator) : false;
-  const creatorLiked = creator ? creatorIsLiked(creator) : false;
+  const creatorRating = creator ? getCreatorRating(creatorSignal) : 0;
+  const creatorFavorite = creator ? creatorIsFavorited(creatorSignal) : false;
+  const creatorLiked = creator ? creatorIsLiked(creatorSignal) : false;
   useEffect(() => {
     const refresh = () => setRatingRevision((value) => value + 1);
     window.addEventListener("reelcase:rating-change", refresh);
@@ -142,13 +147,13 @@ export function PreVideo() {
   }, []);
   useEffect(() => {
     if (!video || video.remote || video.src) { setLocalPreviewSrc(null); setPreviewError(""); return; }
-    let cancelled = false;
+    let cancelled = false;const sourceController=new AbortController();
     setLocalPreviewSrc(null); setPreviewError("");
-    void resolvePlayUrl(video).then((src) => { if (!cancelled) setLocalPreviewSrc(src); }).catch((error: unknown) => {
+    void resolvePlayUrl(video,sourceController.signal).then((src) => { if (!cancelled) setLocalPreviewSrc(src); }).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : "This local file is no longer available.";
       if (!cancelled) { setPreviewError(message); markUnavailable(video.id, message); }
     });
-    return () => { cancelled = true; };
+    return () => { cancelled = true;sourceController.abort(); };
   }, [markUnavailable, video]);
   useEffect(() => {
     const xr = (
@@ -206,10 +211,11 @@ export function PreVideo() {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-bg/98 px-4 py-5 sm:px-8 sm:py-8">
       <div className={video.remote ? "w-full max-w-none" : "mx-auto max-w-6xl"}>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Button ref={closeFocus} variant="ghost" onClick={closePreview}>
             <ArrowLeft className="size-4" /> Browse
           </Button>
+          <ProfileIdentity />
           <Button variant="ghost" size="icon" aria-label="Close preview" onClick={closePreview}>
             <X className="size-5" />
           </Button>
@@ -247,6 +253,7 @@ export function PreVideo() {
                   preload="metadata"
                   playsInline
                   controls
+                  onLoadedMetadata={event=>{const element=event.currentTarget,mark=resumeForVideo(useLibrary.getState(),video);if(mark&&mark.t>1&&mark.d>0&&mark.t/mark.d<0.95&&Number.isFinite(element.duration)&&element.duration>0)element.currentTime=Math.min(mark.t,Math.max(0,element.duration-0.25));}}
                   onTimeUpdate={(event) => {
                     const element = event.currentTarget;
                     if (!element.paused && !element.seeking && document.visibilityState === "visible") {
@@ -324,10 +331,12 @@ export function PreVideo() {
                 <AdultComments key={video.id} video={video} />
               </div>
             )}
-{creator && <div className="mt-4 rounded-lg border border-border bg-elevated/55 p-4"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator taste</p><div className="mt-2 flex flex-wrap items-center gap-2"><button type="button" onClick={() => { setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : isAdultPullKind(video.remote?.kind) ? "adults" : "youtube"); setQuery(creator); closePreview(); }} className="font-medium text-fg hover:text-accent">{creator}</button><Button size="sm" variant={creatorLiked ? "default" : "secondary"} onClick={() => { toggleCreatorLike(creator); setCreatorRevision((value) => value + 1); }}><ThumbsUp className={creatorLiked ? "size-3.5 fill-current" : "size-3.5"}/>{creatorLiked ? "Creator liked" : "Like creator"}</Button><Button size="sm" variant={creatorFavorite ? "default" : "secondary"} aria-pressed={creatorFavorite} onClick={() => { toggleCreatorFavorite(creator); setCreatorRevision(value => value + 1); }}><Heart className={creatorFavorite ? "size-3.5 fill-current" : "size-3.5"}/>{creatorFavorite ? "Creator favorite" : "Favorite creator"}</Button>{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => { setCreatorRating(creator, value); setCreatorRevision((revision) => revision + 1); }} className={`flex size-8 items-center justify-center rounded-sm text-xs shadow-border ${value <= creatorRating ? "bg-accent text-accent-fg" : "bg-bg/50 text-accent"}`} aria-label={`Rate creator ${creator} ${value} stars`}>{value}</button>)}</div><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={creatorLoading || !video.remote} onClick={() => void (async () => { if (!video.remote) return; setCreatorLoading(true); try { if (video.remote.kind === "youtube" || video.remote.kind === "twitch") await followRemoteQuery(creator, video.remote.kind); setCreatorRevision((value) => value + 1); } finally { setCreatorLoading(false); } })()}>{creatorLoading ? "Pulling older videos…" : "Pull older creator videos"}</Button></div><p className="mt-2 text-xs text-muted">Creator likes, favorites and ratings boost related recommendations. Watch time and private marks add bounded interest. Pulling older videos expands coverage.</p></div>}
+{creator && <div className="mt-4 rounded-lg border border-border bg-elevated/55 p-4"><p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Creator taste</p><div className="mt-2 flex flex-wrap items-center gap-2"><button type="button" onClick={() => { setSource(video.remote?.kind === "twitch" ? "twitch" : video.remote?.kind === "youtube" ? "youtube" : isAdultPullKind(video.remote?.kind) ? "adults" : "youtube"); setQuery(creator); closePreview(); }} className="font-medium text-fg hover:text-accent">{creator}</button><Button size="sm" variant={creatorLiked ? "default" : "secondary"} onClick={() => { toggleCreatorLike(creatorSignal); setCreatorRevision((value) => value + 1); }}><ThumbsUp className={creatorLiked ? "size-3.5 fill-current" : "size-3.5"}/>{creatorLiked ? "Creator liked" : "Like creator"}</Button><Button size="sm" variant={creatorFavorite ? "default" : "secondary"} aria-pressed={creatorFavorite} onClick={() => { toggleCreatorFavorite(creatorSignal); setCreatorRevision(value => value + 1); }}><Heart className={creatorFavorite ? "size-3.5 fill-current" : "size-3.5"}/>{creatorFavorite ? "Creator favorite" : "Favorite creator"}</Button>{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => { setCreatorRating(creatorSignal, value); setCreatorRevision((revision) => revision + 1); }} className={`flex size-8 items-center justify-center rounded-sm text-xs shadow-border ${value <= creatorRating ? "bg-accent text-accent-fg" : "bg-bg/50 text-accent"}`} aria-label={`Rate creator ${creator} ${value} stars`}>{value}</button>)}</div><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={creatorLoading || !video.remote} onClick={() => void (async () => { if (!video.remote) return; setCreatorLoading(true); try { if (video.remote.kind === "youtube" || video.remote.kind === "twitch") await followRemoteQuery(creator, video.remote.kind); setCreatorRevision((value) => value + 1); } finally { setCreatorLoading(false); } })()}>{creatorLoading ? "Pulling older videos…" : "Pull older creator videos"}</Button></div><p className="mt-2 text-xs text-muted">Creator likes, favorites and ratings boost related recommendations. Watch time and private marks add bounded interest. Pulling older videos expands coverage.</p></div>}
           </div>
           <aside className="min-w-0 rounded-lg bg-elevated p-5 shadow-border">
             <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">Details</p>
+            <MediaHealthActions key={video.id} video={video}/>
+            {!video.remote&&!video.isSample&&<details className="mt-4"><summary className="min-h-11 cursor-pointer text-sm text-accent">Verify or repair this file’s identity</summary><FileIdentityReview key={video.id} video={video}/></details>}
             <div className="mt-3 flex flex-wrap gap-2">{topicEvidence(video, tags, !previewIsAdult).map((link) => <Button key={link.topic} size="sm" variant="secondary" title={link.reason} onClick={() => { openTopic(link.topic); closePreview(); }}>#{link.topic} ↔</Button>)}</div>
             <p className="mt-2 text-xs text-muted">Topic links explore all public sources. Hover a topic for its evidence.</p>
             <p className="mt-3 text-sm text-fg">

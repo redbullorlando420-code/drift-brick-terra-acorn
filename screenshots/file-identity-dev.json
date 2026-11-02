@@ -1,0 +1,15 @@
+{
+  "ok": false,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Same-size files with different complete hashes are rejected by the real worker and UI"
+      ],
+      "errors": [],
+      "ok": false,
+      "error": "locator.waitFor: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('region', { name: 'File identity review for original.mp4' }).getByText('Verified location applied. Original ratings, history, resume and reviews retain their ID.', { exact: true }) to be visible\u001b[22m\n\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\file-identity-browser-check.mjs:134:402",
+      "body": "Realhub\n\nVault · networks · live\n\nLibrary\nHome\nLanding page\n2\nMovies\nAnime\nTopics\nYouTube\n0\nTwitch\n0\nLive\n0\nFavorites\n1\nContinue\nHistory\n1\nAdults\n0\nFetish Explorer\nWorkspace\nStable Diffusion\nRemote desktop\nPhotos\nSpotify\n3D prints\nGames\nShop\nStreaming\nStream Signal\nWatch room\nX accounts\nTools\nConnection guide\nFind my phone\nAI guide\nMission plan\nSettings\nStats\nLocal sources\n1\nAdd folder\n\nHome\n\n2 indexed\n\noriginal.mp4\nDate added\n4:59 PM\nResume pulls\nFolder\n\nCatalog changes from another tab loaded.\n\nRefresh shared catalog\nDismiss catalog update\nSearch\n\n1 video\n\nSEARCH RANKING\n\nExact title and creator matches lead, followed by matching tags and your saved reactions. Description and path matches remain available.\n\n1 ranked results\nRefresh ranking\nRanking up to date\n\nOrder stays fixed while you browse. Refresh to apply new ratings, likes and watch counts.\n\nTop tags\n#owner-kept · 1\n#1\noriginal.mp4\nLibrary match\n\nUse arrow keys to move between titles, Home and End for the loaded page, and Enter to open a preview. Artwork loads separately.\n\n1 of 1 titles available on this page.\n\nText-first mode\noriginal\n\nMP4 · 4.3 MB\n\nYour rating 5/5\n\nWatched 1 time\n\nowner-kept\n\n#owner-kept\nTogether"
+    }
+  ]
+}

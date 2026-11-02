@@ -14,6 +14,7 @@ import {
   emptyImportReview,
   importReviewRow,
   importReviewWindow,
+  heldImportBatch,
   reviewedImportBatch,
   type ImportReviewState,
 } from "@/lib/videos/import-review";
@@ -41,7 +42,10 @@ export function CreatorImportReview({
   resolved: ReadonlySet<string>;
   value?: ImportReviewState;
   onChange: (state: ImportReviewState) => void;
-  onImport: (items: Array<{ query: string; kind: FollowKind }>) => Promise<Result>;
+  onImport: (
+    items: Array<{ query: string; kind: FollowKind }>,
+    opts?: { identityOnly?: boolean },
+  ) => Promise<Result>;
   busy: boolean;
 }) {
   const paused = useSyncExternalStore(subscribePullControl, pullsPaused, () => false);
@@ -105,13 +109,29 @@ export function CreatorImportReview({
     () => reviewedImportBatch(kind, queries, state, resolved, state.status === "failed"),
     [kind, queries, state.choices, state.failures, resolved, state.status],
   );
-  const run = async () => {
-    if (!batch.length || importing.current || busy) return;
+  const held = useMemo(
+    () => heldImportBatch(kind, queries, state, resolved),
+    [kind, queries, state, resolved],
+  );
+  const run = async (items = batch, includeHeld = false) => {
+    if (!items.length || importing.current || busy) return;
     importing.current = true;
     setWorking(true);
+    if (includeHeld) {
+      const choices = { ...latest.current.choices };
+      for (const item of items)
+        Object.defineProperty(choices, importReviewRow(kind, item.query, state, resolved).key, {
+          value: "include",
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
+      latest.current = { ...latest.current, choices };
+    }
+    onChange(latest.current);
     try {
-      setMessage(`Checking up to ${batch.length} reviewed entries…`);
-      const result = await onImport(batch);
+      setMessage(`Checking up to ${items.length} entries for unique public identities…`);
+      const result = await onImport(items, { identityOnly: includeHeld });
       if (!live.current) return;
       if (!result) {
         setMessage("The batch did not finish. Your choices remain saved; retry when ready.");
@@ -119,7 +139,7 @@ export function CreatorImportReview({
       }
       const failures = { ...latest.current.failures },
         choices = { ...latest.current.choices };
-      for (const item of batch)
+      for (const item of items)
         delete failures[importReviewRow(kind, item.query, state, resolved).key];
       for (const query of result.failedQueries ?? []) {
         const key = importReviewRow(kind, query, state, resolved).key;
@@ -160,9 +180,11 @@ export function CreatorImportReview({
     >
       <h3 className="font-medium text-fg">Review creator imports</h3>
       <p className="mt-2 text-xs leading-5 text-muted">
-        {queries.length.toLocaleString()} unique entries. Exact links and handles are ready; plain
-        YouTube names stay held until you include them. Matching still requires one unambiguous
-        public identity. Each explicit batch checks at most 50 entries.
+        {queries.length.toLocaleString()} unique entries. Exact links and handles are ready. Use
+        Match held names to check up to 50 plain names together. Only a unique exact public match is
+        saved; ambiguous names need an @handle or channel link. Matching identities fetches only
+        public channel metadata, so even a full catalog can resolve creators. Excluded entries
+        stay excluded.
       </p>
       <Input
         className="mt-3 min-h-11"
@@ -268,6 +290,18 @@ export function CreatorImportReview({
       >
         {state.status === "failed" ? "Retry reviewed failures" : "Import next reviewed batch"}
       </Button>
+      {(held.length > 0 || batch.length > 0) && (
+        <Button
+          className="mt-3 ml-0 min-h-11 h-auto max-w-full whitespace-normal sm:ml-2"
+          variant="secondary"
+          disabled={busy || working}
+          onClick={() => void run(held.length ? held : batch, true)}
+        >
+          {held.length
+            ? `Match next ${held.length} held names`
+            : `Verify next ${batch.length} identities only`}
+        </Button>
+      )}
       {working && paused && (
         <p role="status" className="mt-2 text-xs leading-5 text-accent">
           Import waiting: pulls are paused. Use Resume pulls in the top bar to continue this

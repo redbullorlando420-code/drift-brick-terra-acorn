@@ -25,6 +25,11 @@ export function normalizeTwitchPullDiagnostics(raw: unknown): TwitchPullDiagnost
 /** The same compact checkpoint contract is used by reloads and backup imports. */
 export function normalizeFollowCheckpoints(row: Record<string, unknown>): Partial<FollowedChannel> {
   const out: Partial<FollowedChannel> = {};
+  if(row.kind==='twitch'){
+    if(typeof row.twitchCreatorKey==='string'&&row.twitchCreatorKey.length>0&&row.twitchCreatorKey.length<=256)out.twitchCreatorKey=row.twitchCreatorKey;
+    if(Array.isArray(row.twitchAliases)&&row.twitchAliases.length<=16&&row.twitchAliases.every(v=>typeof v==='string'&&/^[a-z0-9_]{1,25}$/.test(v)))out.twitchAliases=[...new Set(row.twitchAliases)] as string[];
+    if(Number.isSafeInteger(row.twitchAliasRevision)&&(row.twitchAliasRevision as number)>=0)out.twitchAliasRevision=row.twitchAliasRevision as number;
+  }
   if(row.kind==='youtube'){const walk=normalizePlaylistWalk(row.playlistWalk),events=normalizeYoutubeEvents(row.youtubeEvents);if(walk)out.playlistWalk=walk;if(events)out.youtubeEvents=events;}
   const policy=normalizeTwitchPullPolicy(row.twitchPullPolicy); if(policy && row.kind==='twitch')out.twitchPullPolicy=policy;
   const clip = normalizeTwitchClipDiagnostics(row.twitchClipDiagnostics);

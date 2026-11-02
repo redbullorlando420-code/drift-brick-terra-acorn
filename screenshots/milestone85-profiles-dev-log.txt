@@ -1,0 +1,45 @@
+{"mobile":false,"stage":"opening"}
+{"mobile":false,"stage":"creating profiles"}
+{"mobile":false,"stage":"opening second tab"}
+{"mobile":false,"stage":"switching to Alpha"}
+{"mobile":false,"checks":["Cross-tab rename refreshes active identity and profile pickers without reload, namespace switch or loss of an in-progress label draft"]}
+{"mobile":false,"checks":["Duplicate/reserved labels and quota errors preserve the previous durable name and editable input; maximum-length labels stay within the mobile layout"]}
+{"mobile":false,"checks":["Focus refresh works when cross-tab transport is unavailable; rename persists across reload and Default/Alpha/Beta personal sentinels remain unchanged"]}
+{"mobile":false,"checks":["Header identity stays visible across media and editing desks; navigation indicator opens the existing profile controls on desktop/mobile"]}
+{"mobile":false,"checks":["Missing profile recovery identifies the selected immutable ID, keeps the library unmounted and returns safely to Default"]}
+{"mobile":true,"stage":"opening"}
+{"mobile":true,"stage":"creating profiles"}
+{"mobile":true,"stage":"opening second tab"}
+{"mobile":true,"stage":"switching to Alpha"}
+{"mobile":true,"checks":["Cross-tab rename refreshes active identity and profile pickers without reload, namespace switch or loss of an in-progress label draft"]}
+{"mobile":true,"checks":["Duplicate/reserved labels and quota errors preserve the previous durable name and editable input; maximum-length labels stay within the mobile layout"]}
+{"mobile":true,"checks":["Focus refresh works when cross-tab transport is unavailable; rename persists across reload and Default/Alpha/Beta personal sentinels remain unchanged"]}
+{"mobile":true,"checks":["Header identity stays visible across media and editing desks; navigation indicator opens the existing profile controls on desktop/mobile"]}
+{"mobile":true,"checks":["Missing profile recovery identifies the selected immutable ID, keeps the library unmounted and returns safely to Default"]}
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Cross-tab rename refreshes active identity and profile pickers without reload, namespace switch or loss of an in-progress label draft",
+        "Duplicate/reserved labels and quota errors preserve the previous durable name and editable input; maximum-length labels stay within the mobile layout",
+        "Focus refresh works when cross-tab transport is unavailable; rename persists across reload and Default/Alpha/Beta personal sentinels remain unchanged",
+        "Header identity stays visible across media and editing desks; navigation indicator opens the existing profile controls on desktop/mobile",
+        "Missing profile recovery identifies the selected immutable ID, keeps the library unmounted and returns safely to Default"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Cross-tab rename refreshes active identity and profile pickers without reload, namespace switch or loss of an in-progress label draft",
+        "Duplicate/reserved labels and quota errors preserve the previous durable name and editable input; maximum-length labels stay within the mobile layout",
+        "Focus refresh works when cross-tab transport is unavailable; rename persists across reload and Default/Alpha/Beta personal sentinels remain unchanged",
+        "Header identity stays visible across media and editing desks; navigation indicator opens the existing profile controls on desktop/mobile",
+        "Missing profile recovery identifies the selected immutable ID, keeps the library unmounted and returns safely to Default"
+      ],
+      "errors": []
+    }
+  ]
+}

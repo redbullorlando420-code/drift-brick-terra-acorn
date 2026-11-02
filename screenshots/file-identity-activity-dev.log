@@ -1,0 +1,6 @@
+start false
+reload
+{"mobile":false,"ok":false,"error":"AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n0.222019 !== 3\n\n    at file:///E:/codex/drift-brick-terra-acorn/scripts/file-identity-browser-check.mjs:147:1"}
+start true
+reload
+{"mobile":true,"ok":false,"error":"AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\n12 !== 3\n\n    at file:///E:/codex/drift-brick-terra-acorn/scripts/file-identity-browser-check.mjs:147:184"}

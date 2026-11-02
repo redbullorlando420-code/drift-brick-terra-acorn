@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { shortcutBlocked, shortcutEnabled } from '@/lib/keyboard-commands';
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { FolderSearch, Search, Sparkles, X } from 'lucide-react';

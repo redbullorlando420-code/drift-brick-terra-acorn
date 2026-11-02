@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { PrintSavePanel } from './print-save-panel';
+import { ProfileIdentity } from './profile-identity';
 import { exportPrintCopy,isSavedPrintScene,printModelSignature,loadSavedPrintCopy,type PrintSaveReceipt } from '@/lib/print-save';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -524,6 +525,7 @@ export function PrintModelViewer({ target, onClose }: Props) {
           </p>
         </div>
         <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
+          <ProfileIdentity onOpen={onClose}/>
           <Button size="sm" className="min-h-11" variant="secondary" type="button" disabled={status !== "ready"} onClick={() => apiRef.current?.fit("iso")} aria-label="Fit model">
             <Expand className="size-3.5" />
             Fit

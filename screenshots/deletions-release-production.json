@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "A provider response held before removal cannot reinsert the same canonical YouTube video under another row ID; reload keeps it removed",
+        "Explicit restore clears one selected tombstone, reinstates that title and retains unrelated and per-title ratings"
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "A provider response held before removal cannot reinsert the same canonical YouTube video under another row ID; reload keeps it removed",
+        "Explicit restore clears one selected tombstone, reinstates that title and retains unrelated and per-title ratings"
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

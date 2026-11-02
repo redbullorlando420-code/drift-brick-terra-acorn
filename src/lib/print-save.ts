@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
 import type { Object3D, Mesh, Vector3, Material } from "three";
 import type { PrintEditState } from "./print-edit-state";
 export const PRINT_SAVE_LIMIT = 48 * 1024 * 1024;

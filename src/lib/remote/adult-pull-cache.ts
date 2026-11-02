@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
 import { fetchProviderMetadata } from './provider-body.ts';
 import { PROVIDER_BUDGETS } from '../provider-budgets.ts';
 

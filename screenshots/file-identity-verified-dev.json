@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Same-size files with different complete hashes are rejected by the real worker and UI",
+        "Full-content verification and explicit review move the location while retaining the original ID in one durable transaction",
+        "Reload preserves original ratings, manual tags and favorites; the moved file plays from its granted directory",
+        "Explicit Undo restores both previous metadata mappings without erasing subsequent saved marks"
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Same-size files with different complete hashes are rejected by the real worker and UI",
+        "Full-content verification and explicit review move the location while retaining the original ID in one durable transaction",
+        "Reload preserves original ratings, manual tags and favorites; the moved file plays from its granted directory",
+        "Explicit Undo restores both previous metadata mappings without erasing subsequent saved marks"
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

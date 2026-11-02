@@ -1,0 +1,44 @@
+{
+  "ok": false,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Selected Twitch check records public unavailability; a transient retry preserves its prior verified observation",
+        "Closing a preview cancels a held check without replacing saved evidence",
+        "Granted-source checks distinguish a readable file from an absent file and retain both bookmarks",
+        "Rescanning only the selected folder preserves missing bookmarks, history, resume, ratings and notes",
+        "Removal consequence preview cancels without changing the catalog or removal records",
+        "Recovery evidence and bookmark choice survive reload and are present in validated backup data",
+        "The actual exported ZIP passes preflight and reviewed import waits for durable recovery choices",
+        "Quota failures preserve recovery observations and visibility choices atomically",
+        "A second writer is refused while another owns the catalog lease; a reader sees committed choices",
+        "Temporary retry keeps earlier public-unavailability evidence",
+        "Future recovery ledgers are retained and block incompatible writes",
+        "The reconnected local file plays after reload at its retained resume position"
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Selected Twitch check records public unavailability; a transient retry preserves its prior verified observation",
+        "Closing a preview cancels a held check without replacing saved evidence",
+        "Granted-source checks distinguish a readable file from an absent file and retain both bookmarks",
+        "Rescanning only the selected folder preserves missing bookmarks, history, resume, ratings and notes",
+        "Removal consequence preview cancels without changing the catalog or removal records",
+        "Recovery evidence and bookmark choice survive reload and are present in validated backup data",
+        "The actual exported ZIP passes preflight and reviewed import waits for durable recovery choices",
+        "Quota failures preserve recovery observations and visibility choices atomically",
+        "A second writer is refused while another owns the catalog lease; a reader sees committed choices",
+        "Temporary retry keeps earlier public-unavailability evidence",
+        "Future recovery ledgers are retained and block incompatible writes"
+      ],
+      "errors": [],
+      "ok": false,
+      "error": "locator.click: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-video-card-open][data-video-card-id=\"repair-folder:recovered.mp4\"]').first()\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" data-video-card-open=\"true\" data-video-card-id=\"repair-folder:recovered.mp4\" class=\"w-full text-left outline-none focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 block\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <button type=\"button\" aria-label=\"Watch recovered.mp4 together\" class=\"absolute bottom-2 left-2 flex min-h-9 items-center gap-1 rounded-sm bg-bg/75 px-2 text-xs text-fg opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100\">…</button> from <div data-video-card-quick-actions=\"true\" class=\"pointer-events-none [&_button]:pointer-events-auto absolute inset-x-0 top-0 overflow-hidden aspect-video\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <button type=\"button\" aria-label=\"Watch recovered.mp4 together\" class=\"absolute bottom-2 left-2 flex min-h-9 items-center gap-1 rounded-sm bg-bg/75 px-2 text-xs text-fg opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100\">…</button> from <div data-video-card-quick-actions=\"true\" class=\"pointer-events-none [&_button]:pointer-events-auto absolute inset-x-0 top-0 overflow-hidden aspect-video\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    39 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <button type=\"button\" aria-label=\"Watch recovered.mp4 together\" class=\"absolute bottom-2 left-2 flex min-h-9 items-center gap-1 rounded-sm bg-bg/75 px-2 text-xs text-fg opacity-0 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100\">…</button> from <div data-video-card-quick-actions=\"true\" class=\"pointer-events-none [&_button]:pointer-events-auto absolute inset-x-0 top-0 overflow-hidden aspect-video\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\media-recovery-browser-check.mjs:154:140",
+      "body": "Home\n\n3 indexed\n\nrecovered.mp4\nDate added\nResume pulls\n\nCatalog changes from another tab loaded.\n\nRefresh shared catalog\nDismiss catalog update\nSearch\n\n1 video\n\nSEARCH RANKING\n\nExact title and creator matches lead, followed by matching tags and your saved reactions. Description and path matches remain available.\n\n1 ranked results\nRefresh ranking\nRanking up to date\n\nOrder stays fixed while you browse. Refresh to apply new ratings, likes and watch counts.\n\n#1\nrecovered.mp4\nLibrary match\n\nUse arrow keys to move between titles, Home and End for the loaded page, and Enter to open a preview. Artwork loads separately.\n\n1 of 1 titles available on this page.\n\nText-first mode\nrecovered\n\nMP4 · 4.3 MB\n\nWatched 2 times\n\nTogether"
+    }
+  ]
+}

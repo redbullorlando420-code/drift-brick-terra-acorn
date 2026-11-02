@@ -1,4 +1,4 @@
-import { emptyImportReview, cleanImportReview } from '@/lib/videos/import-review';
+import { cleanImportReview } from '@/lib/videos/import-review';
 import { CreatorImportReview } from './import-review';
 import { memo, useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
@@ -84,16 +84,16 @@ export const ConnectPanel=memo(function ConnectPanel({ defaultKind = "youtube", 
       toast.error(err instanceof Error ? err.message : "Could not add that source");
     }
   };
-  const importItems = async (items: ImportCandidate[], reviewed = false) => {
+  const importItems = async (items: ImportCandidate[], reviewed = false, identityOnly = false) => {
     if (!items.length) return;
     const normalized = items.map((item) => ({ ...item, query: item.query.trim().replaceAll("\\_", "_") }));
     // Save the submitted list before requesting providers. A partial outage
     // must never make a pasted collection disappear.
     const saved = importSessionEntries(kind,[...normalized.map((item) => item.query), ...(reviewed ? session.saved : savedLists)]);
-    editImport({saved,draft:bulk||normalized.map(item=>item.query).join('\n'),...(reviewed?{review:session.review??emptyImportReview()}:{})});
+    editImport({saved,draft:bulk||normalized.map(item=>item.query).join('\n')});
     await flushImport();
     try {
-      const result = await importBatch(normalized);
+      const result = await importBatch(normalized, {identityOnly});
       setFound([]);
       if (result.failed && result.failedQueries?.length) {
         toast.message(`${result.ok} added · ${result.failed} unavailable`, {
@@ -267,7 +267,7 @@ export const ConnectPanel=memo(function ConnectPanel({ defaultKind = "youtube", 
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2"><Button size="sm" variant="secondary" className="min-h-11" onClick={()=>void flushImport()}>Save draft</Button><p role="status" aria-label="Import list save status" className="text-xs text-muted">{importSaveNotice||'Drafts and submitted lists are kept on this device.'}</p></div>
             {candidates.length > 10000 && <p className="mt-3 text-xs text-muted" role="status">Review shows the first 10,000 entries. Your full draft is saved; split larger lists before importing the remainder.</p>}
-            {candidates.length > 0 && <CreatorImportReview kind={kind} queries={reviewQueries} resolved={resolved} value={session.review} onChange={review=>editImport({review:cleanImportReview(review,activeReviewKeys)})} onImport={items=>importItems(items,true)} busy={remoteBusy||settledBulk!==bulk} />}
+            {candidates.length > 0 && <CreatorImportReview kind={kind} queries={reviewQueries} resolved={resolved} value={session.review} onChange={review=>editImport({review:cleanImportReview(review,activeReviewKeys)})} onImport={(items,opts)=>importItems(items,true,opts?.identityOnly)} busy={remoteBusy||settledBulk!==bulk} />}
             {kind === 'youtube' && <p className="mt-3 text-xs leading-5 text-muted" aria-label="YouTube subscription health">{health.verified.toLocaleString()} verified sources · {health.pending.toLocaleString()} awaiting exact channel match · {health.review.toLocaleString()} legacy fragments held for review. Review entries keep their videos and are excluded from automatic pulls.</p>}
             {kind === "twitch" && (
               <div className="mt-4 border-t border-border pt-4">

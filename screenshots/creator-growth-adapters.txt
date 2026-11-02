@@ -1,0 +1,21 @@
+✔ real archive adapter walks beyond 12k saved titles with stable sorting, bounded responses and exact offsets (267.1088ms)
+✔ an unreadable Eporner page fails without silently changing sort or page size (1.8291ms)
+✔ actual Adult automatic owner recovers a failed count, holds idle/pause gates and releases its schedule (165.7621ms)
+✔ 10k review keeps names held, saved identities skipped and each explicit batch bounded (130.1081ms)
+✔ choices, errors, filter and logical keyboard anchor survive session cleaning and disk merge (1.6768ms)
+✔ failed rows retry only explicitly and choices do not select prototype names accidentally (67.6668ms)
+✔ JSON preflight counts UTF-8 and quoted delimiters without changing valid metadata (1.7947ms)
+✔ valid oversized token, depth and string graphs are rejected before JSON.parse allocation (44.6167ms)
+✔ retained archive projections drop unused nested trees and preserve consumed format/date fields (3.5273ms)
+✔ a rejected later graph retains the accepted Twitch page and its safe continuation (8.5371ms)
+✔ a metadata refresh over 100k saved rows preserves every unchanged card reference (2722.1784ms)
+✔ failed decisions remain held for explicit retry after old reason strings are evicted (2.608ms)
+✔ projection rejects overlong canonical identities and cursors instead of truncating them (5.8434ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3348.3181

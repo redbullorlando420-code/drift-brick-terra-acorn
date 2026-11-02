@@ -1,0 +1,22 @@
+✔ artwork retries check the existing grant without rebuilding a folder or reading fingerprints (1.0006ms)
+✔ heart and like actions do not enumerate/copy large saved records and preserve old snapshots (1.2926ms)
+✔ idle retirement keeps exact active page rows and releases inactive provider/activity scopes (14.3333ms)
+✔ cooperative recovery selectors preserve aliases, privacy, history recovery, stable order and visible sorting (50.208ms)
+✔ cancelled Continue preparation never primes a partial selection and private results exclude public titles (19.274ms)
+✔ real playback actions do not enumerate full activity maps and progress history stays bounded (6.4556ms)
+✔ hiding a source shared with Watch Room is rejected before changing its catalog (0.6461ms)
+✔ consumer acknowledgement prevents a second read while admission is slow (4.0591ms)
+✔ 100k records pause, cancel mid-page and resume from the last acknowledged cursor exactly once (12.6813ms)
+✔ cancellation while waiting for permission to read creates no new page (0.2771ms)
+✔ invalid pages and stalled cursors reject instead of spinning (0.1951ms)
+✔ watch history reset preserves all unrelated personal fields and does not mutate its recovery snapshot (0.2469ms)
+✔ hidden source ledger rejects future versions, duplicate identities and oversized journals (0.3179ms)
+✔ hidden private folders keep retained titles outside public surfaces even when the visible folder array is unchanged (2.9897ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 606.3267

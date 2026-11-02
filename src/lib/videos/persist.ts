@@ -1,8 +1,21 @@
+import {profileDatabaseName,assertProfileContext} from '../local-profile-storage.ts';
+import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+import {consumeCatalogPages,type CatalogReadOptions} from './catalog-page-reader';
+import {createSourceVisibilityRepository} from './source-visibility';
+import {createLibraryRestoreRepository} from './library-restore-repository';
+import {guardRestoreEpoch,assertRestoreWritable,setRestorePreparing,setRestoreCancellation} from '../restore-epoch';
+import {createPackReviewRepository} from './pack-review-repository';
+import {createTwitchAliasRepository} from './twitch-alias-repository';
+import {createMediaHealthRepository} from './media-health-repository';
 import { createSignalRevisions } from '../stream-signal-revisions.ts';
+import {createIdentityRepository} from './identity-repository';
+import {identityAdmissionAllowed,FILE_IDENTITIES_KEY,readIdentityLedger} from './local-identity';
+import {createDeletionRepository,readDeletions,deletedBy} from './deletion-tombstones.ts';
 import { createWriterLease } from '../writer-lease.ts';
 import { createStudioOutputs } from '../studio-outputs.ts';
 import {newestProviderViewing,type ProviderViewing} from './provider-viewing.ts';
 import {createCatalogMutations} from './catalog-mutations.ts';
+import {ARCHIVE_LEDGER_KEY,archiveLaneKey,readArchiveLedger,migrateArchiveLedger,validArchiveCheckpoint,type ArchiveCheckpoint,type AdultArchiveCursor} from './adult-archive-model.ts';
 import {createStorageRecovery} from './storage-recovery.ts';
 import {newestAnimeReviews,type AnimeReviewLedger} from './anime-review.ts';
 import {newestFilms,type FilmLedger} from './film-review.ts';
@@ -45,8 +58,51 @@ export type { SavedVideoLink } from './recovery-links';
 
 export function signalRevisions(owner:string){return createSignalRevisions(openDb,owner);}
 export function studioOutputs(owner:string){return createStudioOutputs(openDb,owner);}
-const DB_NAME = "reelcase";
+const DB_NAME = profileDatabaseName("reelcase");
 export const catalogWriter=createWriterLease(openDb,"catalog");
+const sourceVisibility=createSourceVisibilityRepository(openDb,catalogWriter);
+export function loadHiddenSources(){return sourceVisibility.load();}
+export function hiddenSourceFolders(){return sourceVisibility.getSnapshot().hidden.map(row=>row.folder);}
+export function hideLocalSource(folder:import('./types').Folder){return sourceVisibility.hide(folder);}
+export function showHiddenSource(id:string){return sourceVisibility.show(id);}
+const libraryRestores=createLibraryRestoreRepository(openDb,catalogWriter);
+export function libraryRestoreState(){return libraryRestores.state();}
+export async function prepareLibraryRestore(...args:Parameters<typeof libraryRestores.prepare>){const controller=new AbortController();const supplied=args[4];args[4]=supplied?AbortSignal.any([supplied,controller.signal]):controller.signal;setRestoreCancellation(()=>controller.abort(new DOMException('Preparation stopped. The active library was kept. Discard the staged restore to continue.','AbortError')));setRestorePreparing(true);try{const result=await libraryRestores.prepare(...args);setRestorePreparing(false);return result;}catch(e){setRestorePreparing(false,e instanceof Error?e.message:'Restore preparation failed.');throw e;}finally{setRestoreCancellation(undefined);}}
+export function activateLibraryRestore(rollback=false){return libraryRestores.activate(rollback);}
+export function discardLibraryRestore(){return libraryRestores.discard();}
+export function repairLibraryRestoreMirrors(){return libraryRestores.repairMirrors();}
+const packReviews=createPackReviewRepository(openDb,catalogWriter);
+export function loadPackReview(){return packReviews.load();}
+export function savePackReview(...args:Parameters<typeof packReviews.save>){return packReviews.save(...args);}
+export function discardPackReview(...args:Parameters<typeof packReviews.discard>){return packReviews.discard(...args);}
+const twitchAliases=createTwitchAliasRepository(openDb,catalogWriter);
+export async function applyTwitchAliasReview(...args:Parameters<typeof twitchAliases.apply>){await waitForDurableWrites();const next=await twitchAliases.apply(...args);durableFollows=next;return next;}
+const fileIdentities=createIdentityRepository(openDb,catalogWriter);
+export function hydrateFileIdentities(){return fileIdentities.hydrate();}
+export function fileIdentitySnapshot(){return fileIdentities.getSnapshot();}
+export function subscribeFileIdentities(listener:()=>void){return fileIdentities.subscribe(listener);}
+export function recordFileIdentity(...args:Parameters<typeof fileIdentities.record>){return fileIdentities.record(...args);}
+export function applyFileIdentityMove(...args:Parameters<typeof fileIdentities.move>){return fileIdentities.move(...args);}
+export function undoFileIdentityMove(...args:Parameters<typeof fileIdentities.undo>){return fileIdentities.undo(...args);}
+const mediaHealth=createMediaHealthRepository(openDb,catalogWriter);
+export function hydrateMediaHealth(){return mediaHealth.hydrate();}
+export function mediaHealthSnapshot(){return mediaHealth.getSnapshot();}
+export function subscribeMediaHealth(listener:()=>void){return mediaHealth.subscribe(listener);}
+export function saveMediaObservation(...args:Parameters<typeof mediaHealth.observe>){return mediaHealth.observe(...args);}
+export function chooseMediaRecovery(...args:Parameters<typeof mediaHealth.choose>){return mediaHealth.choose(...args);}
+export function forgetMediaObservation(id:string){return mediaHealth.forget(id);}
+export function importMediaHealth(raw:unknown){return mediaHealth.import(raw);}
+
+const deletions=createDeletionRepository(openDb,catalogWriter);
+export function hydrateCatalogDeletions(){return deletions.hydrate();}
+export function catalogDeletionSnapshot(){return deletions.getSnapshot();}
+export function subscribeCatalogDeletions(listener:()=>void){return deletions.subscribe(listener);}
+export function isCatalogDeleted(video:LibraryVideo){return deletions.isDeleted(video);}
+export function saveCatalogDeletion(video:LibraryVideo,privateSource=true){return deletions.remove(video,privateSource);}
+export function restoreCatalogDeletion(id:string){return deletions.restore(id);}
+function personalTransaction(db:IDBDatabase,stores:string|string[],mode:IDBTransactionMode='readwrite'){
+ const tx=db.transaction([...new Set([...(typeof stores==='string'?[stores]:stores),'remote-cache'])],mode);if(mode==='readwrite')guardRestoreEpoch(tx,()=>{});return tx;
+}
 function catalogTransaction(db:IDBDatabase,stores:string|string[],mode:IDBTransactionMode="readwrite"){
   const token=catalogWriter.current();if(!token)throw Error('Catalog writer lease is required.');
   const tx=db.transaction([...new Set([...(typeof stores==='string'?[stores]:stores),'remote-cache'])],mode);
@@ -75,6 +131,7 @@ const LEGACY_KEYS = ["reelcase.prefs.v3", "reelcase.prefs.v2", "reelcase.prefs.v
 const FOLLOWS_LS_KEY = "reelcase.follows.v1";
 const FOLLOWS_IDB_KEY = "follows";
 let durablePrefs: Prefs | null = null;
+let durablePrefsLoaded=false;
 let durableFollows: FollowedChannel[] | null = null;
 let prefsWrites: Promise<void> = Promise.resolve();
 let followsWrites: Promise<void> = Promise.resolve();
@@ -83,6 +140,7 @@ type StoredPrefs = StoredActivity<Prefs> & { sparseMetadataRecords?: { tags?: En
   metadataProvenance?: EncodedSparseRecord<VideoMetadataProvenance>; categories?: EncodedSparseRecord<string> } };
 
 export async function restoreDurablePrefs(): Promise<void> {
+  if(durablePrefsLoaded)return;
   const db = await openDb();
   try {
     const saved = await new Promise<StoredPrefs | undefined>((resolve, reject) => {
@@ -90,6 +148,7 @@ export async function restoreDurablePrefs(): Promise<void> {
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
+    durablePrefsLoaded=true;
     if (saved) {
       const { sparseMetadataRecords, ...prefs } = decodeActivityRecords(saved);
       durablePrefs = { ...prefs, tags: decodeSparseRecord(sparseMetadataRecords?.tags ?? saved.tags),
@@ -161,6 +220,7 @@ function readFollowsLocal(): FollowedChannel[] | null { return readFollowsLocalP
 /** Sync mirror + IndexedDB. Intentionally tiny so QuotaExceeded on the prefs blob cannot erase follows. */
 export function saveFollows(channels: FollowedChannel[]) {
   if (typeof window === "undefined") return;
+  assertRestoreWritable();
   durableFollows = channels;
   const payload: DurableFollows = { channels, savedAt: Date.now() };
   try { localStorage.setItem(FOLLOWS_LS_KEY, JSON.stringify(payload)); }
@@ -278,7 +338,7 @@ const activityWriter = new CoalescedWriter<string, unknown>(async rows => {
     const db = await openDb();
     try {
       await new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(ACTIVITY_STORE, "readwrite");
+        const tx = personalTransaction(db,ACTIVITY_STORE);
         const store = tx.objectStore(ACTIVITY_STORE);
         for (const [key, payload] of rows) store.put(payload, key);
         tx.oncomplete = () => resolve();
@@ -318,6 +378,7 @@ function readJsonLocal<T>(key: string): T | null {
 }
 
 function writeJsonLocal(key: string, value: unknown) {
+  assertRestoreWritable();
   try { localStorage.setItem(key, JSON.stringify(value)); return true; }
   catch { return false; /* IndexedDB remains the durable path. */ }
 }
@@ -518,6 +579,7 @@ function pendingShelfEdits() {
   return shelfEdits;
 }
 function mirrorShelfEdits() {
+  assertRestoreWritable();
   const edits = pendingShelfEdits();
   if (edits.size) writeJsonLocal(SHELF_EDITS_LS_KEY, [...edits.values()]);
   else try { localStorage.removeItem(SHELF_EDITS_LS_KEY); } catch { /* old replay is idempotent */ }
@@ -527,6 +589,7 @@ function enqueueShelfEdit(row: SavedShelfEdit) {
 }
 /** A click writes one tiny replay record, never enumerating/serializing its full shelf. */
 export function saveSavedShelfEdit(id: string, shelf: SavedShelfEdit['shelf'], saved: boolean) {
+  assertRestoreWritable();
   if (typeof window === 'undefined' || !id.trim()) return;
   const edits = pendingShelfEdits(), row: SavedShelfEdit = { id, shelf, saved, at: nextShelfTime() };
   edits.set(savedShelfEditKey(row), row);
@@ -542,7 +605,7 @@ async function walkShelfEdits(visit: (row: unknown, key: IDBValidKey, store: IDB
     for (;;) {
       await yieldCatalogTask();
       const page = await new Promise<{ rows: unknown[]; keys: IDBValidKey[] }>((resolve, reject) => {
-        const tx = db.transaction(ACTIVITY_STORE, writing ? 'readwrite' : 'readonly'), store = tx.objectStore(ACTIVITY_STORE);
+        const tx = personalTransaction(db,ACTIVITY_STORE, writing ? 'readwrite' : 'readonly'), store = tx.objectStore(ACTIVITY_STORE);
         const range = IDBKeyRange.bound(after, 'saved-edit;', after !== SHELF_EDIT_PREFIX, true);
         const rows = store.getAll(range, 256), keys = store.getAllKeys(range, 256);
         let visited = false;
@@ -691,9 +754,13 @@ function likesFromPhotoMeta(meta: Record<string, DurablePhotoMeta>, explicit?: s
   return [...liked];
 }
 
+let durablePhotosCache:DurablePhotos|null=null,photoRestore:Promise<DurablePhotos>|undefined;
 /** Persist photo source stubs + likes/meta. Thumb prune and prefs QuotaExceeded never clear this key. */
 export function saveDurablePhotos(input: { sources?: DurablePhotoSource[]; meta?: Record<string, DurablePhotoMeta>; likes?: string[] }) {
   if (typeof window === "undefined") return;
+  assertRestoreWritable();
+  if(!durablePhotosCache&&(input.meta===undefined||input.sources===undefined||input.likes===undefined)){photoRestore??=restoreDurablePhotos().finally(()=>{photoRestore=undefined;});void photoRestore.then(()=>saveDurablePhotos(input)).catch(()=>undefined);return;}
+  input={sources:durablePhotosCache?.sources,meta:durablePhotosCache?.meta,likes:durablePhotosCache?.likes,...input};
   const meta = normalizePhotoMeta(input.meta ?? {});
   const likes = likesFromPhotoMeta(meta, input.likes);
   for (const id of likes) {
@@ -705,6 +772,7 @@ export function saveDurablePhotos(input: { sources?: DurablePhotoSource[]; meta?
     likes,
     savedAt: Date.now(),
   };
+  durablePhotosCache=payload;
   // Keep the legacy meta key as a sync mirror for older Photos code paths.
   writeJsonLocal(PHOTO_META_LS_KEY, payload.meta);
   writeJsonLocal(DURABLE_PHOTOS_LS_KEY, {
@@ -740,6 +808,7 @@ export async function restoreDurablePhotos(): Promise<DurablePhotos> {
     likes,
     savedAt: Math.max(fromIdb?.savedAt ?? 0, fromLs?.savedAt ?? 0, Date.now()),
   };
+  durablePhotosCache=merged;
   // Re-seat into dedicated store so a later prefs/LS wipe cannot drop likes again.
   if (merged.sources.length || Object.keys(merged.meta).length || merged.likes.length) {
     saveDurablePhotos(merged);
@@ -749,6 +818,7 @@ export async function restoreDurablePhotos(): Promise<DurablePhotos> {
 
 export function loadDurablePhotosSync(): DurablePhotos | null {
   if (typeof window === "undefined") return null;
+  if(durablePhotosCache)return durablePhotosCache;
   const fromLs = readJsonLocal<DurablePhotos>(DURABLE_PHOTOS_LS_KEY);
   const legacyMeta = normalizePhotoMeta(readJsonLocal<Record<string, DurablePhotoMeta>>(PHOTO_META_LS_KEY));
   if (!fromLs && !Object.keys(legacyMeta).length) return null;
@@ -771,6 +841,7 @@ function readPending<T>(key: string, fallback: T): T {
   catch { return fallback; }
 }
 export function saveTagEdit(id: string, tags: string[]) {
+  assertRestoreWritable();
   const edits = readPending<Record<string, string[]>>(TAG_EDITS_KEY, {});
   edits[id] = tags;
   try { localStorage.setItem(TAG_EDITS_KEY, JSON.stringify(edits)); } catch { /* IndexedDB still saves the full record. */ }
@@ -781,6 +852,7 @@ export function restoreTagEdits(tags: Record<string, string[]>) {
 
 /** Small synchronous mirror so a just-saved manual lock survives a tab close. */
 export function saveMetadataEdit(id: string, metadata: VideoMetadataProvenance) {
+  assertRestoreWritable();
   const edits = readPending<Record<string, VideoMetadataProvenance>>(TAG_PROVENANCE_EDITS_KEY, {});
   edits[id] = metadata;
   try { localStorage.setItem(TAG_PROVENANCE_EDITS_KEY, JSON.stringify(edits)); } catch { /* IndexedDB retains the full preference record. */ }
@@ -810,11 +882,13 @@ async function saveCreatorCoverageRowsOwned(rows: readonly CreatorCoverageRow[],
       tx.oncomplete = () => { stop(); resolve(); };
       tx.onerror = tx.onabort = () => { stop(); reject(stale ? new DOMException('Creator repair inputs changed', 'AbortError') : tx.error ?? new Error('Creator repair was not saved')); };
       const remote = tx.objectStore('remote-cache'), activity = tx.objectStore(ACTIVITY_STORE);
+      const removals=remote.get('catalog-deletions:v1'),identities=remote.get(FILE_IDENTITIES_KEY);
       for (const row of rows) {
         const previous = remote.get(`video:${row.video.id}`);
         previous.onsuccess = () => {
           invalidate(); if (stale) return;
           try {
+            if(deletedBy(readDeletions(removals.result),row.video)||!identityAdmissionAllowed(row.video,readIdentityLedger(identities.result)))return;
             remote.put(withCatalogDetails(row.video, previous.result as LibraryVideo | undefined), `video:${row.video.id}`);
             if (row.enrichment) activity.put(row.enrichment, ENRICHMENT_PREFIX + row.video.id);
           } catch (error) { try { tx.abort(); } finally { reject(error); } }
@@ -833,7 +907,7 @@ export async function saveEnrichmentRows(rows: readonly EnrichmentRow[], turn = 
     for (let offset = 0; offset < rows.length; offset += 64) {
     await turn();
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(ACTIVITY_STORE, 'readwrite'), store = tx.objectStore(ACTIVITY_STORE);
+      const tx = personalTransaction(db,ACTIVITY_STORE), store = tx.objectStore(ACTIVITY_STORE);
       for (let index = offset; index < Math.min(rows.length, offset + 64); index++) {
         const row = rows[index]!; store.put(row, ENRICHMENT_PREFIX + row.id);
       }
@@ -850,7 +924,7 @@ export async function removeEnrichmentRows(ids: readonly string[]) {
     for (let offset = 0; offset < ids.length; offset += 64) {
     await yieldCatalogTask();
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(ACTIVITY_STORE, 'readwrite'), store = tx.objectStore(ACTIVITY_STORE);
+      const tx = personalTransaction(db,ACTIVITY_STORE), store = tx.objectStore(ACTIVITY_STORE);
       for (let index = offset; index < Math.min(ids.length, offset + 64); index++) store.delete(ENRICHMENT_PREFIX + ids[index]);
       tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
     });
@@ -934,6 +1008,7 @@ function migrateSource(id: string | undefined): string {
 }
 
 function openDb(): Promise<IDBDatabase> {
+  assertProfileContext();
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 8);
     req.onupgradeneeded = () => {
@@ -989,7 +1064,7 @@ export async function saveWorkspaceDocuments(rows: ReadonlyArray<{ key: string; 
   if (!rows.length) return;
   const db = await openDb();
   try { await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(ACTIVITY_STORE, 'readwrite');
+    const tx = personalTransaction(db,ACTIVITY_STORE);
     tx.oncomplete = () => resolve(); tx.onerror = tx.onabort = () => reject(tx.error ?? Error('Could not save tool documents.'));
     for (const row of rows) tx.objectStore(ACTIVITY_STORE).put(row.value, row.key);
   }); } finally { db.close(); }
@@ -1016,7 +1091,8 @@ export async function loadDirHandles(): Promise<StoredDir[]> {
     req.onerror = () => reject(req.error);
   });
   db.close();
-  return rows;
+  const hidden=new Set((await loadHiddenSources()).hidden.map(row=>row.id));
+  return rows.filter(row=>!hidden.has(row.id));
 }
 
 export function deleteDirHandle(...args:Parameters<typeof deleteDirHandleOwned>){return catalogWriter.run(()=>deleteDirHandleOwned(...args));}
@@ -1047,12 +1123,15 @@ const IDB_WRITE_CHUNK = 400;
 async function clearFolderVideosTx(db: IDBDatabase, folderId: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const tx = catalogTransaction(db,VIDEO_STORE, "readwrite");
+    let protectedIds=new Set<string>();
+    const identities=tx.objectStore('remote-cache').get(FILE_IDENTITIES_KEY);
+    identities.onsuccess=()=>{try{protectedIds=new Set(readIdentityLedger(identities.result).moves.filter(row=>row.active).map(row=>row.canonicalId));}catch{tx.abort();}};
     const idx = tx.objectStore(VIDEO_STORE).index("folderId");
     const req = idx.openCursor(IDBKeyRange.only(folderId));
     req.onsuccess = () => {
       const cursor = req.result;
       if (cursor) {
-        cursor.delete();
+        if(!protectedIds.has(cursor.value.id))cursor.delete();
         cursor.continue();
       }
     };
@@ -1061,10 +1140,10 @@ async function clearFolderVideosTx(db: IDBDatabase, folderId: string): Promise<v
   });
 }
 
-async function putVideosChunked(_db: IDBDatabase, videos: LibraryVideo[], metadata?:Pick<Prefs,"tags"|"metadataProvenance">): Promise<void> {
+async function putVideosChunked(_db: IDBDatabase, videos: LibraryVideo[], metadata?:Pick<Prefs,"tags"|"metadataProvenance">, archive?:ArchiveCheckpoint): Promise<void> {
   for (let offset=0;offset<videos.length;offset+=64) {
     const rows=videos.slice(offset,offset+64),enrichment=metadata?rows.flatMap(video=>{const provenance=metadata.metadataProvenance?.[video.id];return provenance?[{id:video.id,tags:metadata.tags[video.id]??[],provenance}]:[];}):undefined;
-    await catalogMutations.write({version:1,kind:"local",rows,enrichment});
+    await catalogMutations.write({version:1,kind:"local",rows,enrichment,...(archive&&offset+64>=videos.length?{archive}:{})});
     await yieldCatalogTask();
   }
 }
@@ -1084,20 +1163,23 @@ async function saveFolderVideosOwned(folderId: string, videos: LibraryVideo[]): 
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error ?? new Error("Catalog save was interrupted. Your previous catalog is preserved."));
+      const deletionsRead=tx.objectStore('remote-cache').get('catalog-deletions:v1'),identitiesRead=tx.objectStore('remote-cache').get(FILE_IDENTITIES_KEY);
       const cleanup = tx.objectStore('remote-cache').get(YOUTUBE_CLEANUP_KEY);
       cleanup.onsuccess = () => {
+      let deletionLedger:ReturnType<typeof readDeletions>,identityLedger:ReturnType<typeof readIdentityLedger>;try{deletionLedger=readDeletions(deletionsRead.result);identityLedger=readIdentityLedger(identitiesRead.result);}catch(error){tx.abort();reject(error);return;}
+      const protectedIds=new Set(identityLedger.moves.filter(row=>row.active).map(row=>row.canonicalId));
       const retired = retiredYoutubeKeys(normalizeYoutubeCleanup(cleanup.result));
       const request = store.index("folderId").openCursor(IDBKeyRange.only(folderId));
       request.onsuccess = () => {
         try {
           const cursor = request.result;
           if (cursor) {
-            cursor.delete();
+            if(!protectedIds.has(cursor.value.id))cursor.delete();
             cursor.continue();
             return;
           }
           for (const video of videos) {
-            if (!video.isSample && !(video.remote && retired.has(cleanupKey(video)))) store.put(video);
+            if (identityAdmissionAllowed(video,identityLedger) && !deletedBy(deletionLedger,video) && !video.isSample && !(video.remote && retired.has(cleanupKey(video)))) store.put(video);
           }
         } catch (error) {
           tx.abort();
@@ -1111,6 +1193,25 @@ async function saveFolderVideosOwned(folderId: string, videos: LibraryVideo[]): 
 
 /** Append/upsert catalog rows without rewriting the whole folder (batched ingest). */
 export function appendCatalogVideos(...args:Parameters<typeof appendCatalogVideosOwned>){if(!args[0].length)return Promise.resolve();return catalogWriter.run(()=>appendCatalogVideosOwned(...args));}
+/** Accepted rows and their continuation share the final journal transaction.
+ * An interrupted prefix has no advanced cursor and is safe to replay. */
+export function appendAdultArchiveWindow(videos:LibraryVideo[],archive:ArchiveCheckpoint){return catalogWriter.run(async()=>{
+ if(!validArchiveCheckpoint(archive)||archive.acceptedIds.length!==videos.length||videos.some(video=>!archive.acceptedIds.includes(video.id)))throw Error('Invalid accepted archive window.');
+ if(videos.length){const db=await openDb();try{await putVideosChunked(db,videos,undefined,archive);}finally{db.close();}}
+ else await catalogMutations.write({version:1,kind:'local',rows:[],archive});
+ const ledger=readArchiveLedger(await readWorkspaceDocument(ARCHIVE_LEDGER_KEY));
+ if(ledger.positions[archiveLaneKey(archive.provider,archive.query,archive.order)]?.token!==archive.token)throw Error('This archive position changed in another tab. Accepted rows were kept; reload before continuing.');
+ return ledger;
+});}
+export function restoreAdultArchiveLedger(legacy:Record<string,AdultArchiveCursor>){return catalogWriter.run(async()=>{
+ await recoverCatalogMutations();
+ const db=await openDb();
+ try{return await new Promise<ReturnType<typeof readArchiveLedger>>((resolve,reject)=>{
+  const tx=catalogTransaction(db,['activity','remote-cache'],'readwrite'),store=tx.objectStore('activity'),request=store.get(ARCHIVE_LEDGER_KEY);let ledger:ReturnType<typeof readArchiveLedger>,failure:unknown;
+  request.onsuccess=()=>{try{const current=readArchiveLedger(request.result);ledger=migrateArchiveLedger(current,legacy);if(JSON.stringify(ledger)!==JSON.stringify(current))store.put(ledger,ARCHIVE_LEDGER_KEY);}catch(error){failure=error;tx.abort();}};
+  tx.oncomplete=()=>resolve(ledger);tx.onerror=tx.onabort=()=>reject(failure??tx.error??Error('Could not restore archive positions.'));
+ });}finally{db.close();}
+},false);}
 async function appendCatalogVideosOwned(videos: LibraryVideo[], metadata?:Pick<Prefs,"tags"|"metadataProvenance">): Promise<void> {
   if (!videos.length) return;
   const db = await openDb();
@@ -1126,7 +1227,8 @@ async function clearFolderVideosOwned(folderId: string): Promise<void> {
   db.close();
 }
 
-export async function loadCatalogVideos(): Promise<LibraryVideo[]> {
+export async function loadCatalogVideos(options:Partial<Pick<CatalogReadOptions<IDBValidKey,LibraryVideo>,'signal'|'beforeRead'|'progress'>>={}): Promise<LibraryVideo[]> {
+  await Promise.all([hydrateCatalogDeletions(),hydrateFileIdentities()]);
   const db = await openDb();
   try {
     const rows: LibraryVideo[] = [];
@@ -1134,34 +1236,31 @@ export async function loadCatalogVideos(): Promise<LibraryVideo[]> {
       const req = db.transaction('remote-cache', 'readonly').objectStore('remote-cache').get(YOUTUBE_CLEANUP_KEY);
       req.onsuccess = () => resolve(normalizeYoutubeCleanup(req.result)); req.onerror = () => reject(req.error);
     });
-    const retired = retiredYoutubeKeys(journal);
-    let after: IDBValidKey | undefined;
-    while (true) {
+    const retired = retiredYoutubeKeys(journal),hidden=new Set((await loadHiddenSources()).hidden.map(row=>row.id));
+    await consumeCatalogPages<IDBValidKey,LibraryVideo>(async(after,limit)=>{
       const page = await new Promise<{ keys: IDBValidKey[]; rows: LibraryVideo[] }>((resolve, reject) => {
         const tx = db.transaction(VIDEO_STORE, 'readonly');
         const store = tx.objectStore(VIDEO_STORE);
         const range = after === undefined ? undefined : IDBKeyRange.lowerBound(after, true);
-        const keys = store.getAllKeys(range, 512), values = store.getAll(range, 512);
+        const keys = store.getAllKeys(range, limit), values = store.getAll(range, limit);
         tx.oncomplete = () => resolve({ keys: keys.result, rows: values.result });
         tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
       });
-      for (const video of page.rows) if (!video.isSample && !(video.remote && retired.has(cleanupKey(video)))) rows.push(catalogCard(video));
-      if (page.keys.length < 512) break;
-      after = page.keys.at(-1);
-      await yieldCatalogTask();
-    }
+      return page;
+    },{...options,accept:async page=>{options.signal?.throwIfAborted();for(const video of page)if(!video.isSample&&!hidden.has(video.folderId)&&!(video.remote&&retired.has(cleanupKey(video))))rows.push(catalogCard(video));await yieldCatalogTask();}});
     return rows;
   } finally { db.close(); }
 }
 
 export async function loadCatalogVideo(id: string): Promise<LibraryVideo | undefined> {
+  const hidden=new Set((await loadHiddenSources()).hidden.map(row=>row.id));
   const db = await openDb();
   try {
     return await new Promise((resolve, reject) => {
       const tx = db.transaction([VIDEO_STORE, 'remote-cache'], 'readonly');
       const local = tx.objectStore(VIDEO_STORE).get(id);
       const remote = tx.objectStore('remote-cache').get(`video:${id}`);
-      tx.oncomplete = () => resolve(remote.result ? withCatalogDetails(remote.result, local.result) : local.result);
+      tx.oncomplete = () => {const row=remote.result ? withCatalogDetails(remote.result, local.result) : local.result;resolve(row&&!hidden.has(row.folderId)&&!isCatalogDeleted(row)?row:undefined);};
       tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
     });
   } finally { db.close(); }
@@ -1264,6 +1363,7 @@ export function getPersistenceMemorySnapshot() {
 const YOUTUBE_CLEANUP_KEY = 'youtube-cleanup';
 export type RemoteSnapshot = { videos: LibraryVideo[]; folders: Folder[]; checkedAt: number; youtubeCleanup?: YoutubeCleanupJournal; metadata?: Pick<Prefs,"tags"|"metadataProvenance"> };
 export async function loadRemoteSnapshot(): Promise<RemoteSnapshot | undefined> {
+  await hydrateCatalogDeletions();
   const db = await openDb();
   try {
     const legacy = await new Promise<{ current?: RemoteSnapshot; meta?: Pick<RemoteSnapshot, "folders" | "checkedAt">; youtubeCleanup: YoutubeCleanupJournal }>((resolve, reject) => {
@@ -1291,7 +1391,7 @@ export async function loadRemoteSnapshot(): Promise<RemoteSnapshot | undefined> 
         tx.oncomplete = () => resolve({ keys: keysReq.result, rows: rowsReq.result as LibraryVideo[] });
         tx.onerror = () => reject(tx.error);
       });
-      for (const video of page.rows) if (video?.id && !(video.remote && retired.has(cleanupKey(video)))) videos.set(video.id, catalogCard(video));
+      for (const video of page.rows) if (video?.id && !isCatalogDeleted(video) && !(video.remote && retired.has(cleanupKey(video)))) videos.set(video.id, catalogCard(video));
       if (page.keys.length < 512) break;
       afterKey = page.keys[page.keys.length - 1];
       await yieldCatalogTask();
@@ -1301,7 +1401,7 @@ export async function loadRemoteSnapshot(): Promise<RemoteSnapshot | undefined> 
     // before its normalized record has actually been saved.
     if (legacy.current?.videos.length) {
       const missing: LibraryVideo[] = [];
-      await forEachCatalogSlice(legacy.current.videos, video => { if (!videos.has(video.id) && !(video.remote && retired.has(cleanupKey(video)))) missing.push(video); }, yieldCatalogTask);
+      await forEachCatalogSlice(legacy.current.videos, video => { if (!isCatalogDeleted(video) && !videos.has(video.id) && !(video.remote && retired.has(cleanupKey(video)))) missing.push(video); }, yieldCatalogTask);
       let migrated = false;
       try { await saveRemoteSnapshot({ ...legacy.current, videos: missing }, true); migrated = true; } catch { /* Retain full legacy details in this session. */ }
       await forEachCatalogSlice(missing, video => { videos.set(video.id, migrated ? catalogCard(video) : video); }, yieldCatalogTask);
@@ -1361,7 +1461,7 @@ export async function saveActivitySnapshot(snapshot: ActivitySnapshot): Promise<
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(ACTIVITY_STORE, "readwrite");
+      const tx = personalTransaction(db,ACTIVITY_STORE);
       tx.objectStore(ACTIVITY_STORE).put(encodeActivityRecords(snapshot), "primary");
       tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
     });
@@ -1370,12 +1470,13 @@ export async function saveActivitySnapshot(snapshot: ActivitySnapshot): Promise<
 
 /** Append-only playback journal: a snapshot write can never erase an earlier event. */
 export async function appendActivityJournal(entry: HistoryEntry): Promise<void> {
+  assertRestoreWritable();
   const pending = readPending<HistoryEntry[]>(HISTORY_PENDING_KEY, []);
   try { localStorage.setItem(HISTORY_PENDING_KEY, JSON.stringify([entry, ...pending].slice(0, 50))); } catch { /* journal remains primary */ }
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(ACTIVITY_JOURNAL_STORE, "readwrite");
+      const tx = personalTransaction(db,ACTIVITY_JOURNAL_STORE);
       // eventId survives a snapshot race and makes journal replay idempotent.
       // Old entries retain the deterministic legacy key during migration.
       tx.objectStore(ACTIVITY_JOURNAL_STORE).put({ key: entry.eventId ?? `${entry.id}:${entry.at}:${entry.source ?? "open"}`, entry });
@@ -1394,11 +1495,12 @@ export async function loadActivityJournal(): Promise<HistoryEntry[]> {
   } finally { db.close(); }
 }
 export async function clearActivityJournal(): Promise<void> {
+  assertRestoreWritable();
   try { localStorage.removeItem(HISTORY_PENDING_KEY); } catch { /* optional fallback */ }
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(ACTIVITY_JOURNAL_STORE, "readwrite");
+      const tx = personalTransaction(db,ACTIVITY_JOURNAL_STORE);
       tx.objectStore(ACTIVITY_JOURNAL_STORE).clear();
       tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
     });
@@ -1406,11 +1508,12 @@ export async function clearActivityJournal(): Promise<void> {
 }
 
 export async function pruneActivityJournal(before: number): Promise<void> {
+  assertRestoreWritable();
   try { localStorage.setItem(HISTORY_PENDING_KEY, JSON.stringify(readPending<HistoryEntry[]>(HISTORY_PENDING_KEY, []).filter((entry) => entry.at >= before))); } catch { /* optional fallback */ }
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(ACTIVITY_JOURNAL_STORE, "readwrite");
+      const tx = personalTransaction(db,ACTIVITY_JOURNAL_STORE);
       const store = tx.objectStore(ACTIVITY_JOURNAL_STORE);
       const req = store.openCursor();
       req.onsuccess = () => {
@@ -1536,6 +1639,7 @@ export function loadPrefs(): Prefs | null {
 }
 
 export function savePrefs(prefs: Prefs) {
+  assertRestoreWritable();
   if (typeof window === "undefined") return;
   saveViewPrefs(prefs);
   durablePrefs = prefs;
@@ -1553,7 +1657,7 @@ export function savePrefs(prefs: Prefs) {
   if (prefsWrites !== pending) {
     prefsWrites = pending;
     void pending.catch(() => {
-      try { localStorage.setItem(PREFS_KEY, JSON.stringify(durablePrefs)); }
+      try { assertRestoreWritable();localStorage.setItem(PREFS_KEY, JSON.stringify(durablePrefs)); }
       catch { window.dispatchEvent(new CustomEvent("reelcase:save-error")); }
     });
   }

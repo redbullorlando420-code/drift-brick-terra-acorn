@@ -1,0 +1,86 @@
+✖ real activity, preferences and dedicated stores clone sparse updates and recover old plus recent records (17.1136ms)
+✔ artwork retries check the existing grant without rebuilding a folder or reading fingerprints (0.7159ms)
+✔ heart and like actions do not enumerate/copy large saved records and preserve old snapshots (1.2681ms)
+✔ idle retirement keeps exact active page rows and releases inactive provider/activity scopes (23.9117ms)
+✔ cooperative recovery selectors preserve aliases, privacy, history recovery, stable order and visible sorting (56.5865ms)
+✔ cancelled Continue preparation never primes a partial selection and private results exclude public titles (21.6771ms)
+✔ real playback actions do not enumerate full activity maps and progress history stays bounded (7.4436ms)
+✔ versioned operations accept bounded deltas, not future or oversized batches (1.7503ms)
+✔ manual records validate paired tags, provenance, field clocks and category shape (0.3193ms)
+✔ unknown and corrupt control generations remain rejected instead of reset (0.2592ms)
+✔ explicit snapshot retry invalidates only the slice writer reference cache (0.2652ms)
+✔ field clocks restore category separately from newer automatic tags without walking base dictionaries (5.8119ms)
+✔ canonical provider identity suppresses a different saved row ID without matching another video by title (0.7137ms)
+✔ deletion recovery rejects future, duplicate, malformed and over-budget records without normalizing them away (0.9581ms)
+✔ recovery cards omit blobs, transient URLs and provider transcripts while retaining verified clip aliases (0.418ms)
+✔ only a reviewed current content mapping enters an active alias (1.4227ms)
+✔ undo reopens the raw destination while superseded locations remain fenced (0.3504ms)
+✔ future, malformed, duplicate and over-budget history fails without normalization (1.5248ms)
+✔ already-owned destinations require conflict review, including hidden and sparse signals (0.644ms)
+✔ private recovery stays private even after its original folder disappears (0.1334ms)
+✔ inspection workers are bounded and release both slots on cancellation (1.6185ms)
+✔ only a clean typed item response proves public unavailability (0.8936ms)
+✔ temporary errors never become expired media and selected queries do not scan a creator (1.0629ms)
+✔ a failed retry keeps the last verified observation, manual choice and private boundary (0.5047ms)
+✔ backup merge chooses observations and visibility decisions independently (0.3296ms)
+✔ corrupt/future/oversized records fail closed instead of erasing recovery choices (0.4302ms)
+✔ 100k disconnected entries yield and retain at most 20 candidates per source, oldest first (3043.2538ms)
+✔ locked private source names cannot be searched through recovery results (0.7687ms)
+✔ backup preflight validates the new sidecar before any import writes (60.2349ms)
+✔ selected local checks distinguish permissions, missing entries, disconnected roots and changed sizes (0.9762ms)
+✖ tiny saved edits survive failures, acknowledge only committed values and compact behind complete snapshots (14180.8938ms)
+✔ real startup rebases a catalog restore around a concurrent pull, unfollow, favorite, resume and navigation (1389.3351ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 30
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15274.4415
+
+✖ failing tests:
+
+test at scripts\activity-persistence.test.mjs:13:1
+✖ real activity, preferences and dedicated stores clone sparse updates and recover old plus recent records (17.1136ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + [
+  +   'activity',
+  +   'remote-cache'
+  + ]
+  - 'activity'
+  
+      at Object.transaction (file:///E:/codex/drift-brick-terra-acorn/scripts/activity-persistence.test.mjs:18:12)
+      at personalTransaction (file:///E:/codex/drift-brick-terra-acorn/src/lib/videos/persist.ts:94:14)
+      at file:///E:/codex/drift-brick-terra-acorn/src/lib/videos/persist.ts:1433:18
+      at new Promise (<anonymous>)
+      at Module.saveActivitySnapshot (file:///E:/codex/drift-brick-terra-acorn/src/lib/videos/persist.ts:1432:11)
+      at runNextTicks (node:internal/process/task_queues:65:5)
+      at process.processImmediate (node:internal/timers:541:9)
+      at async TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/activity-persistence.test.mjs:39:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'activity', 'remote-cache' ],
+    expected: 'activity',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\saved-edit-persistence.test.mjs:12:1
+✖ tiny saved edits survive failures, acknowledge only committed values and compact behind complete snapshots (14180.8938ms)
+  AssertionError [ERR_ASSERTION]: Persistence did not settle
+      at wait (file:///E:/codex/drift-brick-terra-acorn/scripts/saved-edit-persistence.test.mjs:52:12)
+      at async TestContext.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/scripts/saved-edit-persistence.test.mjs:71:5)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

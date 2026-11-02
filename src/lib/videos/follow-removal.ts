@@ -1,3 +1,4 @@
+import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
 import type { FollowedChannel, HistoryEntry, LibraryVideo, ProgressMark } from "./types";
 
 export type FollowRemovalState = {

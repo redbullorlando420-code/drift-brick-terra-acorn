@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "checks": [
+    "Same-profile native events translated once",
+    "Other profiles do not receive personal changes",
+    "Default personal events filtered in new profiles",
+    "Auth transport remains global",
+    "Selection changes cannot redirect an existing document"
+  ],
+  "errors": [],
+  "limitation": "Unintegrated adapter in four disposable tabs; existing application sources were not migrated."
+}
