@@ -43,7 +43,8 @@ export function resetRecommendationExposure(){ledger=clearExposure(getRecommenda
 export function importRecommendationExposure(raw:unknown){if(!isExposureLedger(raw))return;ledger={...normalizeExposure(raw),updatedAt:Math.max(Date.now(),getRecommendationExposure().updatedAt+1)};pending.clear();revision++;queue();flushRecommendationExposure();refreshExposureRecommendations();notify();}
 export function refreshExposureRecommendations(){if(typeof window!=='undefined')window.dispatchEvent(new Event('reelcase:rating-change'));}
 if(typeof window!=='undefined'){
+ const receive=(event:StorageEvent)=>{if(event.key!=='reelcase.recommendation-exposure.v1'||!event.newValue)return;try{const raw=JSON.parse(event.newValue);if(!isExposureLedger(raw))return;const current=read(),next=newestExposure(current,raw);if(next.updatedAt<=current.updatedAt)return;ledger=next;for(const [key,at]of pending)if(at<=next.updatedAt)pending.delete(key);dirty=pending.size>0;if(!dirty){if(timer!==undefined)clearTimeout(timer);timer=undefined;cancelWork?.();cancelWork=undefined;}revision++;notify();}catch{}};window.addEventListener('storage',receive);
  const hide=()=>{if(document.visibilityState==='hidden')flushRecommendationExposure();};
  window.addEventListener('pagehide',flushRecommendationExposure);document.addEventListener('visibilitychange',hide);
- import.meta.hot?.dispose(()=>{flushRecommendationExposure();window.removeEventListener('pagehide',flushRecommendationExposure);document.removeEventListener('visibilitychange',hide);});
+ import.meta.hot?.dispose(()=>{flushRecommendationExposure();window.removeEventListener('storage',receive);window.removeEventListener('pagehide',flushRecommendationExposure);document.removeEventListener('visibilitychange',hide);});
 }

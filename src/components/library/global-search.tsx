@@ -14,6 +14,8 @@ import { useSessionPhase } from '@/lib/use-session-phase';
 import { searchResultSource } from '@/lib/library-navigation';
 import * as Popover from '@radix-ui/react-popover';
 import { queueSearchDraft, searchEditorShortcut } from '@/lib/search-editor';
+import { structuredSearch } from '@/lib/videos/structured-search';
+import { SearchWorkspaceButton } from './search-workspaces';
 
 const EMPTY_VIDEOS: LibraryVideo[] = [];
 const EMPTY_TAGS: Record<string, string[]> = {};
@@ -134,7 +136,8 @@ export const GlobalSearch = memo(function GlobalSearch() {
     void (async () => {
       await turn();
       // Suggestions never build another index; the Search desk owns it.
-      const matches = indexStatus === 'ready' ? await searchWorkerIndex.searchMatches(needle, controller.signal) : null;
+      const matches = await structuredSearch(videos, tags, categories, needle, controller.signal, !onAdultDesk,
+        (text, signal, reviewed) => indexStatus === 'ready' ? searchWorkerIndex.searchMatches(text, signal, reviewed) : Promise.resolve(null));
       const ids = matches?.videos === videos ? matches.ids : null;
       controller.signal.throwIfAborted();
       const result = await collectSearchSuggestions({ videos, folders, tags, categories, hidden, unavailable,
@@ -215,6 +218,7 @@ export const GlobalSearch = memo(function GlobalSearch() {
     </section>}
       </Popover.Content></Popover.Portal>
     </Popover.Root>
+    <SearchWorkspaceButton/>
     {query && !expanded && <Button variant="ghost" size="icon" className="size-11 shrink-0" aria-label="Clear search" onClick={clearQuery}><X className="size-4" /></Button>}
   </div>;
 });

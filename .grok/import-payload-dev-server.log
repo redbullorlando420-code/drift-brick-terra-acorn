@@ -3394,3 +3394,524 @@ If you intentionally handle CSRF another way, disable this warning:
 5:30:51 PM [vite] (ssr) page reload src/lib/videos/adult-archive-cursors.ts
 5:30:51 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/adult-archive-progress.tsx
 5:32:42 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/adult-archive-progress.tsx
+10:11:30 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 68 more
+10:11:30 PM [vite] (ssr) page reload src/lib/videos/adult-archive-cursors.ts
+10:11:30 PM [vite] (ssr) program reload
+10:15:13 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 80 more
+10:15:13 PM [vite] (ssr) page reload src/lib/videos/restore-snapshot.ts
+10:15:13 PM [vite] (ssr) program reload
+10:26:08 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 68 more
+10:26:08 PM [vite] (ssr) page reload src/lib/videos/store.ts
+10:26:08 PM [vite] (ssr) program reload
+10:27:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 68 more
+10:27:11 PM [vite] (ssr) page reload src/lib/videos/store.ts
+10:27:11 PM [vite] (ssr) program reload
+10:27:12 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:27:12 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+10:27:12 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:27:12 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+10:29:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 80 more
+10:29:43 PM [vite] (ssr) page reload src/lib/writer-lease.ts
+10:29:43 PM [vite] (ssr) program reload
+10:30:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+10:30:18 PM [vite] (client) hmr update /src/styles.css?direct
+10:31:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/adult-archive-progress.tsx
+10:33:30 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 80 more
+10:33:30 PM [vite] (ssr) page reload src/lib/writer-lease.ts
+10:33:30 PM [vite] (ssr) program reload
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+10:35:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 80 more
+10:35:11 PM [vite] (ssr) page reload src/lib/writer-lease.ts
+10:35:11 PM [vite] (ssr) program reload
+10:35:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 68 more
+10:35:11 PM [vite] (ssr) page reload src/lib/videos/store.ts
+10:35:12 PM [vite] (client) hmr invalidate /src/components/library/youtube-format-controls.tsx Could not Fast Refresh ("useYoutubeFormats" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:35:12 PM [vite] (client) hmr update /src/components/library/library-app.tsx
+10:35:12 PM [vite] (client) hmr invalidate /src/components/library/viewer-dialog.tsx Could not Fast Refresh ("useViewerInitialFocus" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:35:12 PM [vite] (client) hmr update /src/components/library/video-overlays.tsx, /src/components/library/pre-video.tsx, /src/components/library/player.tsx
+10:35:12 PM [vite] (client) hmr invalidate /src/components/library/adult-comments.tsx Could not Fast Refresh ("supportsRemoteComments" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:35:12 PM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/watch-room-section.tsx, /src/components/library/player.tsx, /src/components/library/adult-image-lightbox.tsx
+10:35:12 PM [vite] (client) hmr invalidate /src/components/library/provider-recovery.tsx Could not Fast Refresh ("rememberOfficialViewing" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+10:35:12 PM [vite] (client) hmr update /src/components/library/pre-video.tsx, /src/components/library/official-room-player.tsx, /src/components/library/adult-panel.tsx, /src/components/library/player.tsx
+9:54:21 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/twitch-archive-creators.tsx, /src/components/library/twitch-clips-control.tsx, /src/components/library/video-overlays.tsx, /src/components/library/live-check-status.tsx, /src/components/library/connect-panel.tsx, /src/components/library/follow-manager.tsx, /src/components/library/live-desk.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx and 71 more
+9:54:21 AM [vite] (ssr) page reload src/lib/pull-settings.ts
+9:54:21 AM [vite] (ssr) program reload
+9:54:21 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/live-catalog.tsx, /src/components/library/discovery-desk.tsx, /src/components/library/live-check-status.tsx, /src/components/library/header-clock.tsx, /src/components/library/live-desk.tsx, /src/components/library/pre-video.tsx, /src/components/library/photos-section.tsx, /src/components/library/performance-scorecard.tsx, /src/components/library/watch-room-section.tsx and 2 more
+9:54:21 AM [vite] (ssr) page reload src/lib/periodic-scheduler.ts
+9:54:21 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/twitch-archive-creators.tsx, /src/components/library/twitch-clips-control.tsx, /src/components/library/video-overlays.tsx, /src/components/library/live-check-status.tsx, /src/components/library/connect-panel.tsx, /src/components/library/follow-manager.tsx, /src/components/library/live-desk.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx and 71 more
+9:54:21 AM [vite] (ssr) page reload src/lib/pull-control.ts
+9:54:21 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/connect-panel.tsx, /src/components/library/follow-manager.tsx, /src/components/library/live-desk.tsx, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx and 69 more
+9:54:21 AM [vite] (ssr) page reload src/lib/remote/functions.ts
+9:55:18 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:55:18 AM [vite] (ssr) page reload src/lib/videos/adult-discovery-plan.ts
+9:55:18 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 80 more
+9:55:18 AM [vite] (ssr) page reload src/lib/videos/adult-archive-model.ts
+9:55:18 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 80 more
+9:55:18 AM [vite] (ssr) page reload src/lib/videos/adult-archive-transaction.ts
+9:55:18 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:55:18 AM [vite] (ssr) page reload src/components/library/use-adult-pulls.ts
+9:55:18 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:55:18 AM [vite] (ssr) page reload src/components/library/library-app.tsx
+9:55:42 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/adult-archive-progress.tsx
+9:55:42 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pull-settings-panel.tsx
+9:56:12 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 68 more
+9:56:12 AM [vite] (ssr) page reload src/lib/videos/store.ts
+9:56:12 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/adult-archive-progress.tsx
+9:56:58 AM [vite] (client) hmr update /src/styles.css?direct
+9:58:15 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+9:58:15 AM [vite] (ssr) page reload src/lib/videos/adult-discovery-plan.ts
+9:59:38 AM [vite] (client) hmr update /src/styles.css?direct
+10:02:01 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/archive-work-window-panel.tsx
+10:02:01 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 68 more
+10:02:01 AM [vite] (ssr) page reload src/lib/videos/store.ts
+10:02:01 AM [vite] (ssr) program reload
+10:02:04 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/twitch-archive-creators.tsx, /src/components/library/twitch-clips-control.tsx, /src/components/library/video-overlays.tsx, /src/components/library/live-check-status.tsx, /src/components/library/connect-panel.tsx, /src/components/library/follow-manager.tsx, /src/components/library/live-desk.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx and 72 more
+10:02:04 AM [vite] (ssr) page reload src/lib/archive-work-window.ts
+10:02:04 AM [vite] (client) hmr update /src/styles.css?direct
+10:02:04 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 80 more
+10:02:04 AM [vite] (ssr) page reload src/lib/videos/archive-yield.ts
+10:02:04 AM [vite] (client) hmr update /src/styles.css?direct
+10:02:04 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+10:02:04 AM [vite] (ssr) page reload src/lib/videos/adult-discovery-plan.ts
+10:02:04 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/archive-work-window-panel.tsx
+10:02:58 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 80 more
+10:02:58 AM [vite] (ssr) page reload src/lib/videos/archive-yield.ts
+10:02:58 AM [vite] (ssr) program reload
+10:02:58 AM [vite] (client) hmr update /src/styles.css?direct
+10:03:41 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+10:03:44 AM [vite] (client) hmr update /src/styles.css?direct
+10:05:16 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/archive-work-window-panel.tsx
+10:05:16 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+10:05:16 AM [vite] (ssr) page reload src/components/library/library-app.tsx
+10:05:16 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pull-settings-panel.tsx
+10:05:16 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/pull-dispatch-panel.tsx
+10:06:02 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/twitch-archive-creators.tsx, /src/components/library/twitch-clips-control.tsx, /src/components/library/video-overlays.tsx, /src/components/library/live-check-status.tsx, /src/components/library/connect-panel.tsx, /src/components/library/follow-manager.tsx, /src/components/library/live-desk.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx and 72 more
+10:06:02 AM [vite] (ssr) page reload src/lib/archive-work-window.ts
+10:06:02 AM [vite] (client) hmr update /src/styles.css?direct
+10:06:04 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/twitch-archive-creators.tsx, /src/components/library/twitch-clips-control.tsx, /src/components/library/video-overlays.tsx, /src/components/library/live-check-status.tsx, /src/components/library/connect-panel.tsx, /src/components/library/follow-manager.tsx, /src/components/library/live-desk.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx and 72 more
+10:06:04 AM [vite] (ssr) page reload src/lib/archive-work-window.ts
+10:06:04 AM [vite] (client) hmr update /src/styles.css?direct
+10:06:04 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/archive-work-window-panel.tsx
+10:06:04 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 80 more
+10:06:04 AM [vite] (ssr) page reload src/lib/videos/archive-yield.ts
+10:06:56 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/adult-archive-progress.tsx
+10:06:56 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 68 more
+10:06:56 AM [vite] (ssr) page reload src/lib/videos/store.ts
+10:06:56 AM [vite] (ssr) program reload
+10:07:27 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 80 more
+10:07:27 AM [vite] (ssr) page reload src/lib/videos/archive-yield.ts
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+AbortError: This operation was aborted
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    ... 8 lines matching cause stack trace ...
+    at TCP.<anonymous> (node:net:362:12) {
+  cause: DOMException [AbortError]: This operation was aborted
+      at new DOMException (node:internal/per_context/domexception:76:18)
+      at AbortController.abort (node:internal/abort_controller:579:18)
+      at abort (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:316:51)
+      at ServerResponse.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:320:35)
+      at ServerResponse.wrapper (node:events:639:12)
+      at ServerResponse.emit (node:events:514:28)
+      at emitCloseNT (node:_http_server:1156:10)
+      at Socket.onServerResponseClose (node:_http_server:292:5)
+      at Socket.emit (node:events:526:24)
+      at TCP.<anonymous> (node:net:362:12),
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}
+10:13:44 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 80 more
+10:13:44 AM [vite] (ssr) page reload src/lib/videos/adult-archive-model.ts
+10:13:44 AM [vite] (ssr) program reload
+10:13:44 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/follow-manager.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/library-pack-transfer.tsx, /src/components/library/video-card.tsx, /src/components/library/pre-video.tsx, /src/components/library/video-grid.tsx and 80 more
+10:13:44 AM [vite] (ssr) page reload src/lib/videos/adult-archive-transaction.ts
+10:13:44 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/sidebar.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/film-review.tsx, /src/components/library/pre-video.tsx, /src/components/library/topic-links.tsx and 68 more
+10:13:44 AM [vite] (ssr) page reload src/lib/videos/store.ts
+10:13:44 AM [vite] (client) hmr update /src/styles.css?direct
+11:40:47 AM [vite] (client) hmr update /src/styles.css?direct
+11:44:59 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/global-search.tsx
+11:44:59 AM [vite] (ssr) page reload src/components/library/global-search.tsx
+11:44:59 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+11:44:59 AM [vite] (ssr) page reload src/lib/videos/search-ranking.ts
+11:44:59 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+11:44:59 AM [vite] (ssr) page reload src/components/library/library-app.tsx
+11:45:59 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+11:45:59 AM [vite] (ssr) page reload src/lib/videos/search-index.ts
+11:54:15 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/global-search.tsx, /src/components/library/search-workspaces.tsx
+11:54:15 AM [vite] (ssr) page reload src/lib/videos/search-query.ts
+11:54:15 AM [vite] (ssr) program reload
+11:54:15 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/global-search.tsx
+11:54:15 AM [vite] (ssr) page reload src/lib/videos/structured-search.ts
+11:54:15 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-workspaces.tsx
+11:54:15 AM [vite] (ssr) page reload src/lib/search-workspaces.ts
+11:54:15 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-workspaces.tsx
+11:54:15 AM [vite] (ssr) page reload src/components/library/search-workspaces.tsx
+11:54:15 AM [vite] (client) hmr update /src/styles.css?direct
+11:54:15 AM [vite] (client) hmr update /src/styles.css?direct
+11:55:46 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-workspaces.tsx
+11:55:46 AM [vite] (ssr) page reload src/components/library/search-workspaces.tsx
+11:55:46 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+11:55:46 AM [vite] (ssr) page reload src/lib/videos/search-ranking.ts
+11:55:46 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/global-search.tsx
+11:55:46 AM [vite] (ssr) page reload src/lib/videos/search-suggestions.ts
+11:55:46 AM [vite] (client) hmr update /src/styles.css?direct
+11:55:46 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+11:55:48 AM [vite] (client) hmr update /src/styles.css?direct
+11:56:23 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/global-search.tsx, /src/components/library/search-workspaces.tsx
+11:56:23 AM [vite] (ssr) page reload src/lib/videos/search-query.ts
+11:56:23 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/global-search.tsx
+11:56:23 AM [vite] (ssr) page reload src/lib/videos/structured-search.ts
+11:56:23 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-workspaces.tsx
+11:56:23 AM [vite] (ssr) page reload src/components/library/search-workspaces.tsx
+11:56:23 AM [vite] (client) hmr update /src/styles.css?direct
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+12:03:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-workspaces.tsx
+12:03:01 PM [vite] (ssr) page reload src/lib/search-workspaces.ts
+12:03:01 PM [vite] (ssr) program reload
+12:03:01 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-workspaces.tsx
+12:03:01 PM [vite] (ssr) page reload src/components/library/search-workspaces.tsx
+12:03:01 PM [vite] (client) hmr update /src/styles.css?direct
+1:16:26 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/global-search.tsx
+1:16:26 PM [vite] (ssr) page reload src/lib/videos/search-index.ts
+1:16:26 PM [vite] (ssr) program reload
+1:16:26 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+1:16:26 PM [vite] (ssr) page reload src/lib/videos/search-ranking.ts
+1:16:26 PM [vite] (client) page reload src/lib/videos/search.worker.ts
+1:16:26 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/global-search.tsx
+1:16:26 PM [vite] (ssr) page reload src/lib/videos/search-suggestions.ts
+1:16:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/global-search.tsx
+1:16:29 PM [vite] (ssr) page reload src/lib/videos/structured-search.ts
+1:17:15 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+1:17:15 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+1:25:03 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-spelling.tsx
+1:25:03 PM [vite] (ssr) page reload src/lib/videos/search-spelling.ts
+1:25:03 PM [vite] (ssr) program reload
+1:25:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-spelling.tsx
+1:25:04 PM [vite] (ssr) page reload src/components/library/search-spelling.tsx
+1:25:04 PM [vite] (client) hmr update /src/styles.css?direct
+1:25:51 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+1:25:53 PM [vite] (client) hmr update /src/styles.css?direct
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+1:44:06 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/invite.tsx, /src/components/library/library-app.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/live-catalog.tsx, /src/components/library/live-desk.tsx, /src/components/library/browse.tsx, /src/components/library/video-card.tsx, /src/components/library/video-grid.tsx, /src/components/library/youtube-cleanup-status.tsx, /src/components/library/youtube-deep-discovery.tsx, /src/components/library/provider-recent-section.tsx and 70 more
+1:44:06 PM [vite] (ssr) page reload src/lib/videos/types.ts
+1:44:06 PM [vite] (ssr) program reload
+1:44:06 PM [vite] (client) page reload src/lib/videos/youtube-metadata.ts
+1:44:06 PM [vite] (ssr) page reload src/lib/videos/youtube-metadata.ts
+1:44:06 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/global-search.tsx, /src/components/library/search-spelling.tsx
+1:44:06 PM [vite] (ssr) page reload src/lib/videos/search-constraints.ts
+1:44:08 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/global-search.tsx, /src/components/library/search-workspaces.tsx, /src/components/library/search-spelling.tsx
+1:44:08 PM [vite] (ssr) page reload src/lib/videos/search-query.ts
+1:44:51 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+1:44:51 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+1:44:51 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-video-search.tsx
+1:44:53 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-workspaces.tsx
+1:44:53 PM [vite] (ssr) page reload src/components/library/search-workspaces.tsx
+1:45:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-workspaces.tsx
+1:45:25 PM [vite] (ssr) page reload src/components/library/search-workspaces.tsx
+1:45:28 PM [vite] (client) page reload src/lib/videos/youtube-metadata.ts
+1:45:28 PM [vite] (ssr) page reload src/lib/videos/youtube-metadata.ts
+1:46:34 PM [vite] (client) page reload src/lib/videos/youtube-metadata.ts
+1:46:34 PM [vite] (ssr) page reload src/lib/videos/youtube-metadata.ts
+1:46:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+1:46:34 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+1:46:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-video-search.tsx
+1:48:09 PM [vite] (client) hmr update /src/styles.css?direct
+1:48:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-video-search.tsx
+1:48:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/global-search.tsx, /src/components/library/search-workspaces.tsx, /src/components/library/search-spelling.tsx
+1:48:11 PM [vite] (ssr) page reload src/lib/videos/search-query.ts
+1:48:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-workspaces.tsx
+1:48:11 PM [vite] (ssr) page reload src/components/library/search-workspaces.tsx
+1:52:09 PM [vite] (client) page reload src/lib/videos/search-dates.ts
+1:52:09 PM [vite] (ssr) page reload src/lib/videos/search-dates.ts
+1:52:09 PM [vite] (ssr) program reload
+1:52:09 PM [vite] (client) page reload src/lib/videos/youtube-metadata.ts
+1:52:09 PM [vite] (ssr) page reload src/lib/videos/youtube-metadata.ts
+1:52:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/video-card.tsx
+1:52:09 PM [vite] (ssr) page reload src/components/library/video-card.tsx
+1:52:09 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-count-status.tsx
+1:52:09 PM [vite] (ssr) page reload src/lib/videos/search-count-evidence.ts
+1:52:25 PM [vite] (client) page reload src/lib/videos/search-dates.ts
+1:52:25 PM [vite] (ssr) page reload src/lib/videos/search-dates.ts
+1:52:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-count-status.tsx
+1:52:25 PM [vite] (ssr) page reload src/lib/videos/search-count-evidence.ts
+1:52:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/search-count-status.tsx
+1:52:25 PM [vite] (ssr) page reload src/components/library/search-count-status.tsx
+1:52:52 PM [vite] (client) page reload src/lib/videos/youtube-metadata.ts
+1:52:52 PM [vite] (ssr) page reload src/lib/videos/youtube-metadata.ts
+1:52:52 PM [vite] (client) page reload src/lib/videos/search-dates.ts
+1:52:52 PM [vite] (ssr) page reload src/lib/videos/search-dates.ts
+1:52:53 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+1:52:56 PM [vite] (client) hmr update /src/styles.css?direct
+1:53:41 PM [vite] (client) hmr update /src/styles.css?direct
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+1:55:52 PM [vite] (client) hmr update /src/styles.css?direct
+1:57:43 PM [vite] (client) page reload src/lib/videos/search-dates.ts
+1:57:43 PM [vite] (ssr) page reload src/lib/videos/search-dates.ts
+1:57:43 PM [vite] (ssr) program reload
+1:57:43 PM [vite] (client) hmr update /src/styles.css?direct
+1:59:13 PM [vite] (client) page reload src/lib/videos/youtube-metadata.ts
+1:59:13 PM [vite] (ssr) page reload src/lib/videos/youtube-metadata.ts
+1:59:13 PM [vite] (client) hmr update /src/styles.css?direct
+2:03:31 PM [vite] (client) page reload src/lib/videos/youtube-metadata.ts
+2:03:31 PM [vite] (ssr) page reload src/lib/videos/youtube-metadata.ts
+2:03:31 PM [vite] (ssr) program reload
+2:03:31 PM [vite] (client) page reload src/lib/videos/search-dates.ts
+2:03:31 PM [vite] (ssr) page reload src/lib/videos/search-dates.ts
+3:16:37 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/top-bar.tsx
+3:16:37 PM [vite] (ssr) page reload src/components/library/top-bar.tsx
+3:16:37 PM [vite] (ssr) program reload
+3:16:37 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:16:37 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+3:17:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/virtual-video-grid.tsx
+3:17:25 PM [vite] (ssr) page reload src/lib/grid-admission.ts
+3:17:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/virtual-video-grid.tsx
+3:17:25 PM [vite] (ssr) page reload src/components/library/use-grid-admission.ts
+3:17:25 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/virtual-video-grid.tsx
+3:17:25 PM [vite] (ssr) page reload src/components/library/virtual-video-grid.tsx
+3:18:38 PM [vite] (client) hmr update /src/styles.css?direct
+3:21:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:21:33 PM [vite] (ssr) page reload src/components/library/use-browse-tasks.ts
+3:21:33 PM [vite] (ssr) program reload
+3:23:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse-task-controls.tsx
+3:23:45 PM [vite] (ssr) page reload src/lib/browse-tasks.ts
+3:23:45 PM [vite] (ssr) program reload
+3:23:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/virtual-video-grid.tsx
+3:23:45 PM [vite] (ssr) page reload src/components/library/virtual-video-grid.tsx
+3:23:45 PM [vite] (client) hmr update /src/styles.css?direct
+3:24:20 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/browse-task-controls.tsx
+3:24:20 PM [vite] (ssr) page reload src/components/library/browse-task-controls.tsx
+3:25:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse-task-controls.tsx, /src/components/library/virtual-video-grid.tsx
+3:25:11 PM [vite] (ssr) page reload src/lib/browse-tasks.ts
+3:25:11 PM [vite] (ssr) program reload
+3:25:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/browse-task-controls.tsx
+3:25:11 PM [vite] (ssr) page reload src/components/library/browse-task-controls.tsx
+3:25:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:25:11 PM [vite] (ssr) page reload src/components/library/use-browse-tasks.ts
+3:26:29 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/virtual-video-grid.tsx
+3:26:29 PM [vite] (ssr) page reload src/components/library/virtual-video-grid.tsx
+3:26:29 PM [vite] (ssr) program reload
+3:28:49 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/browse-task-controls.tsx
+3:28:49 PM [vite] (ssr) page reload src/components/library/browse-task-controls.tsx
+3:28:49 PM [vite] (ssr) program reload
+3:31:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/browse-task-controls.tsx
+3:31:00 PM [vite] (ssr) page reload src/components/library/browse-task-controls.tsx
+3:31:00 PM [vite] (ssr) program reload
+3:31:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse-task-controls.tsx, /src/components/library/virtual-video-grid.tsx
+3:31:11 PM [vite] (ssr) page reload src/lib/browse-tasks.ts
+3:31:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx, /src/components/library/browse-task-controls.tsx, /src/components/library/virtual-video-grid.tsx
+3:31:11 PM [vite] (ssr) page reload src/lib/browse-task-session.ts
+3:31:11 PM [vite] (client) hmr update /src/styles.css?direct
+3:31:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/browse-task-controls.tsx
+3:31:11 PM [vite] (ssr) page reload src/components/library/browse-task-controls.tsx
+3:31:11 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:31:11 PM [vite] (ssr) page reload src/components/library/use-browse-tasks.ts
+3:32:45 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:32:45 PM [vite] (ssr) page reload src/components/library/use-browse-tasks.ts
+3:32:45 PM [vite] (ssr) program reload
+3:33:36 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+3:34:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/browse-task-controls.tsx
+3:34:24 PM [vite] (ssr) page reload src/components/library/browse-task-controls.tsx
+3:34:24 PM [vite] (ssr) program reload
+3:34:24 PM [vite] (client) hmr update /src/styles.css?direct
+3:36:59 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:36:59 PM [vite] (ssr) page reload src/components/library/use-browse-tasks.ts
+3:36:59 PM [vite] (ssr) program reload
+3:36:59 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/virtual-video-grid.tsx
+3:36:59 PM [vite] (ssr) page reload src/components/library/virtual-video-grid.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+3:41:59 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/virtual-video-grid.tsx
+3:41:59 PM [vite] (ssr) page reload src/components/library/virtual-video-grid.tsx
+3:41:59 PM [vite] (ssr) program reload
+3:44:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:44:05 PM [vite] (ssr) page reload src/components/library/use-browse-tasks.ts
+3:44:05 PM [vite] (ssr) program reload
+3:45:39 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:45:39 PM [vite] (ssr) page reload src/components/library/use-browse-tasks.ts
+3:45:39 PM [vite] (ssr) program reload
+3:45:39 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:45:39 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+3:47:23 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:47:23 PM [vite] (ssr) page reload src/components/library/use-browse-tasks.ts
+3:47:23 PM [vite] (ssr) program reload
+3:48:33 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:48:33 PM [vite] (ssr) page reload src/components/library/use-browse-tasks.ts
+3:48:33 PM [vite] (ssr) program reload
+3:48:33 PM [vite] (client) hmr update /src/styles.css?direct
+3:48:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/browse-task-controls.tsx
+3:48:34 PM [vite] (ssr) page reload src/components/library/browse-task-controls.tsx
+3:48:34 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+3:48:34 PM [vite] (ssr) page reload src/components/library/use-browse-tasks.ts
+3:50:55 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/virtual-video-grid.tsx
+3:50:55 PM [vite] (ssr) page reload src/components/library/virtual-video-grid.tsx
+3:50:55 PM [vite] (ssr) program reload
+3:56:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/top-bar.tsx
+3:56:04 PM [vite] (ssr) page reload src/components/library/top-bar.tsx
+3:56:04 PM [vite] (ssr) program reload
+4:44:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/guide-experiment.tsx, /src/components/library/ai-guide.tsx
+4:49:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/ai-guide.tsx
+4:49:31 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+4:49:31 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+4:49:31 PM [vite] (ssr) program reload
+4:49:31 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/guide-experiment.tsx, /src/components/library/ai-guide.tsx
+4:53:36 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/desk-taste-control.tsx
+4:53:36 PM [vite] (ssr) page reload src/components/library/desk-taste-control.tsx
+4:53:36 PM [vite] (ssr) program reload
+4:55:47 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/desk-taste-control.tsx
+4:55:47 PM [vite] (ssr) page reload src/components/library/desk-taste-control.tsx
+4:55:47 PM [vite] (ssr) program reload
+4:55:47 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/desk-taste-control.tsx
+4:55:47 PM [vite] (ssr) page reload src/lib/desk-taste-store.ts
+4:55:47 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/desk-taste-control.tsx
+4:55:47 PM [vite] (ssr) page reload src/lib/videos/desk-taste.ts
+4:55:47 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/desk-taste-control.tsx
+4:55:47 PM [vite] (ssr) page reload src/lib/videos/desk-taste-preview.ts
+4:55:47 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/guide-experiment.tsx, /src/components/library/ai-guide.tsx, /src/components/library/desk-taste-control.tsx
+4:55:47 PM [vite] (ssr) page reload src/lib/videos/recommendation-novelty.ts
+4:55:47 PM [vite] (client) hmr update /src/styles.css?direct
+4:56:31 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/desk-taste-control.tsx
+4:56:31 PM [vite] (ssr) page reload src/components/library/desk-taste-control.tsx
+4:59:27 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })

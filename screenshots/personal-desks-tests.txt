@@ -1,0 +1,16 @@
+✔ layout save, desk-only reset and undo round-trip without changing other desks (1.2788ms)
+✔ future layout schemas, unknown options and invalid values reject writes (0.3174ms)
+✔ storage conflict, quota and unsupported formats retain exact prior bytes and active snapshot (0.8674ms)
+✔ layout and watchlist storage use the existing isolated profile adapter (0.3317ms)
+✔ explicit DST offsets distinguish repeated local hours; display zones never change the instant (13.5564ms)
+✔ expected, postponed, acknowledged and actually observed episode states stay distinct (0.2918ms)
+✔ watchlist edits preserve identity and reject duplicate slots, invalid zones and excess rows (0.6962ms)
+✔ chart tables borrow exactly the plotted snapshot, expose percentage units and exclude unplotted data (0.7513ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 164.7561

@@ -70,7 +70,7 @@ try{
  await frame(host).evaluate(()=>window.setState(1));await phone.waitForTimeout(1800);assert.ok(Math.abs(await position(phone)-await position(host))<1.5,'host buffering resumes without manual room pause/play');
  checks.push('normal playback avoids seek storms, substantial decoder drift is corrected, and buffering freezes the shared clock and resumes the guest automatically');
  await phone.evaluate(()=>{document.dispatchEvent(new Event('visibilitychange'));});await phone.waitForTimeout(1300);assert.ok(Math.abs(await position(phone)-await position(host))<1.5);assert.equal(await phone.evaluate(()=>window.packets.filter(packet=>packet.type==='sync-request').length),before);
- await phone.getByRole('button',{name:'Start on this device',exact:true}).scrollIntoViewIfNeeded();await phone.screenshot({path:output.replace(/\.json$/,'-mobile.png')});await host.screenshot({path:output.replace(/\.json$/,'-desktop.png')});
+ await phone.locator('[data-guest-arrival="playing"]').scrollIntoViewIfNeeded();await phone.screenshot({path:output.replace(/\.json$/,'-mobile.png')});await host.screenshot({path:output.replace(/\.json$/,'-desktop.png')});
  checks.push('returning to the phone page requests fresh clock and host state without altering shared playback');
  for(let i=0;i<2;i++){await host.getByRole('button',{name:'Pause',exact:true}).first().click();await phone.getByRole('heading',{name:'Paused together',exact:true}).waitFor();await phone.waitForTimeout(900);await host.getByRole('heading',{name:'Paused together',exact:true}).waitFor();await host.getByRole('button',{name:'Play',exact:true}).first().click();await phone.getByRole('heading',{name:'Playing together',exact:true}).waitFor();await phone.waitForTimeout(900);}
  checks.push('shared pause/resume remains stable while provider telemetry is arriving, and stale player notifications do not undo the room control');
@@ -102,7 +102,7 @@ try{
    assert.equal(await phone.evaluate(()=>window.packets.filter(packet=>packet.type==='sync-request').length),liveRequests);
   }
   checks.push('YouTube live links and watch URLs detected by host telemetry survive independent viewer clocks, three host buffering cycles, guest buffering, explicit resync and player reload without repeated play/pause/seek; deliberate room pause/resume still works once per action');
-  await phone.getByRole('button',{name:'Start on this device',exact:true}).scrollIntoViewIfNeeded();await phone.screenshot({path:output.replace(/\.json$/,'-live-mobile.png')});await host.screenshot({path:output.replace(/\.json$/,'-live-desktop.png')});
+  await phone.locator('[data-guest-arrival="playing"]').scrollIntoViewIfNeeded();await phone.screenshot({path:output.replace(/\.json$/,'-live-mobile.png')});await host.screenshot({path:output.replace(/\.json$/,'-live-desktop.png')});
   await add(host,'https://youtu.be/normalVod01');await panel(host).getByRole('button',{name:'Play next',exact:true}).click();await phone.getByText(/Your browser blocked autoplay/).waitFor();await frame(host).evaluate(()=>window.setTime(70));await frame(phone).getByRole('button',{name:'Play video on phone',exact:true}).click();await phone.waitForTimeout(2200);
   assert.ok(Math.abs(await position(phone)-await position(host))<1.5,'VOD following a live stream regains ordinary clock synchronization');assert.equal(await phone.getByRole('button',{name:'−15 sec',exact:true}).isDisabled(),false);
   checks.push('live detection is scoped to its title: switching back to a YouTube VOD restores seek controls and guest clock alignment');

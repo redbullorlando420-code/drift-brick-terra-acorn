@@ -1,5 +1,7 @@
 import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+import {DEFAULT_ARCHIVE_WINDOW,normalizeArchiveWindow,type ArchiveWorkWindow} from './archive-work-window.ts';
 export type PullSettings = {
+  archiveWorkWindow: Readonly<ArchiveWorkWindow>;
   requestGapMs: number;
   youtubeRequestGapMs: number;
   concurrentRequests: number;
@@ -28,6 +30,7 @@ export type PullSettings = {
   otherMaxEntries: number;
 };
 export const DEFAULT_PULL_SETTINGS: Readonly<PullSettings> = Object.freeze({
+  archiveWorkWindow: DEFAULT_ARCHIVE_WINDOW,
   requestGapMs: 1500, youtubeRequestGapMs: 80, concurrentRequests: 1, youtubeBatchVideos: 100,
   youtubeSourcesPerSweep: 32, youtubeIntervalSeconds: 300, adultBatchVideos: 10_000,
   adultIntervalSeconds: 60, adultCatalogTarget: 250_000,
@@ -38,7 +41,7 @@ export const DEFAULT_PULL_SETTINGS: Readonly<PullSettings> = Object.freeze({
   twitchAutoCleanup: true, twitchCleanupBatch: 100, twitchCleanupMinAgeDays: 30,
   adultAutoCleanup: true, adultCleanupBatch: 100, adultCleanupMinAgeDays: 30,
 });
-const limits: Record<Exclude<keyof PullSettings, 'automaticPulls' | 'pauseWhileWatching' | 'sharedCapCleanup' | 'youtubeAutoCleanup' | 'twitchAutoCleanup' | 'adultAutoCleanup'>, [number, number]> = {
+const limits: Record<Exclude<keyof PullSettings, 'archiveWorkWindow' | 'automaticPulls' | 'pauseWhileWatching' | 'sharedCapCleanup' | 'youtubeAutoCleanup' | 'twitchAutoCleanup' | 'adultAutoCleanup'>, [number, number]> = {
   requestGapMs: [250, 60_000], youtubeRequestGapMs: [0, 60_000], concurrentRequests: [1, 3], youtubeBatchVideos: [30, 500],
   youtubeSourcesPerSweep: [1, 1024], youtubeIntervalSeconds: [60, 3600], adultBatchVideos: [20, 50_000],
   adultIntervalSeconds: [30, 3600], adultCatalogTarget: [1000, 1_000_000],
@@ -51,6 +54,7 @@ const limits: Record<Exclude<keyof PullSettings, 'automaticPulls' | 'pauseWhileW
 export function normalizePullSettings(raw: unknown): PullSettings {
   const input = raw && typeof raw === 'object' ? raw as Partial<PullSettings> : {};
   const next = { ...DEFAULT_PULL_SETTINGS };
+  next.archiveWorkWindow=normalizeArchiveWindow(input.archiveWorkWindow);
   for (const key of Object.keys(limits) as Array<keyof typeof limits>) {
     const value = Number(input[key]);
     if (input[key] !== undefined && Number.isFinite(value)) next[key] = Math.max(limits[key][0], Math.min(limits[key][1], Math.floor(value)));

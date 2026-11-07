@@ -232,6 +232,7 @@ export async function planLibraryRestore(
     ...oldFeedback,
     ...ratings,
     ...hearts,
+    manualTimeline: { version: 1, entries: [], updatedAt: now },
     recommendationRejections:
       files.get("marks/recommendation-rejections.json") ??
       ratings.recommendationRejections ??

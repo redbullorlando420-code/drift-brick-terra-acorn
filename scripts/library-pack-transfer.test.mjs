@@ -24,6 +24,12 @@ const { exportFeedback } = await import("../src/lib/media-feedback.ts");
 const { writePackStream, readPackStream, PACK_LIMITS } =
   await import("../src/lib/videos/pack-stream.ts");
 const { zipSync, strToU8 } = await import("fflate");
+test('legacy nested rejection ledgers become a reviewed canonical section; explicit sections win and future ledgers fail inspection',async()=>{
+ const ledger={version:1,updatedAt:10,entries:[{scope:'title',target:'youtube:abc',label:'A',at:10}]};
+ const raw={'old/marks/ratings.json':JSON.stringify({ratings:{},recommendationRejections:ledger})},prepared=await inspectLegacyFiles(raw,{}, {turn:async()=>{}});assert.equal(prepared.report.ok,true);assert.deepEqual(prepared.files.get('marks/recommendation-rejections.json'),ledger);
+ const explicit={version:1,updatedAt:20,entries:[]};const canonical=await inspectLegacyFiles({...raw,'old/marks/recommendation-rejections.json':JSON.stringify(explicit)}, {}, {turn:async()=>{}});assert.deepEqual(canonical.files.get('marks/recommendation-rejections.json'),explicit);
+ const future=await inspectLegacyFiles({'old/marks/ratings.json':JSON.stringify({ratings:{},recommendationRejections:{version:2,updatedAt:10,entries:[]}})}, {}, {turn:async()=>{}});assert.equal(future.report.ok,false);
+});
 const empty = () => ({
   follows: [],
   history: [],

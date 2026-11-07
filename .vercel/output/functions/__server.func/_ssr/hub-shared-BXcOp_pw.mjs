@@ -1,7 +1,7 @@
 import { t as cn } from "./utils-Cq6DDHIb.mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { c as profileLocalStorage } from "./local-profile-storage-YmNvgtyc.mjs";
-import { Bt as ExternalLink } from "../_libs/lucide-react.mjs";
+import { Vt as ExternalLink } from "../_libs/lucide-react.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/hub-shared-BXcOp_pw.js
 var import_jsx_runtime = require_jsx_runtime();
 function Card({ className, ...props }) {

@@ -12,7 +12,7 @@ function DispatchRows() {
       <p className="max-w-3xl text-xs leading-5 text-muted">
         Session only · last 64 transitions. These are app requests, including server work inside
         each request. Started does not mean a provider has replied. Live uses independent lanes;
-        page changes defer only automatic requests that have not started. Accepted results still
+        page changes and archive hours defer only automatic requests that have not started. Accepted results still
         drain through pause and visibility gates.
       </p>
       {!events.length ? (
@@ -36,7 +36,7 @@ function DispatchRows() {
                     : event.phase === "started"
                       ? "In flight"
                       : event.phase === "deferred"
-                        ? "Deferred to active page"
+                        ? "Deferred · active page or archive hours"
                         : event.phase}{" "}
                   · {new Date(event.at).toLocaleTimeString()}
                   {event.phase === "started"

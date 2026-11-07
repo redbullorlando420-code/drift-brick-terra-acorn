@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Daily overnight hours save explicitly; equal times and invalid zones preserve the saved schedule",
+        "Disabling a damaged draft restores unrestricted hours without requiring a valid timezone",
+        "Quota failure keeps prior disk settings and shows the session-only result; retry and reload retain the chosen timezone/hours",
+        "Actual browser transport holds automatic dispatch outside hours, allows manual/live requests and accepts an in-flight result after closure",
+        "Bounded source preview explains fair/productive slots; manual selected-sort pull works outside hours and updates a durable yield observation"
+      ],
+      "errors": [],
+      "requests": 1
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Daily overnight hours save explicitly; equal times and invalid zones preserve the saved schedule",
+        "Disabling a damaged draft restores unrestricted hours without requiring a valid timezone",
+        "Quota failure keeps prior disk settings and shows the session-only result; retry and reload retain the chosen timezone/hours",
+        "Actual browser transport holds automatic dispatch outside hours, allows manual/live requests and accepts an in-flight result after closure",
+        "Bounded source preview explains fair/productive slots; manual selected-sort pull works outside hours and updates a durable yield observation"
+      ],
+      "errors": [],
+      "requests": 1
+    }
+  ],
+  "limitations": "Disposable profiles and deterministic provider metadata; physical-device behavior and live provider yield remain unverified."
+}

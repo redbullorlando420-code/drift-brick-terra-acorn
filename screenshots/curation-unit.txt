@@ -1,0 +1,52 @@
+✔ parsed evidence remains a proposal; explicit remakes and sequels have separate opaque identities (3.415ms)
+✔ explicit identity and aliases survive filename variation without mutating source marks or tags (9.5559ms)
+✔ reviewed catalogs separate remakes, absolute lanes, regular episodes and specials (1.1785ms)
+✔ public review eligibility excludes private/hidden/unavailable/live/sample/orphan/unsupported records (2.2149ms)
+✔ episodes 1,2,4 show only the observed gap at 3 and keep duplicate versions in one slot (0.5899ms)
+✔ specials, unnumbered sources and wide absolute numbering do not invent gaps (0.5089ms)
+✔ entered ranges are bounded, reversible and never mix season with absolute numbers (0.5515ms)
+✔ completed episode 2 recommends 3 when present; missing 3 explains the explicit skip to 4 (0.7442ms)
+✔ incomplete progress resumes its exact version and completion of one cut never advances to an alternate cut (0.4207ms)
+✔ threshold and next numbering lane are saved choices; specials are opt-in tails and unresolved stays manual (0.959ms)
+✔ preferred versions require current availability, remain per-slot and can be undone durably (0.5663ms)
+✔ unavailable in-progress source asks for reconnection and never silently switches resume to another version (0.229ms)
+✔ alias edits and mapping removal are reversible and never merge series or erase progress (0.7684ms)
+✔ strict imports strip unknown private fields and reject bad keys, graphs, limits and unsupported versions (1.2408ms)
+✔ large library review preparation remains cooperative, bounded and cancelable before source reads (216.6487ms)
+ℹ 100,003 source rows prepared across 200 boundaries with 3 reviewed bindings
+✔ identity proposals remain unverified and remakes need distinct explicit reviewed identities (5.7528ms)
+✔ confirmation requires a real release year and a runtime strictly over ten minutes without mutating media or feedback (0.5847ms)
+✔ reviewed identity updates Movies membership, canonical title/year, genre and runtime without rewriting source records (13.6611ms)
+✔ explicit review cannot expose private, hidden, unavailable, live, sample, Twitch, adult or orphan records (1.6891ms)
+✔ public YouTube records do not need a local folder, while private provider folders and unknown local roots stay excluded (1.7262ms)
+✔ edition parsing requires explicit edition tokens; resolution alone cannot invent a new cut (0.494ms)
+✔ grouping is explicit, same-film only, bounded and retains per-version identity, edition and runtime (0.6961ms)
+✔ ungrouping restores individual representation while keeping review, source IDs and per-version progress (1.7933ms)
+✔ preferred selection requires available reviewed membership and never compares file size or moves resume marks (1.2119ms)
+✔ poster-only correction previews locks and cannot overwrite locked title, year or source category (0.5568ms)
+✔ invalid alternate metadata preserves the last confirmed film; unlocking one field never unlocks another (0.3803ms)
+✔ Undo is durable and monotonic across identities, grouping and metadata; old mirrors cannot resurrect corrections (0.4224ms)
+✔ validation strips extraneous fields, rejects broken graphs/versions/unsafe keys and never evicts at capacity (9.4268ms)
+✔ 100k catalog processing yields, bounds reviewed groups and never mutates underlying file metadata (267.6827ms)
+✔ movie imports validate the whole bounded file and reject future, duplicate, unsafe and malformed rows (4.2706ms)
+✔ matching distinguishes exact reviewed film IDs, remake years, ambiguous identities and unmatched evidence (2.5526ms)
+✔ one metadata transaction preserves locks, records reviewed declarations, is idempotent and undoes every field and crosswalk (1.6658ms)
+✔ multi-row metadata undo restores the previous receipt and independent film fields (0.6711ms)
+✔ large matching yields, cancels promptly and keeps at most eight candidates per row (199.388ms)
+✔ collection import requires explicit eligible choices, retains rejects, merges idempotently and supports reload undo (0.986ms)
+✔ series summaries keep duplicates, numbering alternatives, missing and unavailable evidence distinct (8.9016ms)
+✔ series corrections and reset have recoverable inverse state without changing history or another series (1.6409ms)
+✔ explicit document writes roll back quota failures, detect conflicts and preserve unsupported schemas and profile boundaries (1.0387ms)
+✔ movie shelves preserve visibility, genre order, file groups and classic membership in one pass (13.5924ms)
+✔ shuffle matches the previous full native stable ordering without mutating the catalog (141.9285ms)
+✔ random picks reuse shelf membership without rescanning metadata (36.5454ms)
+✔ movie work yields before inspecting rows and cancellation stops filtering or ordering (85.164ms)
+✔ file shelves retain the ten largest types with alphabetical ties, including unusual imports (2.8786ms)
+ℹ tests 43
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 509.1075

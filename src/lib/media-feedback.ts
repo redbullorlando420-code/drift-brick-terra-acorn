@@ -1,4 +1,7 @@
 import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
+import {createLocalId} from './local-id.ts';
+import {appendFeedbackOperation,parseFeedbackTimeline,manualTimelineClock,mergeFeedbackWatch,manualFeedbackFingerprint,undoFeedbackOperation,type ManualKind,type FeedbackTimeline,type FeedbackOperation} from './videos/feedback-timeline.ts';
+import {commitFeedbackUndo,waitForDurableWrites} from './videos/persist';
 import { getTopicAliasRevision } from './videos/topic-aliases';
 import { canonicalTopic } from './videos/topics';
 import { recordRatingForStreak } from "./rating-streaks";
@@ -12,7 +15,7 @@ import { changeRejection, newestRejections, normalizeRejections, isRejectionLedg
 export type RatingLedgerEntry = { rating: number; updatedAt: number };
 export type WatchTime = { preview: number; fullscreen: number; previewEstimated?: number; fullscreenEstimated?: number };
 const EMPTY_WATCH_TIME: WatchTime = { preview: 0, fullscreen: 0 };
-export type Feedback = { recommendationRejections?: RejectionLedger; ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; creatorFavorites?: Record<string, true>; tagLikes: Record<string, true>; tagHeartHistory: Record<string, number>; watchTime: Record<string, WatchTime> };
+export type Feedback = { manualTimeline?: FeedbackTimeline; recommendationRejections?: RejectionLedger; ratings: Record<string, number>; ratingHistory: Record<string, RatingLedgerEntry>; notes: Record<string, string>; creatorRatings: Record<string, number>; creatorLikes: Record<string, true>; creatorFavorites?: Record<string, true>; tagLikes: Record<string, true>; tagHeartHistory: Record<string, number>; watchTime: Record<string, WatchTime> };
 /** Explicit dislike, neutral, then progressively stronger positive signals. */
 export { ratingPreference } from './videos/ranking-core';
 export function watchTimeScore(time: WatchTime): number { return Math.min(12, Math.floor(time.preview / 30) + Math.floor(time.fullscreen / 90) * 2 + Math.floor((time.previewEstimated ?? 0) / 90) + Math.floor((time.fullscreenEstimated ?? 0) / 180)); }
@@ -134,7 +137,7 @@ function read(): Feedback {
   if (cached) return cached;
   try {
     const saved = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<Feedback>;
-    cached = { recommendationRejections: normalizeRejections(saved.recommendationRejections), ratings: saved.ratings ?? {}, ratingHistory: saved.ratingHistory ?? {}, notes: saved.notes ?? {}, creatorRatings: saved.creatorRatings ?? {}, creatorLikes: saved.creatorLikes ?? {}, creatorFavorites: saved.creatorFavorites ?? { ...saved.creatorLikes }, tagLikes: saved.tagLikes ?? {}, tagHeartHistory: saved.tagHeartHistory ?? {}, watchTime: saved.watchTime ?? {} };
+    cached = { manualTimeline:saved.manualTimeline, recommendationRejections: normalizeRejections(saved.recommendationRejections), ratings: saved.ratings ?? {}, ratingHistory: saved.ratingHistory ?? {}, notes: saved.notes ?? {}, creatorRatings: saved.creatorRatings ?? {}, creatorLikes: saved.creatorLikes ?? {}, creatorFavorites: saved.creatorFavorites ?? { ...saved.creatorLikes }, tagLikes: saved.tagLikes ?? {}, tagHeartHistory: saved.tagHeartHistory ?? {}, watchTime: saved.watchTime ?? {} };
   } catch { cached = { recommendationRejections: EMPTY_REJECTIONS, ratings: {}, ratingHistory: {}, notes: {}, creatorRatings: {}, creatorLikes: {}, creatorFavorites: {}, tagLikes: {}, tagHeartHistory: {}, watchTime: {} }; }
   return cached;
 }
@@ -145,15 +148,17 @@ export async function hydrateDurableFeedback() {
   const durable = await restoreDurableFeedback().catch(() => null);
   if (!durable) return;
   const current = read();
+  const manual=manualTimelineClock(durable.manualTimeline)>manualTimelineClock(current.manualTimeline)?durable:current,other=manual===durable?current:durable;
   cached = {
-    recommendationRejections: newestRejections(durable.recommendationRejections, current.recommendationRejections),
-    ratings: { ...durable.ratings, ...current.ratings },
-    ratingHistory: { ...durable.ratingHistory, ...current.ratingHistory },
+    manualTimeline: manual.manualTimeline,
+    recommendationRejections: newestRejections(durable.recommendationRejections, manual.recommendationRejections),
+    ratings: { ...other.ratings, ...manual.ratings },
+    ratingHistory: manualTimelineClock(manual.manualTimeline)>0 ? (manual.ratingHistory??{}) : { ...other.ratingHistory, ...manual.ratingHistory },
     notes: { ...durable.notes, ...current.notes },
-    creatorRatings: { ...durable.creatorRatings, ...current.creatorRatings },
-    creatorLikes: { ...durable.creatorLikes, ...current.creatorLikes },
-    creatorFavorites: { ...durable.creatorFavorites, ...current.creatorFavorites },
-    tagLikes: { ...durable.tagLikes, ...current.tagLikes },
+    creatorRatings: manualTimelineClock(manual.manualTimeline)>0 ? (manual.creatorRatings??{}) : { ...other.creatorRatings, ...manual.creatorRatings },
+    creatorLikes: manualTimelineClock(manual.manualTimeline)>0 ? (manual.creatorLikes??{}) : { ...other.creatorLikes, ...manual.creatorLikes },
+    creatorFavorites: manualTimelineClock(manual.manualTimeline)>0 ? (manual.creatorFavorites??{}) : { ...other.creatorFavorites, ...manual.creatorFavorites },
+    tagLikes: manualTimelineClock(manual.manualTimeline)>0 ? (manual.tagLikes??{}) : { ...other.tagLikes, ...manual.tagLikes },
     tagHeartHistory: { ...durable.tagHeartHistory, ...current.tagHeartHistory },
     watchTime: { ...durable.watchTime, ...current.watchTime },
   };
@@ -246,12 +251,13 @@ export function getRating(id: string): number {
 }
 export function setRating(id: string, rating: number) {
   const started = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const next = read();
+  const next = read(), before=getRating(id);
   next.ratings[id] = Math.max(0, Math.min(5, Math.round(rating)));
   // Keep a durable timestamped ledger in the system feedback payload. This
   // survives remote catalog refreshes, so YouTube, Twitch, and Adult ratings
   // remain attributable even when a provider card is later replaced.
   next.ratingHistory[id] = { rating: next.ratings[id], updatedAt: Date.now() };
+  recordManual(next,'rating',id,before,next.ratings[id],id);
   legacyRatings.set(id, next.ratings[id]);
   legacyKeys().add(id);
   recordRatingForStreak(id, next.ratings[id]);
@@ -275,34 +281,36 @@ export function recordWatchTime(id: string, mode: keyof WatchTime, seconds: numb
 export function getFeedbackDiagnostics() { return { lastRatingQueueMs, lastPersistMs, pendingWrites }; }
 function creatorKey(name: string) { return name.trim().toLowerCase(); }
 export function getCreatorRating(name: string): number { return read().creatorRatings[creatorKey(name)] ?? 0; }
-export function setCreatorRating(name: string, rating: number) { const next = read(); next.creatorRatings[creatorKey(name)] = Math.max(0, Math.min(5, Math.round(rating))); write(next); notifyChange(); }
+export function setCreatorRating(name:string,rating:number){const next=read(),key=creatorKey(name),before=next.creatorRatings[key]??0;next.creatorRatings[key]=Math.max(0,Math.min(5,Math.round(rating)));recordManual(next,'creatorRating',key,before,next.creatorRatings[key],name);write(next);notifyChange();}
 export function creatorIsFavorited(name: string): boolean { return Boolean(read().creatorFavorites?.[creatorKey(name)]); }
 export function toggleCreatorFavorite(name: string) {
   const key = creatorKey(name); if (!key) return;
   const next = read(), favorites = next.creatorFavorites ??= {};
-  if (favorites[key]) delete favorites[key]; else favorites[key] = true;
+  const before=Boolean(favorites[key]);if (favorites[key]) delete favorites[key]; else favorites[key] = true;recordManual(next,'creatorFavorite',key,before,!before,name);
   write(next); notifyChange();
 }
 export function creatorIsLiked(name: string): boolean { return Boolean(read().creatorLikes[creatorKey(name)]); }
-export function toggleCreatorLike(name: string) { const next = read(); const key = creatorKey(name); if (next.creatorLikes[key]) delete next.creatorLikes[key]; else next.creatorLikes[key] = true; write(next); notifyChange(); }
+export function toggleCreatorLike(name:string){const next=read(),key=creatorKey(name),before=Boolean(next.creatorLikes[key]);if(before)delete next.creatorLikes[key];else next.creatorLikes[key]=true;recordManual(next,'creatorLike',key,before,!before,name);write(next);notifyChange();}
 function tagKey(tag: string) { return tag.trim().toLowerCase(); }
 export function tagIsLiked(tag: string): boolean { return Boolean(read().tagLikes[tagKey(tag)]); }
 export function tagHasHeartHistory(tag: string): boolean { return Boolean(read().tagHeartHistory[tagKey(tag)]); }
 export function getHeartedTagHistory(): string[] { return Object.keys(read().tagHeartHistory).sort((a, b) => (read().tagHeartHistory[b] ?? 0) - (read().tagHeartHistory[a] ?? 0)); }
 export function toggleTagLike(tag: string) {
   const next = read(); const key = tagKey(tag);
+  const before=Boolean(next.tagLikes[key]),heartBefore=next.tagHeartHistory[key]??null;
   if (next.tagLikes[key]) delete next.tagLikes[key];
   else { next.tagLikes[key] = true; next.tagHeartHistory[key] ??= Date.now(); }
-  write(next); notifyChange();
+  recordManual(next,'tagLike',key,before,!before,tag,{heartBefore,heartAfter:next.tagHeartHistory[key]??null});write(next); notifyChange();
 }
 /** Versioned rating/note payload used by the full library backup. */
-export function exportFeedback() { return { version: 5, ...read() }; }
+export function exportFeedback() { const {manualTimeline,...feedback}=read();return {version:5,...feedback}; }
 export function getNote(id: string): string { const value = read().notes[id]; if (typeof value === "string") return value; try { return localStorage.getItem(`reelcase.note.${id}`) ?? ""; } catch { return ""; } }
 export function setNote(id: string, note: string) { const next = read(); if (note.trim()) next.notes[id] = note.trim(); else delete next.notes[id]; write(next); }
 
 /** Merge an imported feedback payload without wiping unrelated keys. */
 export function importFeedback(partial: Partial<Feedback> & { version?: number }) {
   const next = read();
+  next.manualTimeline={version:1,entries:[],updatedAt:Date.now()};
   if (partial.recommendationRejections) {
     const imported = normalizeRejections(partial.recommendationRejections);
     if (isRejectionLedger(partial.recommendationRejections)) next.recommendationRejections = { ...imported, updatedAt: Math.max(Date.now(), (next.recommendationRejections?.updatedAt ?? 0) + 1) };
@@ -326,7 +334,7 @@ export function getRecommendationRejections(): RejectionLedger { return read().r
 export function setRecommendationRejection(entry: RecommendationRejection, remove = false) {
   const current = getRecommendationRejections(), changed = changeRejection(current, entry, remove);
   if (changed === current) return;
-  write({ ...read(), recommendationRejections: changed });
+  const next={...read(),recommendationRejections:changed},target=entry.scope+':'+entry.target,before=current.entries.find(e=>e.scope+':'+e.target===target)??null;recordManual(next,'rejection',target,before,remove?null:changed.entries.find(e=>e.scope+':'+e.target===target)??null,entry.label);write(next);
   notifyChange();
 }
 
@@ -339,4 +347,23 @@ export function recommendationTopicIsLiked(topic: string): boolean {
     topicHeartRevision = signalVersion; topicHeartAliasRevision = getTopicAliasRevision();
   }
   return topicHearts.has(topic);
+}
+
+function recordManual(next:Feedback,kind:ManualKind,target:string,before:FeedbackOperation['before'],after:FeedbackOperation['after'],label:string,aux:Pick<FeedbackOperation,'heartBefore'|'heartAfter'>={}){
+ if(!target||target.length>520)return;
+ try{next.manualTimeline=appendFeedbackOperation(next,{id:createLocalId('feedback-'),kind,target,label:label.slice(0,160),before,after,at:Date.now(),...aux});}catch{/* Unsupported history is preserved; current feedback still works. */}
+}
+export function getFeedbackTimeline(){return parseFeedbackTimeline(read().manualTimeline);}
+export function creatorHasExplicitFeedback(name:string){const key=creatorKey(name),f=read();return !!(f.creatorRatings[key]||f.creatorLikes[key]||f.creatorFavorites?.[key]);}
+let undoRunning=false;
+export async function undoManualFeedback(id:string){
+ if(undoRunning)throw Error('Another feedback undo is still saving.');undoRunning=true;
+ try{await hydrateDurableFeedback();flush();await waitForDurableWrites();
+ const expected=read(),fingerprint=manualFeedbackFingerprint(expected),next=undoFeedbackOperation(expected,id);
+ const current=()=>manualFeedbackFingerprint(read())===fingerprint;
+ const committed=await commitFeedbackUndo(expected,next,current);
+ cached={...read(),watchTime:mergeFeedbackWatch(committed.watchTime,read().watchTime),ratings:next.ratings,ratingHistory:next.ratingHistory,creatorRatings:next.creatorRatings,creatorLikes:next.creatorLikes,creatorFavorites:next.creatorFavorites,tagLikes:next.tagLikes,tagHeartHistory:next.tagHeartHistory,recommendationRejections:next.recommendationRejections,manualTimeline:next.manualTimeline};
+ for(const [key,value]of Object.entries(next.ratings))if(legacyRatings.has(key))legacyRatings.set(key,value);
+ signalVersion++;snapshot=undefined;ratingSignal.emitAll();notifyChange();savedState('saved');
+ }finally{undoRunning=false;}
 }

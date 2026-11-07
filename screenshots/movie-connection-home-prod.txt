@@ -1,0 +1,40 @@
+{
+  "url": "http://127.0.0.1:8083/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "hydrationVerified": true,
+      "bodyTextLen": 1585,
+      "bodyTextHash": "953b72058d5692f30cfa1a05de39ffb2de8c51d89cd08a10d6adbb6fc5659553",
+      "bodyTextPrefix": "Realhub Vault · networks · live Default Library Home Landing pag",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\movie-connection-home-prod.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "hydrationVerified": true,
+      "bodyTextLen": 1357,
+      "bodyTextHash": "ecdb132fdd2faa47daf2fa3b26024f69030a2dd09f414b91dca43b9d539c9b7f",
+      "bodyTextPrefix": "Home 0 indexed Default Search Date added Pause pulls REALHUB · Y",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\movie-connection-home-prod-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\movie-connection-home-prod.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Form and keyboard tag entry produce one exact YouTube result; unknown durations and private rows stay excluded",
+        "Reload and reopen retain identical query, constraints and result identity without autosaving",
+        "Keyboard and mouse remove one chip while preserving the remaining category and tag constraints",
+        "Rename, reorder, delete and explicit save work; quota and invalid duration keep prior saved bytes",
+        "Reorder arrows skip hidden private entries and stop at the visible list boundaries",
+        "Registered alternate profile saves independently; private names and query text stay off public lists",
+        "Filter-only searches work without words; private searches return only the exact private result",
+        "Rapid text-to-workspace replacement cannot publish stale results; unsupported operators explain the error and return no matches",
+        "Future storage schemas disable saves and preserve original bytes"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Form and keyboard tag entry produce one exact YouTube result; unknown durations and private rows stay excluded",
+        "Reload and reopen retain identical query, constraints and result identity without autosaving",
+        "Keyboard and mouse remove one chip while preserving the remaining category and tag constraints",
+        "Rename, reorder, delete and explicit save work; quota and invalid duration keep prior saved bytes",
+        "Reorder arrows skip hidden private entries and stop at the visible list boundaries",
+        "Registered alternate profile saves independently; private names and query text stay off public lists",
+        "Filter-only searches work without words; private searches return only the exact private result",
+        "Rapid text-to-workspace replacement cannot publish stale results; unsupported operators explain the error and return no matches",
+        "Future storage schemas disable saves and preserve original bytes"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Disposable profiles and deterministic saved metadata; no provider or media download is performed."
+}

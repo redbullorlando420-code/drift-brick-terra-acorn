@@ -142,7 +142,7 @@ try {
         new Promise((resolve, reject) => {
           const start = performance.now(),
             check = () =>
-              e.dataset.playerState === value
+              [].concat(value).includes(e.dataset.playerState)
                 ? resolve()
                 : performance.now() - start > 8000
                   ? reject(Error("Expected " + value + ", got " + e.dataset.playerState))
@@ -167,6 +167,15 @@ try {
   checks.push(
     "A manually Ready phone remains visibly blocked on autoplay while the host continues playing and the queue stays intact",
   );
+  await guest.locator('[data-guest-arrival="gesture"]').waitFor();
+  for(const [size,name] of [[{width:1440,height:1000},'arrival-desktop'],[{width:390,height:844},'arrival-mobile']]){
+    await guest.setViewportSize(size);
+    await guest.locator('[data-guest-arrival]').evaluate(el=>el.scrollIntoView({block:'start'}));
+    await guest.screenshot({path:output.replace('.json','-'+name+'.png')});
+  }
+  await guest.getByRole('button',{name:'Start on this device',exact:true}).click();
+  await host.getByRole('heading',{name:'Playing together',exact:true}).waitFor();
+  checks.push('Guest arrival exposes the real local start action; manual Ready and the host playback clock remain independent');
   await signal(guest, "onReady");
   await signal(guest, "infoDelivery", { playerState: 3, currentTime: 0 });
   await status("blocked");
@@ -206,6 +215,7 @@ try {
   await signal(guest, "onStateChange", 2);
   await status("paused");
   await hostGuest.getByText(/Ready \(manual\)/).waitFor();
+  await guest.locator('[data-guest-arrival="paused"]').waitFor();
   checks.push(
     "Only the host explicitly pauses to wait; observed guest playback and buffering cannot bypass locked playback or seeking permissions",
   );
@@ -274,7 +284,7 @@ try {
   await host.locator("video").evaluate((v) => {
     v.loop = true;
   });
-  await status("waiting");
+  await status(["waiting","ready","playing","buffering"]);
   const play = host.getByRole("button", { name: "Play", exact: true });
   if (await play.count()) await play.click();
   await guest.locator("video[data-room-stream]").waitFor();
@@ -289,6 +299,20 @@ try {
   checks.push(
     "A real local MP4 goes from waiting for the host stream to observed playback on an empty phone library over WebRTC",
   );
+  const previousStream=await guest.locator('video[data-room-stream]').evaluate(v=>v.srcObject.id);
+  await host.locator('video').evaluate(v=>window.__previousLocalPlayer=v);
+  await host.getByRole('button',{name:'Send sharing request',exact:true}).click();
+  await host.waitForFunction(()=>document.querySelector('video')!==window.__previousLocalPlayer);
+  await host.locator('video').evaluate(v=>v.loop=true);
+  await host.getByRole('button',{name:'Play',exact:true}).click();
+  await host.getByRole('heading',{name:'Playing together',exact:true}).waitFor();
+  await host.evaluate(()=>window.__previousLocalPlayer.dispatchEvent(new Event('ended',{bubbles:true})));
+  await host.getByRole('heading',{name:'Playing together',exact:true}).waitFor();
+  await guest.waitForFunction(previous=>{
+    const v=document.querySelector('video[data-room-stream]');return v?.srcObject?.id!==previous&&v?.getVideoPlaybackQuality().totalVideoFrames>5;
+  },previousStream);
+  await status('playing');
+  checks.push('Selecting the same local file again replaces its player and capture stream; a detached ended event cannot pause the new generation and the guest decodes fresh frames');
   const reports = await guest.evaluate(() =>
     window.__readinessWire.filter((p) => p.type === "participation-player"),
   );
@@ -299,8 +323,70 @@ try {
     JSON.stringify(reports),
     /ready000|987654|tungsten|fingerprint|token|position|path/,
   );
+  // Rapid A -> B -> A uses new selection revisions even when the public identity repeats.
+  await add(host, 'https://youtu.be/rapid000001\nhttps://youtu.be/rapid000002');
+  await queue(host).getByRole('button',{name:'Play next',exact:true}).click();
+  await guest.locator('iframe[src*="rapid000001"]').waitFor();
+  const oldPacket=await host.evaluate(()=>window.__readinessWire.filter(p=>p.type==='video').at(-1));
+  await queue(host).getByRole('button',{name:'Play next',exact:true}).click();
+  await guest.locator('iframe[src*="rapid000002"]').waitFor();
+  await add(host,'https://youtu.be/rapid000001');
+  await queue(host).getByRole('button',{name:'Play next',exact:true}).click();
+  await guest.locator('iframe[src*="rapid000001"]').waitFor();
+  await signal(guest,'onReady'); await status('ready');
+  const currentPacket=await host.evaluate(()=>window.__readinessWire.filter(p=>p.type==='video').at(-1));
+  assert(currentPacket.selectionRevision>oldPacket.selectionRevision);
+  await host.evaluate(({oldPacket,currentPacket})=>{
+    window.__sendRoomPacket({type:'sync',videoId:oldPacket.videoId,selectionRevision:oldPacket.selectionRevision,playing:false,position:500,seek:true,sentAt:Date.now()});
+    window.__sendRoomPacket({type:'sync',videoId:currentPacket.videoId,selectionRevision:currentPacket.selectionRevision+50,playing:false,position:500,seek:true,sentAt:Date.now()});
+  },{oldPacket,currentPacket});
+  await guest.waitForTimeout(400);
+  assert(Number(await guest.locator('[data-room-clock]').getAttribute('data-room-clock'))<30);
+  await status('ready');
+  await add(host,'https://youtu.be/rapid000003');
+  await queue(host).getByRole('button',{name:'Play next',exact:true}).click();
+  await guest.locator('iframe[src*="rapid000003"]').waitFor();
+  await status('loading');
+  checks.push('Rapid A/B/A replacement resets player readiness; old clocks cannot rewind the repeat title and a future sync cannot poison the next valid host revision');
+
+  const openDrafts=async()=>{
+    await guest.getByRole('navigation',{name:'Watch room shortcuts'}).getByRole('button',{name:'Find videos',exact:true}).click();
+    const d=guest.locator('[data-guest-drafts]');
+    if(!await d.getAttribute('open').then(v=>v!==null))await d.locator(':scope > summary').click();
+    return d;
+  };
+  let drafts=await openDrafts();
+  await drafts.getByRole('textbox',{name:'Links for my suggestion draft'}).fill('https://youtu.be/draft000001 https://youtu.be/draft000002 https://youtu.be/draft000003');
+  await drafts.getByRole('button',{name:'Stage draft links',exact:true}).click();
+  await drafts.locator('[data-guest-draft-id]').nth(2).waitFor();
+  assert.equal(await queue(host).locator('[data-room-queue-id]').count(),0);
+  await drafts.locator('[data-guest-draft-id]').nth(1).getByRole('button',{name:'Move draft up',exact:true}).click();
+  const draftIds=await drafts.locator('[data-guest-draft-id]').evaluateAll(rows=>rows.map(r=>r.dataset.guestDraftId));
+  assert(draftIds[0].includes('draft000002'));
+  await drafts.locator('[data-guest-draft-id]').first().getByText('Preview draft metadata',{exact:true}).click();
+  assert.equal(await drafts.getByRole('link',{name:'Open provider preview',exact:true}).first().getAttribute('target'),'_blank');
+  for(const index of [0,1])await drafts.locator('[data-guest-draft-id]').nth(index).locator('input[type="checkbox"]').check();
+  await drafts.getByRole('button',{name:'Submit selected drafts',exact:true}).click();
+  await host.waitForFunction(()=>document.querySelectorAll('[data-room-queue-id]').length===2);
+  const wire=await guest.evaluate(()=>JSON.parse(localStorage.getItem('reelcase.room-guest-drafts.v1')));
+  assert.equal(wire.rows.filter(r=>r.status==='submitted').length,2);
+  assert.equal(wire.rows.filter(r=>r.status==='draft').length,1);
+  await drafts.scrollIntoViewIfNeeded();
+  await guest.screenshot({path:output.replace('.json','-drafts-mobile.png')});
+  // Reload disposes the old delivery client; submitted drafts never auto-submit again.
+  await guest.reload();
+  await guest.locator('iframe[src*="rapid000003"]').waitFor();
+  drafts=await openDrafts();
+  assert.equal(await drafts.locator('[data-guest-draft-id]').count(),3);
+  await drafts.locator('[data-guest-draft-id]').first().locator('input[type="checkbox"]').check();
+  assert(await drafts.getByRole('button',{name:'Submit selected drafts',exact:true}).isDisabled());
+  assert.equal(await queue(host).locator('[data-room-queue-id]').count(),2);
+  await drafts.locator('[data-guest-draft-id]').last().getByRole('button',{name:'Remove draft',exact:true}).click();
+  assert.equal(await drafts.locator('[data-guest-draft-id]').count(),2);
+  checks.push('Guest-only drafts reorder and preview without changing the host, send an explicit bounded batch once, retain unsent rows on reload and lock submitted rows against accidental resends');
+  const rejoinedId=await group(guest).locator('[data-player-person]').filter({hasText:/^You ·/}).getAttribute('data-player-person');
   await guest.getByRole("button", { name: "Leave room", exact: true }).click();
-  await hostGuest.waitFor({ state: "detached" });
+  await group(host).locator('[data-player-person="'+rejoinedId+'"]').waitFor({state:'detached'});
   assert.equal(await group(host).locator("[data-player-person]").count(), 1);
   for (const p of pages)
     assert.equal(await p.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);

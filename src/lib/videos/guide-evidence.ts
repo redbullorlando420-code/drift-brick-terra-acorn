@@ -5,7 +5,7 @@ import {canonicalTopic,topicEvidenceForScan} from './topics.ts';
 import {creatorRejectionTarget,titleRejectionTarget,normalizeRejections,type RecommendationRejection} from './recommendation-rejections.ts';
 import {bridgeTopic,videoBridgeSource,type VideoBridgeSource} from './topic-bridges.ts';
 import {reviewedRankingTag} from './topic-aliases.ts';
-export type GuideReason={id:string;kind:'favorite'|'like'|'shared-tag'|'title'|'saved-tag'|'creator'|'category'|'topic'|'live'|'discovery';text:string;field?:string;quote?:string;origin?:{id:string;title:string;tag:string;signal:'favorite'|'like'};bridge?:{topic:string;a:VideoBridgeSource;b:VideoBridgeSource};feedback:Omit<RecommendationRejection,'at'>};
+export type GuideReason={provenance?:import('./guide-provenance').ReasonProvenance[];id:string;kind:'favorite'|'like'|'shared-tag'|'title'|'saved-tag'|'creator'|'category'|'topic'|'live'|'discovery';text:string;field?:string;quote?:string;origin?:{id:string;title:string;tag:string;signal:'favorite'|'like'};bridge?:{topic:string;a:VideoBridgeSource;b:VideoBridgeSource};feedback:Omit<RecommendationRejection,'at'>};
 export type GuideExplanation={basis:'preference'|'query'|'live'|'discovery';reasons:GuideReason[];notices:string[]};
 export const guideClip=(value:string)=>value.replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,160);
 export function guideContentKey(raw:string){

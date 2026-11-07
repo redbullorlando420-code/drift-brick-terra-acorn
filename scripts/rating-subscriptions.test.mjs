@@ -6,7 +6,7 @@ const fixture = { restore: null, saved: [], streaks: [], failStrict: false, stri
 globalThis.__ratingSubscriptionFixture = fixture;
 const moduleUrl = source => `data:text/javascript,${encodeURIComponent(source)}`;
 registerHooks({ resolve(specifier, context, next) {
-  if (context.parentURL?.endsWith('/media-feedback.ts') && specifier === './videos/persist') return { shortCircuit: true, url: moduleUrl(`const f=globalThis.__ratingSubscriptionFixture; export const restoreDurableFeedback=(strict)=>{if(strict){f.strictReads++;if(f.failStrict)throw Error('rating backup unavailable');}return f.restore;}; export const saveDurableFeedback=data=>f.saved.push(data);`) };
+  if (context.parentURL?.endsWith('/media-feedback.ts') && specifier === './videos/persist') return { shortCircuit: true, url: moduleUrl(`const f=globalThis.__ratingSubscriptionFixture;export const waitForDurableWrites=async()=>{};export const commitFeedbackUndo=async()=>{throw Error("Unexpected undo in rating fixture");}; export const restoreDurableFeedback=(strict)=>{if(strict){f.strictReads++;if(f.failStrict)throw Error('rating backup unavailable');}return f.restore;}; export const saveDurableFeedback=data=>f.saved.push(data);`) };
   if (context.parentURL?.endsWith('/media-feedback.ts') && specifier === './rating-streaks') return { shortCircuit: true, url: moduleUrl(`export const recordRatingForStreak=(id,rating)=>globalThis.__ratingSubscriptionFixture.streaks.push({id,rating});`) };
   try { return next(specifier, context); } catch (error) {
     if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return next(specifier + '.ts', context);

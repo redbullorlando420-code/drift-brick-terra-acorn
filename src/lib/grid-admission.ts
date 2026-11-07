@@ -33,6 +33,14 @@ export function createGridAdmission(initial: number, schedule: Schedule, batchSi
       target = Math.max(loaded, Math.min(maximum, target + pageSize));
       publish(); enqueue();
     },
+    restoreThrough(count: number) {
+      if (held || !Number.isSafeInteger(count) || count < 1) return false;
+      // A logical bookmark may be far beyond the first page. Advancing the
+      // numeric extent does not mount intervening cards; the viewport window
+      // remains responsible for the bounded DOM.
+      stop(); loaded = target = Math.max(loaded, Math.min(maximum, count));
+      publish(); return true;
+    },
     reset(next: number) { stop(); loaded = target = next; publish(); },
     setMaximum(next: number) {
       if (next === maximum) return;

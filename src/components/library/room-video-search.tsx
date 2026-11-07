@@ -9,9 +9,11 @@ import { searchRoomYoutube } from '@/lib/remote/room-search-functions';
 import type { LibraryVideo } from '@/lib/videos/types';
 import { RoomVideoSummary } from './room-video-summary';
 import type { RoomHostCatalog } from '@/lib/multiplayer/room-host-catalog';
-type Page={videos:LibraryVideo[];cursor?:string};
-export const RoomVideoSearch=memo(function RoomVideoSearch({candidates,catalogPending,writable,canAdd,suggestMode,pending,full,queuedKeys,currentKey,onPlay,onAdd,hostCatalog,preferHost=false}:{
+import {describeSearchCount} from '@/lib/videos/search-count-evidence';
+type Page={videos:LibraryVideo[];cursor?:string;estimatedTotal?:number};
+export const RoomVideoSearch=memo(function RoomVideoSearch({candidates,catalogPending,writable,canAdd,suggestMode,pending,full,queuedKeys,currentKey,onPlay,onAdd,onDraft,hostCatalog,preferHost=false}:{
   candidates:LibraryVideo[];catalogPending:boolean;writable:boolean;canAdd:boolean;suggestMode:boolean;pending:boolean;full:boolean;queuedKeys:Set<string>;currentKey?:string;
+  onDraft?:(video:LibraryVideo,origin:'host'|'public',revision?:number)=>void;
   onPlay:(video:LibraryVideo)=>void;onAdd:(video:LibraryVideo)=>void;
   hostCatalog?:RoomHostCatalog;preferHost?:boolean;
 }){
@@ -50,6 +52,8 @@ export const RoomVideoSearch=memo(function RoomVideoSearch({candidates,catalogPe
   };
   const videos=source==='host'?(hostCatalog?.connected&&local.catalogRevision===hostCatalog.revision?local.videos:[]):source==='library'?local.videos:online?.videos??[];
   const busy=searching||source==='library'&&catalogPending;
+  const countEvidence=describeSearchCount({version:1,kind:busy?'pending':'page',value:busy?undefined:videos.length,scope:source==='youtube'?'YouTube':source==='host'?'host library':'saved catalog',hasMore:source==='youtube'?Boolean(online?.cursor):local.hasMore});
+  const estimate=source==='youtube'&&!busy&&online?.estimatedTotal!==undefined?describeSearchCount({version:1,kind:'estimate',value:online.estimatedTotal,scope:'YouTube'}):undefined;
   return <section aria-label="Find room videos" className="mt-4 border-t border-border pt-4">
     <h4 className="flex items-center gap-2 font-medium text-fg"><Search className="size-4 text-accent"/>Find videos</h4>
     <div className="mt-3 flex flex-wrap gap-2" aria-label="Video search source">
@@ -62,12 +66,14 @@ export const RoomVideoSearch=memo(function RoomVideoSearch({candidates,catalogPe
       {source==='youtube'&&<Button size="sm" className="min-h-11" disabled={!query.trim()||busy} type="submit"><Search className="size-4"/>Search YouTube</Button>}
     </form>
     <p className="mt-2 text-xs leading-5 text-muted">{source==='host'?'Find videos in the host’s library even when your own library is empty. Search shared titles and creators. Only this result page is sent to your device; private sources, descriptions and saved tags are excluded. Queue a title for everyone; the host confirms the order.':source==='library'?`Search all ${candidates.length.toLocaleString()} playable library videos by title, creator, description or tags. Results update as you type.`:'Search public YouTube without following a channel. Results stay in this room until you queue or play one. Press Search YouTube to send your query.'}</p>
-    <div role="status" aria-live="polite" className="mt-2 text-xs text-accent">{busy?(catalogPending&&source==='library'?'Preparing playable videos…':'Searching videos…'):error||`${videos.length} result${videos.length===1?'':'s'}${source==='host'?` · page ${hostOffsets.length}`:source==='library'?` · page ${Math.floor(offset/ROOM_SEARCH_PAGE_SIZE)+1}`:online?` · page ${page+1}`:''}`}</div>
+    <div role="status" aria-live="polite" className="mt-2 text-xs text-accent">{busy?(catalogPending&&source==='library'?'Preparing playable videos…':'Searching videos…'):error||`${countEvidence.label}${source==='host'?` · page ${hostOffsets.length}`:source==='library'?` · page ${Math.floor(offset/ROOM_SEARCH_PAGE_SIZE)+1}`:online?` · page ${page+1}`:''}`}</div>
+    <p aria-label="Room search count evidence" className="mt-2 text-xs leading-5 text-muted">{countEvidence.detail}</p>
+    {estimate&&<p aria-label="Provider search estimate" className="mt-2 text-xs leading-5 text-muted">{estimate.label}. {estimate.detail}</p>}
     {source==='host'&&error&&<Button size="sm" variant="secondary" className="mt-2 min-h-11" disabled={!hostCatalog?.connected||busy} onClick={()=>setHostRetry(value=>value+1)}>Retry host search</Button>}
     {source==='youtube'&&!!query.trim()&&<a className="mt-2 inline-flex min-h-11 items-center gap-1 text-xs text-accent" href={`https://www.youtube.com/results?search_query=${encodeURIComponent(query.trim())}`} target="_blank" rel="noreferrer"><ExternalLink className="size-3"/>Open this search on YouTube</a>}
     <ul aria-label="Room video search results" aria-busy={busy} className="mt-3 max-h-128 space-y-3 overflow-y-auto">
       {videos.map(video=>{const key=roomMediaKey(video),queued=queuedKeys.has(key),current=currentKey===key;return <li key={key} data-room-result-id={video.id} className="rounded-md bg-bg/50 p-3">
-        <RoomVideoSummary video={video} description><div className="flex min-w-0 items-start gap-2"><button type="button" className="min-h-11 min-w-0 flex-1 text-left text-sm font-medium text-fg hover:text-accent disabled:opacity-60" aria-label={video.name} title={video.name} onClick={()=>onPlay(video)} disabled={!writable||busy||pending}><span className="line-clamp-3 break-words"><Play aria-hidden="true" className="mr-1 inline size-3"/>{video.name}</span></button><Button size="sm" variant="secondary" className="min-h-11 shrink-0" aria-label={suggestMode?`Suggest ${video.name}`:undefined} disabled={!canAdd||busy||pending||suggestMode&&!video.remote||queued||current||!suggestMode&&full} onClick={()=>onAdd(video)}>{suggestMode?'Suggest':'Queue'}</Button></div></RoomVideoSummary>
+        <RoomVideoSummary video={video} description><div className="flex min-w-0 flex-wrap items-start gap-2"><button type="button" className="min-h-11 min-w-0 basis-full sm:basis-0 flex-1 text-left text-sm font-medium text-fg hover:text-accent disabled:opacity-60" aria-label={video.name} title={video.name} onClick={()=>onPlay(video)} disabled={!writable||busy||pending}><span className="line-clamp-3 break-words"><Play aria-hidden="true" className="mr-1 inline size-3"/>{video.name}</span></button><Button size="sm" variant="secondary" className="min-h-11 shrink-0" aria-label={suggestMode?`Suggest ${video.name}`:undefined} disabled={!canAdd||busy||pending||suggestMode&&!video.remote||queued||current||!suggestMode&&full} onClick={()=>onAdd(video)}>{suggestMode?'Suggest':'Queue'}</Button>{onDraft&&<Button size="sm" variant="secondary" className="min-h-11" disabled={busy||!video.remote} aria-label={'Draft '+video.name} onClick={()=>onDraft(video,source==='host'?'host':'public',source==='host'?hostCatalog?.revision:undefined)}>Add to draft</Button>}</div></RoomVideoSummary>
         {(queued||current)&&<p className="mt-2 text-xs text-accent">{current?'Playing now':'Already in the queue'}</p>}
       </li>;})}
     </ul>

@@ -13,6 +13,7 @@ import { GlobalSearch } from './global-search';
 import { HeaderClock } from './header-clock';
 import { navigationSourceLabel } from '@/lib/library-navigation';
 import { ProfileIdentity } from './profile-identity';
+import { BrowseTaskControls } from './browse-task-controls';
 
 const SORTS: { key: SortKey; label: string }[] = [
   { key: "name", label: "Name" },
@@ -48,7 +49,7 @@ export const TopBar = memo(function TopBar({
 
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 sm:px-6">
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="flex min-w-0 basis-56 grow items-center gap-2">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -65,6 +66,7 @@ export const TopBar = memo(function TopBar({
         <ProfileIdentity />
       </div>
       <div className="flex max-w-full flex-wrap items-center gap-1.5 sm:justify-end">
+        <BrowseTaskControls />
         <GlobalSearch />
         {scanning && (
           <span className="mr-2 hidden truncate text-xs text-muted sm:inline">

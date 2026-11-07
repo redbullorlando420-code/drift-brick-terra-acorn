@@ -55,8 +55,9 @@ try {
     let errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     page.on("console", (m) => {
-      if (m.type() === "error") errors.push(m.text());
+      if (m.type() === "error") errors.push(m.text()+" "+m.location().url);
     });
+    page.on('response',response=>{if(response.status()===429)console.log(JSON.stringify({rateLimit:response.url(),retryAfter:response.headers()['retry-after']??null}));});
     await page.goto(url);
     await page.locator('[data-home-ready="true"]').waitFor({ timeout: 60000 });
     for (const target of pages) {

@@ -1,6 +1,7 @@
 import {profileLocalStorage as localStorage} from "./local-profile-storage.ts";
 import { pullDispatchTrace, type PullOperation } from './pull-dispatch-trace.ts';
 import { getPullSettings, subscribePullSettings } from './pull-settings.ts';
+import {archiveWindowState} from './archive-work-window.ts';
 import { createPullScheduler } from './pull-scheduler.ts';
 import { getInteractionPriorityDelay } from './interaction-budget.ts';
 import { setArtworkSuppressed } from './videos/image-load-budget.ts';
@@ -114,5 +115,5 @@ export function waitForCatalogCommit(revision = scheduler.revision(), signal?: A
 }
 export async function runPausablePull<T>(request: (signal: AbortSignal) => Promise<T>, options?: { operation?: PullOperation; ignorePause?: boolean; live?: boolean; provider?: PullProvider; automatic?: boolean; signal?: AbortSignal }): Promise<T> {
   const lane = !options?.live ? scheduler : options.provider === 'youtube' ? youtubeLiveScheduler : options.provider === 'twitch' ? twitchLiveScheduler : liveScheduler;
-  return lane.run(request, { ...options, operation: options?.operation ?? (options?.live ? 'live' : 'archive'), canStart: options?.automatic && !options.live ? () => automaticPullAvailable(options.provider) : undefined, deferWhenBlocked: options?.automatic && !options.live });
+  return lane.run(request, { ...options, operation: options?.operation ?? (options?.live ? 'live' : 'archive'), canStart: options?.automatic && !options.live ? () => automaticPullAvailable(options.provider) && archiveWindowState(getPullSettings().archiveWorkWindow).open : undefined, deferWhenBlocked: options?.automatic && !options.live });
 }

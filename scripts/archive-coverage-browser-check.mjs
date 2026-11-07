@@ -46,7 +46,7 @@ try {
     p.savePrefs({...p.loadPrefs(),sourceId:'home',tags:{'eporner:seed-0':['my-private-tag']}});
     await p.appendCatalogVideos(videos);
     await p.waitForDurableWrites();
-    localStorage.setItem('reelcase.adult-archive-cursors.v1',JSON.stringify({'eporner::all::latest':{page:7,offset:120,paging:2,query:'all',order:'latest',updatedAt:1},'eporner::all::top-rated':{page:1,paging:2,query:'all',order:'top-rated',updatedAt:2,state:'exhausted',retryAt:Date.now()+1800000},'redtube::all::top-weekly':{page:10,paging:2,query:'all',order:'top-weekly',updatedAt:3,state:'failed',retryAt:Date.now()+300000}}));
+    localStorage.setItem('reelcase.adult-archive-cursors.v1',JSON.stringify({'eporner::all::latest':{page:7,offset:120,paging:2,query:'all',order:'latest',updatedAt:1},'eporner::all::top-rated':{page:1,paging:2,query:'all',order:'top-rated',updatedAt:2,state:'exhausted',retryAt:Date.now()+1800000},'redtube::all::top-weekly':{page:10,paging:2,query:'all',order:'top-weekly',updatedAt:3,state:'failed',retryAt:Date.now()+300000},'eporner::private-query-sentinel::latest':{page:42,paging:2,query:'private-query-sentinel',order:'latest',updatedAt:4}}));
     if(!mobile){const db=await new Promise((yes,no)=>{const r=indexedDB.open('reelcase',8);r.onsuccess=()=>yes(r.result);r.onerror=()=>no(r.error);});try{for(let start=60;start<100000;start+=1000){await new Promise((yes,no)=>{const tx=db.transaction('videos','readwrite'),store=tx.objectStore('videos');for(let i=start;i<Math.min(100000,start+1000);i++){const id='eporner:scale-'+i;store.put({id,folderId:'eporner:discover',name:'QA saved recording '+i,path:id,mime:'video/mp4',extension:'mp4',addedAt:1,remote:{kind:'eporner',videoId:'scale-'+i}});}tx.oncomplete=yes;tx.onerror=tx.onabort=()=>no(tx.error);});}}finally{db.close();}}
    },mobile);
    await page.goto(url);await page.locator('[data-home-ready="true"]').waitFor();await nav();await openCounts();
@@ -59,10 +59,11 @@ try {
    assert.equal(await eporner.getByRole('button',{name:'Continue Eporner Latest',exact:true}).isEnabled(),true);
    await eporner.locator('[data-archive-lane="eporner:most-popular"]').getByText('Not checked',{exact:true}).waitFor();
    assert((await progress.locator('[data-archive-lane]').count())<=35);
+   assert(!(await progress.innerText()).includes('private-query-sentinel'));
    const redtube=progress.locator('[data-archive-lanes="redtube"]');await redtube.locator('summary').click();assert.equal(await redtube.getByRole('button',{name:'Continue RedTube Latest',exact:true}).isEnabled(),false);
    report.checks.push('Independent sort coverage is bounded over the saved catalog, separates unchecked/exhausted/retry states, and respects provider cooldowns');
 
-   report.checks.push('Saved mixed catalog shows 30 archived videos, 20 photos and 10 room cards without pulling while paused');
+   report.checks.push(`Saved mixed catalog shows ${mobile?'30':'99,970'} archived videos, 20 photos and 10 room cards without pulling while paused; private query positions stay outside coverage`);
    await progress.getByRole('button',{name:'Use larger archive growth',exact:true}).click();
    await progress.getByText(/Larger archive growth saved/).waitFor();
    const settings=await page.evaluate(()=>JSON.parse(localStorage.getItem('reelcase.pull-settings.v1')));

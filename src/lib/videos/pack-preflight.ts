@@ -632,6 +632,9 @@ export async function inspectLegacyFiles(
     }
     await (options.turn ?? yieldCatalogTask)();
   }
+  const legacyRejections=(files.get('marks/ratings.json') as {recommendationRejections?:unknown}|undefined)?.recommendationRejections;
+  if(legacyRejections!==undefined&&!files.has('marks/recommendation-rejections.json'))
+    files.set('marks/recommendation-rejections.json',legacyRejections);
   if (manifestSource) {
     if (files.has(PROFILE_SOURCE_FILE)) {
       try {

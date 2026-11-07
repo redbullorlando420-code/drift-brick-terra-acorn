@@ -1,0 +1,16 @@
+✔ a pure restore plan checkpoints every personal field together and preserves unrelated preferences (8.8021ms)
+✔ empty follow replacement and history merging are explicit and provider-free (0.7022ms)
+✔ snapshot verification rejects tampering, unsupported stores, duplicates and cancellation (1.1113ms)
+✔ future control records fail closed instead of discarding an existing generation (0.1837ms)
+✔ future existing feature data cannot be overwritten by an older normalized reader (0.5742ms)
+✔ rating-history-only imports require a choice and checkpoint the chosen pair coherently (10.9593ms)
+✔ follow merge retains a newer observation without changing the stable source identity (0.7441ms)
+✔ personal-only restore cannot import an archive continuation without its accepted catalog (0.3844ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 259.9414

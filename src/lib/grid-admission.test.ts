@@ -2,6 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGridAdmission } from './grid-admission.ts';
 
+test('explicit logical restoration jumps numeric admission without scheduling intervening mounts',()=>{
+  let scheduled=0;const controller=createGridAdmission(36,()=>{scheduled++;return()=>{};});controller.setMaximum(100000);
+  assert.equal(controller.restoreThrough(90001),true);assert.equal(controller.snapshot().loaded,90001);assert.equal(scheduled,0);
+  controller.hold(true);assert.equal(controller.restoreThrough(99000),false);assert.equal(controller.snapshot().loaded,90001);
+  controller.hold(false);assert.equal(controller.restoreThrough(Infinity),false);controller.restoreThrough(200000);assert.equal(controller.snapshot().loaded,100000);
+});
+
 function fixture(initial = 48) {
   const jobs: Array<{ work: () => void; cancelled: boolean }> = [];
   const controller = createGridAdmission(initial, work => {

@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Three desks restore their distinct search and logical anchors with back/forward on desktop and mobile; deep result restoration preserves the bounded grid",
+        "Saved place survives reload and a real verified local-identity rename/reorder; the canonical media item receives focus without autoplay",
+        "Keyboard back closes a title preview and restores its logical anchor; forward reopens the preview without playback",
+        "Newly private original and neighborhood reveal no old title; quota failure preserves saved bytes and the remaining query still opens",
+        "Removed source drops only its unavailable anchor and keeps the query; private tasks stay out of the public picker",
+        "Returning to Twitch restores its expanded full-catalog section after the normal route reset",
+        "Explicit removal preserves media; alternate profile has no previous task stack or places; future storage schemas disable writes and preserve bytes"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Three desks restore their distinct search and logical anchors with back/forward on desktop and mobile; deep result restoration preserves the bounded grid",
+        "Saved place survives reload and a real verified local-identity rename/reorder; the canonical media item receives focus without autoplay",
+        "Keyboard back closes a title preview and restores its logical anchor; forward reopens the preview without playback",
+        "Newly private original and neighborhood reveal no old title; quota failure preserves saved bytes and the remaining query still opens",
+        "Removed source drops only its unavailable anchor and keeps the query; private tasks stay out of the public picker",
+        "Returning to Twitch restores its expanded full-catalog section after the normal route reset",
+        "Explicit removal preserves media; alternate profile has no previous task stack or places; future storage schemas disable writes and preserve bytes"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Disposable profiles, saved metadata and deterministic provider responses; no real provider playback, physical phone or local media permission is exercised."
+}

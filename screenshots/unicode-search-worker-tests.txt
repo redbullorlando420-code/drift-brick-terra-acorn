@@ -1,0 +1,28 @@
+✔ nearby searches reuse a ready worker; inactivity actually frees it (9.8123ms)
+✔ compact search packets reduce round trips while preserving complete metadata and positions (57.8751ms)
+✔ search index reuse checks copied catalogs cooperatively and indexes only the appended suffix (400.4617ms)
+✔ superseded search comparisons cannot publish stale positions and reordered snapshots rebuild (8.2943ms)
+✔ local review loads without writes and a durable old mirror cannot resurrect a later Undo (5.3267ms)
+✔ approved evidence, JSON reload and backup import retain provenance, while legacy/future payloads cannot wipe decisions (33.4031ms)
+✔ both-mirror save failure stays usable in the session and retry saves its exact current decisions (39.2414ms)
+✔ review validation protects built-ins and operational labels, rejects unsupported ledgers and bounds retained decisions (11.055ms)
+✔ candidate evidence counts saved public labels once per title and excludes private, hidden, provider and creator facets (25.4596ms)
+✔ approval, reload and Undo update only affected topic postings and preserve locked/manual labels exactly (11.634ms)
+✔ ambiguous short labels remain distinct until explicit manual review; Undo restores distinct topic counts (2.2306ms)
+✔ unrelated cached topic evidence retains its identity, affected evidence refreshes, and legacy/private interpretation stays separate (0.6574ms)
+✔ public fallback search joins reviewed spelling with canonical labels and reverses cleanly (70.4339ms)
+✔ actual search worker adds/removes alias tag postings without another document batch and honors a private/raw request (16.212ms)
+✔ public YouTube, Guide and Twitch recommendation inputs use approved spelling evidence and recover after Undo (13.1858ms)
+✔ YouTube worker reset receives alias snapshot and does not retain it after a raw reset (1.9823ms)
+✔ interrupted affected-topic patch leaves prior postings complete and can be retried (1.2216ms)
+✔ alias provenance never enters public room media or Watch Together session files (2.3153ms)
+✔ an active consumer recovers from an earlier cancelled shared preparation (1.0997ms)
+✔ concurrent active consumers share one staged affected-topic patch (3.5175ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 779.3995

@@ -1,0 +1,23 @@
+✔ Default retains legacy keys in place and excludes all other profiles from enumeration (1.3501ms)
+✔ profile storage cannot read, enumerate, overwrite or clear another profile (0.7335ms)
+✔ an old asynchronous writer keeps its original namespace after another profile is chosen (0.1928ms)
+✔ storage transport drops foreign personal changes and translates own keys without changing auth events (0.2194ms)
+✔ quota failure leaves an existing personal value intact (0.1725ms)
+✔ enumeration stays fresh when another writer replaces keys at the same total size (0.1371ms)
+✔ profile registry rejects future versions, duplicate IDs, duplicate labels and capacity overflow (0.3038ms)
+✔ switch checkpoint cancels a held catalog read, closes active views and refuses busy source work (26.2374ms)
+✔ mixed private favorites, history and merged source signals never become public Guide evidence, topics or ordinary report exports (18.9206ms)
+✔ adversarial Alpha feedback and held work leave every Beta public projection and report unchanged (15.3028ms)
+✔ scopes exclude private/adult/merged/hidden/orphan titles and provider aliases before pagination (3.5187ms)
+✔ revocation blocks stale IDs, public aliases, regrant retries and unpublished suggestions while active playback survives (0.2593ms)
+✔ local title opt-in sends only a filename and playback duration, never directory or filesystem metadata (0.7353ms)
+✔ 100k catalog builds and denied searches yield, retain only page data and support cancellation (338.8227ms)
+✔ room recommendation preparation excludes private signals and canonical aliases regardless of private desk state (0.6666ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 624.9896

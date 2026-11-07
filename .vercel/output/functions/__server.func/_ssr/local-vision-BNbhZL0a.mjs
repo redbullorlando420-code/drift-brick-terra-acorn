@@ -1,4 +1,4 @@
-import { $ as browserConsent } from "./library-app-CdyqOeNr.mjs";
+import { st as browserConsent } from "./library-app-3PBwf-4D.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/local-vision-BNbhZL0a.js
 var VISION_MODELS = {
 	semantic: {

@@ -1,0 +1,15 @@
+✔ defaults exactly preserve ordering and opt-in caps the dominant creator with source and age floors (17.3898ms)
+✔ eligibility and negative choices precede variety, including query ranking (5.2251ms)
+✔ balanced quotas stay intact; absent credits, short shelves and uncertain dates never claim a floor passed (1.6702ms)
+✔ 100k candidates keep a bounded alternative pool, surface coverage limits and yield during repair (171.802ms)
+✔ only applied document-local settings affect ranking and aggregate exports contain no identities or raw provenance (2.379ms)
+✔ manual and provider tag reasons carry exact-field provenance, stable through refreshed descriptions (2.627ms)
+✔ inspection never enumerates unrelated provenance or reads private notes, and missing sources remain uncertain (0.5201ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 380.9905

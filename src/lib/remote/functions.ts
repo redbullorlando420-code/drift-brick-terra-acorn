@@ -78,7 +78,7 @@ export const refreshRemotes = (...args: Parameters<typeof refreshRemotesRequest>
     { live, provider, operation: live ? 'live' : data?.youtubeCatalog || data?.youtubeFeedRepair || data?.twitchContinueArchive ? 'archive' : 'recent', ignorePause: live, automatic: data?.youtubeBackground, signal: args[0]?.signal });
 };
 export const importChannels = (...args: Parameters<typeof importChannelsRequest>) => runPausablePull(signal => importChannelsRequest({ ...args[0], data: pacedData(args[0]?.data), signal }), { operation: 'import', signal: args[0]?.signal });
-export const searchAdultVideos = (...args: Parameters<typeof searchAdultVideosRequest>) => runPausablePull(signal => searchAdultVideosRequest({ ...args[0], signal }));
+export const searchAdultVideos = (...args: Parameters<typeof searchAdultVideosRequest>) => runPausablePull(signal => searchAdultVideosRequest({ ...args[0], signal }), {automatic:(args[0]?.data as {automatic?:boolean}|undefined)?.automatic===true,provider:'adults',signal:args[0]?.signal});
 
 /** Selected-photo validation must continue while bulk pulling is paused. */
 export const inspectRedditImage = createServerFn({ method: 'POST' })

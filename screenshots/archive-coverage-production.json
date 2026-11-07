@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Independent sort coverage is bounded over the saved catalog, separates unchecked/exhausted/retry states, and respects provider cooldowns",
+        "Saved mixed catalog shows 99,970 archived videos, 20 photos and 10 room cards without pulling while paused; private query positions stay outside coverage",
+        "Pull and repeat refresh save 10 new archived videos once, preserve media counts, and keep each response under 400",
+        "Accepted catalog, higher limits and manual tag survive reload on this disposable profile"
+      ],
+      "errors": [],
+      "requests": [
+        {
+          "page": 7,
+          "offset": 120,
+          "limit": 400
+        },
+        {
+          "page": 1,
+          "offset": 0,
+          "limit": 400
+        }
+      ]
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Independent sort coverage is bounded over the saved catalog, separates unchecked/exhausted/retry states, and respects provider cooldowns",
+        "Saved mixed catalog shows 30 archived videos, 20 photos and 10 room cards without pulling while paused; private query positions stay outside coverage",
+        "Pull and repeat refresh save 10 new archived videos once, preserve media counts, and keep each response under 400",
+        "Accepted catalog, higher limits and manual tag survive reload on this disposable profile"
+      ],
+      "errors": [],
+      "requests": [
+        {
+          "page": 7,
+          "offset": 120,
+          "limit": 400
+        },
+        {
+          "page": 1,
+          "offset": 0,
+          "limit": 400
+        }
+      ]
+    }
+  ],
+  "limitation": "Provider metadata is deterministic; real provider availability and rate limits are external."
+}

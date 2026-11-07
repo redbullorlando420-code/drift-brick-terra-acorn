@@ -82,6 +82,15 @@ test('actual Adult automatic owner recovers a failed count, holds idle/pause gat
     fixture.countGate=new Promise(resolve=>{releaseCount=resolve;});await advance(15_000);
     fixture.policy={...fixture.policy,automaticPulls:false};releaseCount();await drain();fixture.countGate=null;
     assert.equal(fixture.pulls.length,4,'disabling automatic pulls during counting stops the pending request');
+    fixture.growth={archivedVideos:0,photos:0,liveRooms:0,unknown:0};
+    const openAt=Math.floor(fixture.now/60000)*60000+120000;
+    fixture.policy={...fixture.policy,automaticPulls:true,archiveWorkWindow:{version:1,enabled:true,startMinute:Math.floor(openAt/60000)%1440,endMinute:(Math.floor(openAt/60000)+1)%1440,timeZone:'UTC'}};
+    fixture.controls.forEach(wake=>wake());
+    const checksBefore=fixture.countCalls;
+    await advance(openAt-fixture.now-1);assert.equal(fixture.pulls.length,4);assert.equal(fixture.countCalls,checksBefore,'closed hours do not hydrate/count/pull on recurring ticks');
+    await advance(1);assert.equal(fixture.pulls.length,5,'the existing scheduler wakes at the opening without another event');
+    await advance(60000);const atClose=fixture.pulls.length;
+    await advance(60000);assert.equal(fixture.pulls.length,atClose,'closing holds later automatic work');
     fixture.cleanup(); assert.equal(timers.size, 0); assert.equal(fixture.controls.size, 0); assert.equal(fixture.settings.size, 0);
     assert.equal(fixture.scheduler.snapshot().tasks, 0);
   } finally {

@@ -1,0 +1,3 @@
+src/lib/videos/guide-provenance.ts 57ms
+src/lib/videos/guide-diversity.ts 32ms (unchanged)
+scripts/guide-trust-browser-check.mjs 45ms

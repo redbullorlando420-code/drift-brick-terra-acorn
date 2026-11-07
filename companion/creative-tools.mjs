@@ -1,3 +1,4 @@
+import {studioParameterContract} from './studio-parameter-contract.mjs';
 import { createQwenEngine } from './qwen-engine.mjs';
 import { existsSync, openSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
@@ -38,7 +39,7 @@ export function generationPayload(body) {
   const integer = (value, min, max, fallback) => value === undefined ? fallback : Number.isInteger(value) && value >= min && value <= max ? value : (() => { throw new Error('Generation settings are outside the allowed limits.'); })();
   const width = integer(body.width, 256, 768, 512), height = integer(body.height, 256, 768, 512);
   if (width % 64 || height % 64) throw new Error('Image dimensions must be multiples of 64 between 256 and 768.');
-  return { prompt: body.prompt.trim(), negative_prompt: body.negativePrompt ?? '', steps: integer(body.steps, 1, 40, 20), width, height, seed: integer(body.seed, -1, 2147483647, -1), sampler_name: "Euler", scheduler: "Automatic", cfg_scale: 7, batch_size: 1, n_iter: 1, send_images: true, save_images: false };
+  return { prompt: body.prompt.trim(), negative_prompt: body.negativePrompt ?? '', steps: integer(body.steps, 1, 40, 20), width, height, seed: integer(body.seed, -1, 2147483647, -1), sampler_name: studioParameterContract('a1111').sampler, scheduler: studioParameterContract('a1111').scheduler, cfg_scale: studioParameterContract('a1111').guidance, batch_size: 1, n_iter: 1, send_images: true, save_images: false };
 }
 export function remotePeer(value) {
   if (typeof value !== 'string' || !/^\d{9,12}$/.test(value)) throw new Error('Enter a RustDesk ID containing 9–12 digits. URLs, passwords and command arguments are not accepted.');
@@ -78,7 +79,7 @@ export function createCreativeTools({ dir, spawnProcess = spawn, fetchLocal = fe
       return qwen(path, method, body);
     }
     if (path === '/studio/status' && method === 'GET') {
-      try { const models = await sd('sd-models'); return { ok: true, connected: true, ready: Array.isArray(models) && models.length > 0, modelPreflight: typeof modelsManager?.preflight === 'function', models: Array.isArray(models) ? models.slice(0, 50).map(row => String(row.title ?? row.model_name)) : [], busy: generation, canStart: canStart(), ownedEngine: Boolean(engine) }; }
+      try { const models = await sd('sd-models'); return { ok: true, parameterContract:studioParameterContract('a1111'),connected: true, ready: Array.isArray(models) && models.length > 0, modelPreflight: typeof modelsManager?.preflight === 'function', models: Array.isArray(models) ? models.slice(0, 50).map(row => String(row.title ?? row.model_name)) : [], busy: generation, canStart: canStart(), ownedEngine: Boolean(engine) }; }
       catch (cause) { return { ok: true, connected: false, ready: false, models: [], canStart: canStart(), ownedEngine: Boolean(engine), ...(cause.connectionIssue ? { connectionIssue: cause.connectionIssue } : {}), note: cause.connectionIssue ? cause.message : engine ? 'Local engine is starting. Check status again shortly.' : 'Start AUTOMATIC1111 locally with --api, on 127.0.0.1:7860, and load a checkpoint.' }; }
     }
     if (path === '/studio/refresh' && method === 'POST') { await sd('refresh-checkpoints', {}); return {ok:true}; }

@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "live": false,
+      "checks": [
+        "Catalog loads explicitly, film/offer filters work, next/previous preserve pages, external opening leaves watched state alone",
+        "Search, provider failure/retry, stale cancellation, quota rollback/recovery, saved search, watch marks, export, reload and persistent undo work",
+        "Alternate profile cannot read Default movie shelf; returning retains saved state",
+        "Concurrent edits and future schemas preserve prior data; explicit reload recovers without overwriting another tab",
+        "No hidden players, uncaught console errors or horizontal overflow"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "live": false,
+      "checks": [
+        "Catalog loads explicitly, film/offer filters work, next/previous preserve pages, external opening leaves watched state alone",
+        "Search, provider failure/retry, stale cancellation, quota rollback/recovery, saved search, watch marks, export, reload and persistent undo work",
+        "Alternate profile cannot read Default movie shelf; returning retains saved state",
+        "Concurrent edits and future schemas preserve prior data; explicit reload recovers without overwriting another tab",
+        "No hidden players, uncaught console errors or horizontal overflow"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Disposable profile fixtures; real provider availability checked separately."
+}

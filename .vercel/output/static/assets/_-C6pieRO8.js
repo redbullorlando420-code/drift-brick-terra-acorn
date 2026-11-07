@@ -1,1 +1,0 @@
-import{P as e}from"./index-BBimfspg.js";var t=e;export{t as component};

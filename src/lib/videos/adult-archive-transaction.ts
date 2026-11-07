@@ -5,6 +5,7 @@ import {
   readArchiveLedger,
   type ArchiveCheckpoint,
 } from "./adult-archive-model.ts";
+import {nextArchiveYield} from './archive-yield.ts';
 /** Called after this operation's row puts are queued. Every earlier accepted
  * row and the final slice are checked in the same transaction as the cursor. */
 export function applyArchiveCheckpoint(
@@ -33,7 +34,7 @@ export function applyArchiveCheckpoint(
                 provider: checkpoint.provider,
                 token: checkpoint.token,
                 accepted: checkpoint.acceptedIds.length,
-                cursor: checkpoint.cursor,
+                cursor: {...checkpoint.cursor,yield:checkpoint.observeYield===false?previous?.cursor.yield:nextArchiveYield(previous?.cursor.yield,checkpoint.cursor,checkpoint.acceptedIds.length)},
               },
             },
           },

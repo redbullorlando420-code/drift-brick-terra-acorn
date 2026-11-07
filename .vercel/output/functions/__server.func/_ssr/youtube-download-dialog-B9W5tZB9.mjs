@@ -3,7 +3,7 @@ import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { t as Button } from "./button-BBe1bZ7q.mjs";
 import { d as companionFetch } from "./companion-DacueTBp.mjs";
-import { Bt as ExternalLink, H as Play, Ht as Download, L as RefreshCw, Yt as CircleCheck, lt as LoaderCircle, n as X } from "../_libs/lucide-react.mjs";
+import { H as Play, L as RefreshCw, Ut as Download, Vt as ExternalLink, Xt as CircleCheck, n as X, ut as LoaderCircle } from "../_libs/lucide-react.mjs";
 import { a as DialogOverlay, i as DialogDescription, n as DialogClose, o as DialogPortal, r as DialogContent, s as DialogTitle, t as Dialog } from "../_libs/@radix-ui/react-dialog+[...].mjs";
 import { t as closeYoutubeDownload } from "./youtube-download-CKPVbpaB.mjs";
 import { r as NativePermissionControl } from "./capability-permissions-TJrpIyII.mjs";

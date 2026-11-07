@@ -1,0 +1,37 @@
+✔ actual Adult automatic owner recovers a failed count, holds idle/pause gates and releases its schedule (142.9757ms)
+✔ versioned operations accept bounded deltas, not future or oversized batches (2.7212ms)
+✔ manual records validate paired tags, provenance, field clocks and category shape (0.5984ms)
+✔ unknown and corrupt control generations remain rejected instead of reset (0.1948ms)
+✔ explicit snapshot retry invalidates only the slice writer reference cache (0.1845ms)
+✔ field clocks restore category separately from newer automatic tags without walking base dictionaries (6.1286ms)
+✔ a pure restore plan checkpoints every personal field together and preserves unrelated preferences (9.4699ms)
+✔ empty follow replacement and history merging are explicit and provider-free (0.9868ms)
+✔ snapshot verification rejects tampering, unsupported stores, duplicates and cancellation (1.466ms)
+✔ future control records fail closed instead of discarding an existing generation (0.2596ms)
+✔ future existing feature data cannot be overwritten by an older normalized reader (0.3866ms)
+✔ rating-history-only imports require a choice and checkpoint the chosen pair coherently (7.6432ms)
+✔ follow merge retains a newer observation without changing the stable source identity (0.6471ms)
+✔ personal-only restore cannot import an archive continuation without its accepted catalog (0.3499ms)
+✔ Default retains legacy keys in place and excludes all other profiles from enumeration (1.5991ms)
+✔ profile storage cannot read, enumerate, overwrite or clear another profile (0.6596ms)
+✔ an old asynchronous writer keeps its original namespace after another profile is chosen (0.2838ms)
+✔ storage transport drops foreign personal changes and translates own keys without changing auth events (0.24ms)
+✔ quota failure leaves an existing personal value intact (0.2096ms)
+✔ enumeration stays fresh when another writer replaces keys at the same total size (0.1765ms)
+✔ profile registry rejects future versions, duplicate IDs, duplicate labels and capacity overflow (0.3376ms)
+✔ single-provider writes preserve other resume points and failures preserve partial offsets (3.9021ms)
+✔ quota failure still returns the accepted in-session cursor without overwriting another provider from a stale mirror (0.3061ms)
+✔ checkpoint schema rejects malformed, duplicated, future and oversized admissions (3.0933ms)
+✔ migration keeps durable positions authoritative and leaves separate sort positions independent (3.9468ms)
+✔ coverage separates not checked, exhausted, cooling down and retryable failures without blocking another sort (0.5375ms)
+✔ independent sort lanes rotate without starving other providers or retrying a failed source (2.7251ms)
+✔ all lanes cooling down create no eligible job and limits bound provider fanout (0.2001ms)
+✔ legacy rotating cursors restart once while stable cursors and query-specific depths remain intact (1.042ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 374.962

@@ -1,0 +1,55 @@
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByRole('region', { name: 'Storage and save recovery', exact: true }).getByRole('status').filter({ hasText: 'library preferences were saved' }) to be visible
+
+    at E:\codex\drift-brick-terra-acorn\scripts\catalog-recovery-browser-check.mjs:797:10
+{
+  "ok": false,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "errors": [],
+      "checks": [
+        "Actual IndexedDB failures before prepare, after durable prepare, card apply, metadata apply and commit preserve the prior state; accepted deltas replay once with no full catalog scan.",
+        "Manual tags, locks and category survive lost acknowledgement; stale provider metadata cannot replace them and a full localStorage mirror falls back to IndexedDB.",
+        "Interrupted cleanup rolls back without later deletion; future journals remain preserved and block conflicting catalog writes.",
+        "Desktop/touch-mobile UI previews a bounded artwork-only cleanup; cancel deletes nothing, confirmation skips changed artwork and preserves personal records with approximate byte reporting."
+      ],
+      "leaseDebug": [
+        "LEASEDBG {\"key\":\"writer-lease:v1:catalog\",\"previous\":{\"version\":1,\"scope\":\"catalog\",\"owner\":\"tab:98a8621d-4090-482d-8d5c-8f147b81c566\",\"generation\":34,\"expiresAt\":1793676848235,\"revision\":20,\"dirty\":false},\"owner\":\"tab:25d5a7f2-b2d2-4cba-89c4-c40f00c778b5\",\"now\":1793676833410,\"scope\":\"catalog\"}",
+        "LEASEDBG {\"key\":\"writer-lease:v1:catalog\",\"previous\":{\"version\":1,\"scope\":\"catalog\",\"owner\":\"tab:98a8621d-4090-482d-8d5c-8f147b81c566\",\"generation\":34,\"expiresAt\":1793676848235,\"revision\":20,\"dirty\":false},\"owner\":\"tab:acab3579-ef5f-4e1c-9fb7-6868c37a1716\",\"now\":1793676834545,\"scope\":\"catalog\"}",
+        "LEASEDBG {\"key\":\"writer-lease:v1:catalog\",\"previous\":{\"version\":1,\"scope\":\"catalog\",\"owner\":\"tab:98a8621d-4090-482d-8d5c-8f147b81c566\",\"generation\":34,\"expiresAt\":1793676848235,\"revision\":20,\"dirty\":false},\"owner\":\"tab:acab3579-ef5f-4e1c-9fb7-6868c37a1716\",\"now\":1793676836046,\"scope\":\"catalog\"}"
+      ],
+      "scale": {
+        "rows": 100001,
+        "maxGapMs": 18,
+        "ticks": 60,
+        "recoveryCatalogScans": 0,
+        "maxStagedRows": 64,
+        "controlsReadyMs": 426
+      },
+      "ok": false,
+      "error": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('region', { name: 'Storage and save recovery', exact: true }).getByRole('status').filter({ hasText: 'library preferences were saved' }) to be visible\u001b[22m\n\n    at E:\\codex\\drift-brick-terra-acorn\\scripts\\catalog-recovery-browser-check.mjs:797:10",
+      "writerBusyStacks": [
+        "Error: Another app tab is updating this workspace. Your pending changes are kept; retry after that tab finishes.\n    at http://127.0.0.1:8080/src/lib/writer-lease.ts?t=1793676810665:104:11\n    at request.onsuccess (http://127.0.0.1:8080/src/lib/writer-lease.ts?t=1793676810665:78:7)",
+        "Error: Another app tab is updating this workspace. Your pending changes are kept; retry after that tab finishes.\n    at http://127.0.0.1:8080/src/lib/writer-lease.ts?t=1793676810665:104:11\n    at request.onsuccess (http://127.0.0.1:8080/src/lib/writer-lease.ts?t=1793676810665:78:7)"
+      ],
+      "visibleAlerts": [
+        "Pending catalog recovery failed: Another app tab is updating this workspace. Your pending changes are kept; retry after that tab finishes."
+      ],
+      "lastLeaseWait": {
+        "value": {
+          "version": 1,
+          "scope": "catalog",
+          "owner": "tab:98a8621d-4090-482d-8d5c-8f147b81c566",
+          "generation": 34,
+          "expiresAt": 1793676848235,
+          "revision": 20,
+          "dirty": false
+        },
+        "at": 1793676835058
+      }
+    }
+  ],
+  "limitations": "Isolated Chrome profiles, actual IndexedDB and compiled source modules; injected storage failures and synthetic 100k catalogs. No real user library, provider or physical device was changed."
+}

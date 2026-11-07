@@ -1,1 +1,0 @@
-import{nc as e}from"./persist-ChgRGJg9.js";import{a as t,n}from"./interaction-budget-CPdGQeYB.js";function r(r){return async()=>{r.throwIfAborted(),await e(),r.throwIfAborted(),n()>0&&await new Promise((e,n)=>{let i=()=>{a(),n(r.reason)},a=t(()=>{r.removeEventListener(`abort`,i),e()});r.addEventListener(`abort`,i,{once:!0})}),r.throwIfAborted()}}export{r as t};

@@ -1,0 +1,40 @@
+{
+  "url": "http://127.0.0.1:8083/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "hydrationVerified": true,
+      "bodyTextLen": 1586,
+      "bodyTextHash": "cbeeaa7cefe086d9b1db9b817efa6b1d66ab87ef17c6e7f0bd25b7dc7fcba719",
+      "bodyTextPrefix": "Realhub Vault · networks · live Default Library Home Landing pag",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\room-arrival-home-prod.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "hydrationVerified": true,
+      "bodyTextLen": 1357,
+      "bodyTextHash": "ecdb132fdd2faa47daf2fa3b26024f69030a2dd09f414b91dca43b9d539c9b7f",
+      "bodyTextPrefix": "Home 0 indexed Default Search Date added Pause pulls REALHUB · Y",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\room-arrival-home-prod-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\room-arrival-home-prod.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

@@ -258,6 +258,14 @@ try {
   checks.push(
     "empty guest library defaults to host search; browse and next/previous pages reach unqueued titles beyond the current video without copying the catalog",
   );
+  await search(guest).fill('Host archive 089');
+  await results(guest).getByRole('button',{name:'Draft Host archive 089',exact:true}).click();
+  const draftPanel=guest.locator('[data-guest-drafts]');
+  await draftPanel.locator(':scope > summary').click();
+  await draftPanel.getByText(/Host archive 089 · Unsent draft/).waitFor();
+  assert.equal(await queue(host).count(),0);
+  assert.doesNotMatch(await guest.evaluate(()=>localStorage.getItem('reelcase.room-guest-drafts.v1')),/CANARY|private|fingerprint|path|description/);
+  checks.push('An empty-library guest stages a host-shared public result locally; draft persistence contains no private paths or descriptions and does not edit the host queue');
   for (const index of [89, 90]) {
     await search(guest).fill(`Host archive ${String(index).padStart(3, "0")}`);
     await results(guest)
@@ -293,6 +301,12 @@ try {
     .getByText(/Host browsing is unavailable/)
     .waitFor();
   assert.equal(await results(guest).count(), 0);
+  await draftPanel.locator('[data-guest-draft-id] input[type="checkbox"]').check();
+  await draftPanel.getByRole('button',{name:'Submit selected drafts',exact:true}).click();
+  await draftPanel.getByRole('alert').filter({hasText:/sharing changed/}).waitFor();
+  assert.equal(await queue(host).count(),1);
+  assert.equal(await guest.evaluate(()=>JSON.parse(localStorage.getItem('reelcase.room-guest-drafts.v1')).rows[0].status),'draft');
+  checks.push('Revoked host discovery invalidates a previously staged host draft; submission fails visibly and preserves the unsent draft');
   await settings
     .getByRole("checkbox", { name: "Let guests search my library", exact: true })
     .check();

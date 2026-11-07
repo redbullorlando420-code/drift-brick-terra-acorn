@@ -40,5 +40,6 @@ export function parseRoomYoutubeSearch(root: unknown) {
       addedAt:published?Date.parse(published):0,duration:metadata.youtubeType==='live'?undefined:duration,description:description.slice(0,280),poster:`https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
       remote:{kind:'youtube',videoId:id,channelName:text(row.ownerText)||text(row.longBylineText)||text(row.shortBylineText),live:metadata.youtubeType==='live',youtubeType:metadata.youtubeType,publishedDate:published,publishedSource:published?'provider':'unknown',publishedLabel:text(row.publishedTimeText).slice(0,90),views:Number.isSafeInteger(count)?count:undefined,watchUrl:`https://www.youtube.com/watch?v=${id}`,embedUrl:`https://www.youtube.com/embed/${id}`}}];
   });
-  return {videos,cursor};
+  const estimated=typeof data.estimatedResults==='string'&&/^\d{1,15}$/.test(data.estimatedResults)?Number(data.estimatedResults):undefined;
+  return {videos,cursor,...(Number.isSafeInteger(estimated)&&estimated!>=videos.length?{estimatedTotal:estimated}: {})};
 }

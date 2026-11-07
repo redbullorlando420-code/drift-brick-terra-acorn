@@ -10,7 +10,8 @@
       "Interruption at commit preserves the accepted prefix and exact old cursor; recovery/replay retains manual metadata",
       "A stale checkpoint cannot replace a newer committed position or poison journal recovery",
       "Future ledger versions fail closed while catalog rows and the unsupported document are preserved",
-      "Reload restores the durable page/offset over a stale quota-blocked preference mirror"
+      "Reload restores the durable page/offset over a stale quota-blocked preference mirror",
+      "A second saved profile starts with no foreign archive positions; its changes leave Default checkpoints intact"
     ],
     "errors": []
   }

@@ -1,3 +1,4 @@
+import {publicationAge} from './guide-diversity.ts';
 import type {LibraryVideo} from './types.ts';
 import {guideWeights,type GuideWeights} from './guide-preset.ts';
 import {normalizeRecommendationSession,type RecommendationSession} from './recommendation-session.ts';
@@ -7,7 +8,7 @@ export const REPORT_CREATOR_LIMIT=4096,REPORT_OUTPUT_LIMIT=12;
 export const REPORT_SOURCES=['local','youtube','twitch','other'] as const;
 export type ReportSource=typeof REPORT_SOURCES[number];
 export type Distribution={
- version:1;at:number;session:RecommendationSession;weights?:GuideWeights;eligible:number;creatorLimited:boolean;
+ publicationAge?:{older:number;recent:number;unknown:number};diversity?:import('./guide-diversity').DiversityResult;version:1;at:number;session:RecommendationSession;weights?:GuideWeights;eligible:number;creatorLimited:boolean;
  sources:Array<{source:ReportSource;available:number;shown:number}>;
  creators:Array<{bucket:number;source:ReportSource;shown:number;available:number|null}>;
  unknownCreators:number;unknownCandidateCreators:number;selections:Array<{key:string;recorded:boolean;exposed:boolean}>;
@@ -36,7 +37,8 @@ export function createDistributionCollector(session?:RecommendationSession,weigh
    for(const video of selected){const key=creatorOf(video);if(!key){unknownCreators++;continue;}const previous=groups.get(key);
     if(previous)previous.shown++;else groups.set(key,{bucket:groups.size+1,source:sourceOf(video),shown:1,available:creators.get(key)??null});
    }
-   return {version:1,at,session:tuning,weights:guideWeights(weights),eligible,creatorLimited,sources:REPORT_SOURCES.map(source=>({source,available:sources.get(source)!,shown:selected.filter(video=>sourceOf(video)===source).length})),creators:[...groups.values()].sort((a,b)=>b.shown-a.shown||a.bucket-b.bucket),unknownCreators,unknownCandidateCreators,selections:selected.map(video=>({key:exposureKey(video),recorded:historyHas(video.id),exposed:exposed.has(exposureKey(video))}))};
+   const ages={older:0,recent:0,unknown:0};for(const video of selected)ages[publicationAge(video,at)]++;
+   return {publicationAge:ages,version:1,at,session:tuning,weights:guideWeights(weights),eligible,creatorLimited,sources:REPORT_SOURCES.map(source=>({source,available:sources.get(source)!,shown:selected.filter(video=>sourceOf(video)===source).length})),creators:[...groups.values()].sort((a,b)=>b.shown-a.shown||a.bucket-b.bucket),unknownCreators,unknownCandidateCreators,selections:selected.map(video=>({key:exposureKey(video),recorded:historyHas(video.id),exposed:exposed.has(exposureKey(video))}))};
   },
   get trackedCreators(){return creators.size;},
  };
@@ -56,12 +58,12 @@ export function summarizeDistribution(data:Distribution,previous:readonly string
  if(n&&dominant&&dominant.shown/n*100>cutoff){
   const alternatives=dominant.available===null?null:Math.max(0,data.eligible-dominant.available),needed=n-Math.floor(n*cutoff/100);
   const missingCredits=alternatives!==null&&alternatives>=needed&&alternatives-data.unknownCandidateCreators<needed;
-  findings.push({kind:'concentration',status:alternatives===null||missingCredits?'unknown':alternatives<needed?'constrained':'review',text:alternatives===null?'The leading creator exceeds the diagnostic threshold. Creator availability hit the counting limit, so avoidability is unknown.':missingCredits?'The leading creator exceeds the diagnostic threshold, but missing creator credits prevent confirming enough distinct-creator alternatives.':alternatives<needed?'The leading creator exceeds the diagnostic threshold, but too few eligible alternatives can fill this output below it.':'The leading creator exceeds the diagnostic threshold and eligible alternatives with other creator credits exist. Review the mix or session settings; no creator cap is currently enforced.'});
+  findings.push({kind:'concentration',status:alternatives===null||missingCredits?'unknown':alternatives<needed?'constrained':'review',text:alternatives===null?'The leading creator exceeds the diagnostic threshold. Creator availability hit the counting limit, so avoidability is unknown.':missingCredits?'The leading creator exceeds the diagnostic threshold, but missing creator credits prevent confirming enough distinct-creator alternatives.':alternatives<needed?'The leading creator exceeds the diagnostic threshold, but too few eligible alternatives can fill this output below it.':'The leading creator exceeds the diagnostic threshold and eligible alternatives with other creator credits exist. Review the mix or session settings; this diagnostic threshold does not enforce a creator cap.'});
  }else if(n)findings.push({kind:'concentration',status:'ok',text:'No identified creator exceeds the diagnostic threshold. Missing creator credits are reported separately.'});
  if(data.creatorLimited)findings.push({kind:'coverage',status:'unknown',text:'Creator availability is counted for at most 4,096 identities. Untracked selected creators have unknown availability, not zero.'});
  return {threshold:cutoff,shown:n,uniqueTitles:unique.size,repeatedWithin:n-unique.size,recorded:data.selections.filter(row=>row.recorded).length,recentlyExposed:data.selections.filter(row=>row.exposed).length,novel:data.selections.filter(row=>!row.recorded&&!row.exposed).length,previousShown:prior?.size??null,repeatedFromPrevious:prior?[...unique].filter(key=>prior.has(key)).length:null,findings};
 }
 /** Export counts and anonymous creator buckets only, never titles, IDs, paths or prompts. */
 export function distributionExport(data:Distribution,previous?:readonly string[],threshold=50){
- return {version:1,scope:'Actual generated public AI Guide output only; aggregate snapshot, not demographic fairness or a watch-completion claim.',at:data.at,session:data.session,weights:guideWeights(data.weights),eligible:data.eligible,sources:data.sources.map(row=>({source:row.source,available:row.available,shown:row.shown})),creators:data.creators.map(row=>({bucket:row.bucket,source:row.source,shown:row.shown,available:row.available})),unknownCreators:data.unknownCreators,unknownCandidateCreators:data.unknownCandidateCreators,creatorLimited:data.creatorLimited,...summarizeDistribution(data,previous,threshold)};
+ return {...(data.publicationAge?{publicationAge:data.publicationAge}:{}),...(data.diversity?{diversity:data.diversity}:{}),version:1,scope:'Actual generated public AI Guide output only; aggregate snapshot, not demographic fairness or a watch-completion claim.',at:data.at,session:data.session,weights:guideWeights(data.weights),eligible:data.eligible,sources:data.sources.map(row=>({source:row.source,available:row.available,shown:row.shown})),creators:data.creators.map(row=>({bucket:row.bucket,source:row.source,shown:row.shown,available:row.available})),unknownCreators:data.unknownCreators,unknownCandidateCreators:data.unknownCandidateCreators,creatorLimited:data.creatorLimited,...summarizeDistribution(data,previous,threshold)};
 }

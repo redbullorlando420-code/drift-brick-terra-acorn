@@ -1,4 +1,5 @@
 import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+import {createLocalId} from '../local-id';
 import type { WriterLease } from "../writer-lease";
 import {
   RESTORE_CONTROL,
@@ -247,7 +248,7 @@ export function createLibraryRestoreRepository(
       const old = await state();
       if (old.phase !== "idle" || old.mirror)
         throw Error("Resolve the existing restore before preparing another.");
-      const id = crypto.randomUUID(),
+      const id = createLocalId(),
         control: RestoreControl = {
           ...old,
           phase: "capturing",

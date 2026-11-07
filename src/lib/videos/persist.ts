@@ -1,4 +1,5 @@
 import {profileDatabaseName,assertProfileContext} from '../local-profile-storage.ts';
+import {manualFeedbackFingerprint,mergeFeedbackWatch,type FeedbackTimeline} from './feedback-timeline.ts';
 import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
 import {consumeCatalogPages,type CatalogReadOptions} from './catalog-page-reader';
 import {createSourceVisibilityRepository} from './source-visibility';
@@ -289,6 +290,7 @@ export type DurableMarks = { viewCounts: Record<string, number>; cameCounts: Rec
 export type DurableShelves = { favorites: string[]; likes: string[]; savedAt: number };
 export type DurableLinks = { links: SavedVideoLink[]; savedAt: number };
 export type DurableFeedback = {
+  manualTimeline?: FeedbackTimeline;
   recommendationRejections?: RejectionLedger;
   ratings: Record<string, number>;
   ratingHistory: Record<string, { rating: number; updatedAt: number }>;
@@ -683,6 +685,7 @@ export async function restoreDurableFeedback(strict = false): Promise<Omit<Durab
   if (!fromIdb && !fromLs) return null;
   const pick = <T extends Record<string, unknown>>(a?: T, b?: T): T => ({ ...(b ?? {}), ...(a ?? {}) }) as T;
   return {
+    manualTimeline: fromIdb?.manualTimeline ?? fromLs?.manualTimeline,
     recommendationRejections: newestRejections(fromIdb?.recommendationRejections, fromLs?.recommendationRejections),
     ratings: pick(fromIdb?.ratings as Record<string, number> | undefined, fromLs?.ratings as Record<string, number> | undefined),
     ratingHistory: pick(fromIdb?.ratingHistory as DurableFeedback["ratingHistory"] | undefined, fromLs?.ratingHistory as DurableFeedback["ratingHistory"] | undefined),
@@ -694,6 +697,25 @@ export async function restoreDurableFeedback(strict = false): Promise<Omit<Durab
     tagHeartHistory: pick(fromIdb?.tagHeartHistory as Record<string, number> | undefined, fromLs?.tagHeartHistory as Record<string, number> | undefined),
     watchTime: pick(fromIdb?.watchTime as DurableFeedback["watchTime"] | undefined, fromLs?.watchTime as DurableFeedback["watchTime"] | undefined),
   };
+}
+
+/** An undo requires both mirrors to agree on manual state, and commits before UI publication. */
+export async function commitFeedbackUndo(expected:Omit<DurableFeedback,'savedAt'>,next:Omit<DurableFeedback,'savedAt'>,stillCurrent:()=>boolean){
+  await activityWriter.idle();assertRestoreWritable();const fingerprint=manualFeedbackFingerprint(expected),db=await openDb();let committed=next;
+  try{await new Promise<void>((resolve,reject)=>{
+    const tx=db.transaction(ACTIVITY_STORE,'readwrite'),store=tx.objectStore(ACTIVITY_STORE),request=store.get(DURABLE_FEEDBACK_IDB_KEY);let error:unknown;
+    tx.onabort=()=>reject(error??tx.error??Error('Feedback undo could not be saved.'));
+    tx.onerror=()=>{error??=tx.error;};
+    request.onsuccess=()=>{try{
+      const local=readJsonLocal<DurableFeedback>(DURABLE_FEEDBACK_LS_KEY),disk=request.result as DurableFeedback|undefined;
+      if(!stillCurrent()||!disk||manualFeedbackFingerprint(disk)!==fingerprint||(local&&manualFeedbackFingerprint(local)!==fingerprint))throw Error('Saved feedback changed in another tab. Reload the app before undoing.');
+      committed={...next,watchTime:mergeFeedbackWatch(disk.watchTime,next.watchTime)};store.put({...committed,savedAt:Date.now()},DURABLE_FEEDBACK_IDB_KEY);
+    }catch(e){error=e;tx.abort();}};
+    tx.oncomplete=()=>resolve();
+  });
+  if(!stillCurrent())throw Error('A newer local decision arrived. Undo was not applied to your active choices.');
+  writeJsonLocal(DURABLE_FEEDBACK_LS_KEY,committed);return committed;
+  }finally{db.close();}
 }
 
 

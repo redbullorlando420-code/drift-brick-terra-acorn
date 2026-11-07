@@ -2,6 +2,7 @@ import {profileLocalStorage as localStorage} from "../../lib/local-profile-stora
 import {ConsequenceAction} from './consequence-action';
 import { formatMissionBrief, formatNextLevelRoadmap } from '@/lib/mission-next-level';
 import { ALL_NEXT_LEVEL_MISSIONS, ALL_NEXT_LEVEL_TRACKS, missionMatchesBatch } from '@/lib/mission-roadmap';
+import { MOVIE_CONNECTION_MISSIONS } from '@/lib/mission-movie-connections';
 import {FeatureReadinessPanel} from './feature-readiness-panel';
 import { createLocalId } from "@/lib/local-id";
 import { REPOSITORY_CREDITS } from '@/lib/repository-credits';
@@ -298,7 +299,7 @@ const ROADMAP_EXPANSION: Mission[] = [
   { id: "recent-search-result-budget", title: "Large-library search result budget", detail: "Done · filtering, taste scoring, full-result sorting, and card resolution run outside render in cancelable slices. Search skips covered browse shelves, scopes YouTube/Twitch results before scoring, keeps description/path matches, and counts each top tag once per video. A 100,000-match test and populated desktop/mobile interaction checks pass.", done: true },
 ];
 
-const ALL_DEFAULT_MISSIONS = [...DEFAULT_MISSIONS, ...ROADMAP_EXPANSION, ...ALL_NEXT_LEVEL_MISSIONS];
+const ALL_DEFAULT_MISSIONS = [...DEFAULT_MISSIONS, ...ROADMAP_EXPANSION, ...ALL_NEXT_LEVEL_MISSIONS, ...MOVIE_CONNECTION_MISSIONS];
 const ROADMAP_IDS = new Set(ALL_NEXT_LEVEL_MISSIONS.map(mission => mission.id));
 
 export function MissionPlanSection() {
@@ -339,7 +340,7 @@ export function MissionPlanSection() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <label className="min-w-0 text-xs text-muted">Search milestones<Input aria-label="Search milestones" value={query} onChange={e=>{setQuery(e.target.value);setPage(0);}} placeholder="Title, ID, outcome or code path" className="mt-1 min-h-11"/></label>
           <label className="min-w-0 text-xs text-muted">Batch<select aria-label="Milestone batch" value={batch} onChange={e=>{setBatch(e.target.value);setPage(0);}} className="mt-1 min-h-11 w-full min-w-0 rounded-md border border-border bg-bg px-3 text-sm text-fg"><option value="all">All batches</option><option value="new">New 100 · 101–200</option><option value="first">First 100 · 001–100</option></select></label>
-          <label className="min-w-0 text-xs text-muted">Workstream<select aria-label="Milestone workstream" value={track} onChange={e=>{setTrack(e.target.value);setPage(0);}} className="mt-1 min-h-11 w-full min-w-0 rounded-md border border-border bg-bg px-3 text-sm text-fg"><option value="all">All workstreams</option><option value="legacy">Earlier work</option>{ALL_NEXT_LEVEL_TRACKS.map(t=><option key={t} value={t}>{t}</option>)}</select></label>
+          <label className="min-w-0 text-xs text-muted">Workstream<select aria-label="Milestone workstream" value={track} onChange={e=>{setTrack(e.target.value);setPage(0);}} className="mt-1 min-h-11 w-full min-w-0 rounded-md border border-border bg-bg px-3 text-sm text-fg"><option value="all">All workstreams</option><option value="legacy">Earlier work</option>{[...ALL_NEXT_LEVEL_TRACKS,'Movie connections'].map(t=><option key={t} value={t}>{t}</option>)}</select></label>
           <label className="text-xs text-muted">Priority<select aria-label="Milestone priority" value={priority} onChange={e=>{setPriority(e.target.value);setPage(0);}} className="mt-1 min-h-11 w-full rounded-md border border-border bg-bg px-3 text-sm text-fg"><option value="all">All priorities</option>{['P0','P1','P2'].map(p=><option key={p}>{p}</option>)}</select></label>
           <label className="text-xs text-muted">Status<select aria-label="Milestone status filter" value={statusFilter} onChange={e=>{setStatusFilter(e.target.value);setPage(0);}} className="mt-1 min-h-11 w-full rounded-md border border-border bg-bg px-3 text-sm text-fg"><option value="all">All active statuses</option><option value="planned">Planned</option><option value="in-progress">In progress</option><option value="blocked">Blocked</option></select></label>
         </div>

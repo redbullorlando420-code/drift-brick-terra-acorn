@@ -1,3 +1,4 @@
+import {PrintComparisonPanel} from './print-comparison-panel';
 import { useEffect, useRef, useState } from "react";
 import {
   Box,
@@ -18,8 +19,9 @@ import { Input } from "@/components/ui/input";
 import { loadPrintBlob, isViewablePrintName, type PrintViewerTarget } from "@/lib/prints-blobs";
 import {
   DEFAULT_PRINT_EDIT,
-  loadPrintEdit,
+  loadPrintWorkspace,
   printEditKey,
+  printEditToken,
   savePrintEdit,
   type PrintEditState,
 } from "@/lib/print-edit-state";
@@ -55,13 +57,19 @@ export function PrintModelViewer({ target, onClose }: Props) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [detail, setDetail] = useState(formatHint(target.name));
   const [stats, setStats] = useState<string>("");
-  const [edit, setEdit] = useState<PrintEditState>(() => loadPrintEdit(editKey));
+  const [initialWorkspace]=useState(()=>{try{return loadPrintWorkspace(editKey);}catch{return {working:{...DEFAULT_PRINT_EDIT},token:null};}});
+  const [edit, setEditState] = useState<PrintEditState>(initialWorkspace.working);
+  const [baselinePreview,setBaselinePreview]=useState<PrintEditState|null>(null),[workspaceSaved,setWorkspaceSaved]=useState(true);
+  const setEdit:typeof setEditState=(value)=>{setBaselinePreview(null);setEditState(value);};
   const [savedCopy,setSavedCopy]=useState(()=>loadSavedPrintCopy(editKey));
   const signature=printModelSignature(edit),unsaved=signature!==(savedCopy?.signature??printModelSignature(DEFAULT_PRINT_EDIT));
   const [panelOpen, setPanelOpen] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
   const editRef = useRef(edit);
-  editRef.current = edit;
+  editRef.current = baselinePreview??edit;
+  const workingRef=useRef(edit);workingRef.current=edit;
+  const savedWorkspaceToken=useRef<string|null>(initialWorkspace.token);
+  const saveWorking=()=>{if(savedWorkspaceToken.current===null)return false;const ok=savePrintEdit(editKey,workingRef.current,savedWorkspaceToken.current);if(ok)savedWorkspaceToken.current=printEditToken(editKey);return ok;};
   const apiRef = useRef<{
     exportCopy:()=>Promise<Blob>;
     fit: (preset?: CameraPreset) => void;
@@ -71,14 +79,16 @@ export function PrintModelViewer({ target, onClose }: Props) {
   } | null>(null);
 
   useEffect(() => {
-    const timer=setTimeout(()=>savePrintEdit(editKey,edit),180);
-    apiRef.current?.applyEdit();
-    apiRef.current?.setGridVisible(edit.showGrid);
-    apiRef.current?.setLighting(edit.lighting);
+    const timer=setTimeout(()=>setWorkspaceSaved(saveWorking()),180);
     return()=>clearTimeout(timer);
-  }, [edit, editKey]);
+  }, [edit,editKey]);
+  useEffect(()=>{
+    apiRef.current?.applyEdit();
+    apiRef.current?.setGridVisible((baselinePreview??edit).showGrid);
+    apiRef.current?.setLighting((baselinePreview??edit).lighting);
+  }, [edit,baselinePreview,editKey]);
 
-  useEffect(()=>()=>{savePrintEdit(editKey,editRef.current);},[editKey]);
+  useEffect(()=>()=>{saveWorking();},[editKey]);
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -591,6 +601,8 @@ export function PrintModelViewer({ target, onClose }: Props) {
 
         {panelOpen && (
           <aside aria-label="Print editor" className="flex max-h-96 w-full shrink-0 flex-col gap-3 overflow-y-auto border-t border-border bg-surface p-4 sm:max-h-none sm:w-80 sm:border-t-0 sm:border-l">
+            <PrintComparisonPanel key={editKey} modelKey={editKey} edit={edit} ready={status==='ready'} preview={!!baselinePreview} onPreview={(show,state)=>setBaselinePreview(show&&state?state:null)} saveWorking={saveWorking} onChanged={state=>{savedWorkspaceToken.current=printEditToken(editKey);setWorkspaceSaved(true);setEdit(state);}}/>
+            {!workspaceSaved&&<div role="alert" className="text-xs text-fg"><p>The working draft could not be saved. Storage may be unavailable or another tab changed the workspace. Existing saved edits and the source file were kept. Retry storage, or reopen the viewer to load saved state.</p><Button variant="secondary" className="mt-2 min-h-11" onClick={()=>setWorkspaceSaved(savePrintEdit(editKey,edit))}>Retry workspace save</Button></div>}
             <div>
               <p className="text-xs font-medium tracking-[0.14em] text-accent uppercase">View</p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -663,7 +675,7 @@ export function PrintModelViewer({ target, onClose }: Props) {
                 </Button>
               </div>
             </div>
-            {status==='ready'&&<PrintSavePanel modelKey={editKey} name={target.name} signature={signature} exportModel={()=>{if(!apiRef.current)throw Error('The model is unavailable.');return apiRef.current.exportCopy();}} onSaved={(savedSignature:string,receipt:PrintSaveReceipt)=>setSavedCopy({signature:savedSignature,receipt})}/>}
+            {status==='ready'&&!baselinePreview&&<PrintSavePanel modelKey={editKey} name={target.name} signature={signature} exportModel={()=>{if(!apiRef.current)throw Error('The model is unavailable.');return apiRef.current.exportCopy();}} onSaved={(savedSignature:string,receipt:PrintSaveReceipt)=>setSavedCopy({signature:savedSignature,receipt})}/>}
           </aside>
         )}
       </div>

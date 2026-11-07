@@ -62,3 +62,22 @@ test('Live holds automatic archives, explicit requests pass, and navigating wake
     assert.equal(automaticPullAvailable('twitch'), false);
   } finally { setActivePullPage(''); }
 });
+
+test('archive windows defer only automatic undispatched requests and preserve accepted responses',async()=>{
+ const {updatePullSettings,DEFAULT_PULL_SETTINGS}=await import('./pull-settings.ts');
+ const now=new Date(),minute=now.getUTCHours()*60+now.getUTCMinutes();
+ const closed={version:1 as const,enabled:true,startMinute:(minute+60)%1440,endMinute:(minute+120)%1440,timeZone:'UTC'};
+ setActivePullPage('adults');setPullsPaused(false);let started=0;
+ try{
+  updatePullSettings({archiveWorkWindow:closed});
+  await assert.rejects(runPausablePull(async()=>++started,{automatic:true,provider:'adults'}),/deferred/);assert.equal(started,0);
+  assert.equal(await runPausablePull(async()=> 'manual'),'manual');
+  assert.equal(await runPausablePull(async()=> 'live',{automatic:true,live:true,provider:'youtube'}),'live');
+  updatePullSettings({archiveWorkWindow:DEFAULT_PULL_SETTINGS.archiveWorkWindow});
+  let complete!:(value:number)=>void;
+  const accepted=runPausablePull(()=>{started++;return new Promise<number>(resolve=>complete=resolve);},{automatic:true,provider:'adults'});
+  for(let i=0;i<100&&!complete;i++)await new Promise(resolve=>setTimeout(resolve,10));
+  assert(complete);updatePullSettings({archiveWorkWindow:closed});complete(42);assert.equal(await accepted,42);
+  await assert.rejects(runPausablePull(async()=>++started,{automatic:true,provider:'adults'}),/deferred/);assert.equal(started,1);
+ }finally{updatePullSettings({archiveWorkWindow:DEFAULT_PULL_SETTINGS.archiveWorkWindow});setActivePullPage('');}
+});

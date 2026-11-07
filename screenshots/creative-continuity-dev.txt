@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Advertised parameter conversion previews changed values, preserves original prompt/seed/model, creates a separate durable recipe, and rejects quota failure without submitting generation",
+        "Print numeric/visual comparison preserves the working draft; reviewed revert and undo survive reload, quota failure preserves state, and no native write or source-file mutation occurs",
+        "Conditional plans preview and persist, become whole-sequence ballots, interrupt on a changed guard condition, export battle-v2 replays, and emergency stop clears votes plus queued moves",
+        "A separate local profile cannot read Default recipe conversions or conditional-plan preferences"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Advertised parameter conversion previews changed values, preserves original prompt/seed/model, creates a separate durable recipe, and rejects quota failure without submitting generation",
+        "Print numeric/visual comparison preserves the working draft; reviewed revert and undo survive reload, quota failure preserves state, and no native write or source-file mutation occurs",
+        "Conditional plans preview and persist, become whole-sequence ballots, interrupt on a changed guard condition, export battle-v2 replays, and emergency stop clears votes plus queued moves",
+        "A separate local profile cannot read Default recipe conversions or conditional-plan preferences"
+      ],
+      "errors": []
+    }
+  ]
+}

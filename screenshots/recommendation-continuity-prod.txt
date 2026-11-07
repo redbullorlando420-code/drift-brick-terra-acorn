@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Confirmed cold creator has an explained bounded slot; repeat cooldown protects favorites and explicit title search; temporary cooldown review remains reachable",
+        "Saved tuning survives reload; quota rejection preserves active/saved rating; a retry commits undo and records its durable inverse status",
+        "A newer saved decision from another document blocks an older undo without overwriting it",
+        "Actual Guide rejection edits enter the timeline, survive reload and undo without changing ratings/watch observations; alternate local profiles have separate tuning and histories",
+        "A second tab honors the saved repeat cooldown; its reset propagates to the first tab without erasing ratings or watch time"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Confirmed cold creator has an explained bounded slot; repeat cooldown protects favorites and explicit title search; temporary cooldown review remains reachable",
+        "Saved tuning survives reload; quota rejection preserves active/saved rating; a retry commits undo and records its durable inverse status",
+        "A newer saved decision from another document blocks an older undo without overwriting it",
+        "Actual Guide rejection edits enter the timeline, survive reload and undo without changing ratings/watch observations; alternate local profiles have separate tuning and histories",
+        "A second tab honors the saved repeat cooldown; its reset propagates to the first tab without erasing ratings or watch time"
+      ],
+      "errors": []
+    }
+  ]
+}

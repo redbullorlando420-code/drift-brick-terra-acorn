@@ -1,0 +1,33 @@
+# Recommendation provenance and optional diversity
+
+## Using it
+
+In **AI guide**, expand **Optional shelf diversity**. Choose a creator share limit, minimum source count or two recordings published at least 365 days ago, then **Apply diversity floors**. Editing controls alone leaves the current cards unchanged. These are temporary choices for this tab's public Guide picks and questions; they survive navigation and reset on reload. **Reset diversity floors** restores the original ranking. They do not modify desk overlays, ratings, provider shelves or private Adult settings.
+
+An applied result appears beside the generated mix or question. It shows actual output counts, unknown credits, publication-age coverage, and whether the selected floors were met within the bounded shortlist. The existing fairness report now shows publication age for the selected output even with default ranking. Its aggregate JSON includes applied floor settings/results without title names, creator names, prompts, paths or field excerpts.
+
+Expand a card's **Why this pick?** to see concise provenance badges. **Inspect reason provenance** describes only that matching field and, for a shared tag, its eligible preference origin. Explicit favorites/likes are owner choices. Exact tag sources distinguish owner edits/reviews, providers, legacy saved/imported metadata, local derivation, missing attribution and a locked/provider conflict. A provider video does not prove that its title, category or creator field came from that provider. Fields lacking individual attribution are labelled unavailable. Locking alone is not an authorship record. Changing a description cannot substitute for the saved matched tag's attribution.
+
+## Ranking contract and limits
+
+Defaults delegate to the original bounded selector and preserve its ordering. When a floor is enabled, public visibility, recorded-history policy, source/length controls and query term relevance apply first. Active diversity mixes also exclude explicit unprotected “less of this” rank reductions; protected favorites retain the existing penalty policy. Floors may exchange score for variety, without making an unmatched query result eligible.
+
+Alternatives retain twelve rows per each of at most 64 provider-scoped creator identities, four source buckets, an unknown-credit pool and an older-publication pool: at most 840 retained rows. Unknown local folders are never invented creator credits. The selector starts from the ordinary twelve-slot output, then makes at most sixteen strictly improving repairs. In balanced-source mode, each replacement stays within its original source quota. Repair loops yield to cancellation/input at 32 candidate rows or four milliseconds. No full-catalog sort or permanent candidate graph is added.
+
+The creator limit rounds down from the actual output size; a one-item output cannot truthfully satisfy a 50% creator cap. Missing credits prevent verifying that cap. Older publication requires the entire supported UTC publication period to be at least 365 days before the snapshot. Partial periods crossing the boundary, future dates and unsupported dates stay unknown. Existing publication evidence rules apply; local import time is not an age fallback.
+
+The shortlist covers only the first 64 creator identities encountered, plus bounded best source/age pools. A greedy repair may fail when another global combination exists. The UI explicitly reports this as limited within the shortlist, rather than asserting library-wide infeasibility. Missing sources, insufficient old recordings, unknown credits and retained-creator coverage have separate notices. Existing session restrictions never relax to satisfy a floor.
+
+Provenance attaches to at most four reasons for twelve selected cards, with at most two compact attributions per reason. It does not enumerate provenance for unrelated rows or load notes, reviews, captions or full descriptions. The existing immutable input/cancellation boundaries retire stale answers when queries, metadata or settings change. Opening an inspection starts no network requests or writes.
+
+## Verification
+
+`scripts/guide-trust.test.mjs` covers deterministic default ordering, creator/source/age movement, balanced quotas, query relevance, private/hidden/unavailable/rejected exclusion, sparse and empty shelves, uncertain dates, 100k candidate bounds, cancellation, isolated document settings, aggregate exports and exact-field attribution. Owner tag attribution is tested across changed provider descriptions; a proxy rejects unrelated row enumeration and note/review access.
+
+`scripts/guide-trust-browser-check.mjs` exercises the actual desktop/mobile interface with disposable saved profiles: unapplied drafts, Apply/Reset, real ranking changes, constrained queries, provenance inspection, stale-answer retirement, aggregate downloads, source restriction, navigation, reload and an alternate profile. Development/production JSON results and screenshots are under `screenshots/guide-trust-*`. These fixtures establish saved-catalog behavior, not real provider playback, physical-phone timing or long-running memory stability.
+
+## Cross-profile isolation proof (next-135)
+
+The same browser scenario independently seeds Beta, snapshots its public Home, Topics, Watch room and Guide projections, and records its Guide reasons/active weights. A separate Alpha document then changes private tags, notes, ratings, creator/tag preferences, rejections, exposure and desk tuning, including deliberately colliding Beta media/creator identities. Alpha's real Guide builder is held at a cooperative boundary while Beta renders; it is then released into Alpha's bound profile. Beta's before/during/after projections remain identical, its aggregate download keeps Beta's weights and excludes the canary, and it cannot read Alpha's late-result storage key.
+
+`scripts/recommendation-profile-isolation.test.mjs` additionally compares deterministic complete Guide/query explanations and aggregate reports, Home's YouTube catalog projection, cached topic postings, room candidates and room search across adversarial Alpha processing and held completion. Existing public-recommendation, room-catalog, profile-switch-store and profile-storage tests exercise private source aliases, real held catalog cancellation, namespace routing and disposal. These checks found no shared cache key requiring a runtime change. Logs record aggregate verdicts; private fixture labels are neither user data nor included in exported reports. A held builder job is simulated scheduling of the real local ranking function, not a connected provider job or a claim that a destroyed page can continue rendering.

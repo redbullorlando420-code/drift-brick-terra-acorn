@@ -319,6 +319,7 @@ export function buildLibraryPackFiles(input: LibraryPackBuildInput): Record<stri
     [`${LIBRARY_PACK_ROOT}/marks/came-counts.json`]: JSON.stringify(input.cameCounts, null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/shelves.json`]: JSON.stringify({ favorites: input.favorites, likes: input.likes }, null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/ratings.json`]: JSON.stringify({ ratings: feedback.ratings, ratingHistory: feedback.ratingHistory, notes: feedback.notes, creatorRatings: feedback.creatorRatings, creatorLikes: feedback.creatorLikes, creatorFavorites: feedback.creatorFavorites, watchTime: feedback.watchTime, recommendationRejections: feedback.recommendationRejections }, null, 2),
+    ...(feedback.recommendationRejections ? { [`${LIBRARY_PACK_ROOT}/marks/recommendation-rejections.json`]: JSON.stringify(feedback.recommendationRejections) } : {}),
     [`${LIBRARY_PACK_ROOT}/marks/topic-aliases.json`]: JSON.stringify(getTopicAliases(), null, 2),
     [`${LIBRARY_PACK_ROOT}/marks/media-health.json`]: JSON.stringify(mediaHealthSnapshot()??emptyMediaHealth(),null,2),
     [`${LIBRARY_PACK_ROOT}/marks/provider-viewing.json`]: JSON.stringify(getProviderViewing().ledger,null,2),

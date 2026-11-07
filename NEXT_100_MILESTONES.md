@@ -457,7 +457,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-112 — Durable archive cursor repository
-Status: planned
+Status: complete
 Track: Archive continuity and growth
 Priority: P0
 
@@ -499,7 +499,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-113 — Archive sort coverage map
-Status: planned
+Status: complete
 Track: Archive continuity and growth
 Priority: P1
 
@@ -516,7 +516,7 @@ Independent sort lanes need visible depth and exhaustion evidence rather than on
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-112 — Durable archive cursor repository [planned]
+- next-112 — Durable archive cursor repository [complete]
 
 ## Start in
 - src/lib/videos/store.ts
@@ -597,8 +597,8 @@ Ranked provider listings can change between visits even when local paging order 
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-112 — Durable archive cursor repository [planned]
-- next-113 — Archive sort coverage map [planned]
+- next-112 — Durable archive cursor repository [complete]
+- next-113 — Archive sort coverage map [complete]
 
 ## Start in
 - src/lib/videos/store.ts
@@ -625,7 +625,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-116 — User-defined archive work windows
-Status: planned
+Status: complete
 Track: Archive continuity and growth
 Priority: P1
 
@@ -643,7 +643,7 @@ Large archive tasks should honor chosen active hours without creating hidden cat
 
 ## Dependencies
 - next-018 — Page-specific network priority proof [complete]
-- next-112 — Durable archive cursor repository [planned]
+- next-112 — Durable archive cursor repository [complete]
 
 ## Start in
 - src/lib/videos/store.ts
@@ -666,7 +666,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-117 — Yield-based source planning
-Status: planned
+Status: complete
 Track: Archive continuity and growth
 Priority: P1
 
@@ -684,7 +684,7 @@ Discovery should use observed new-entry yield without starving slow or recently 
 
 ## Dependencies
 - next-111 — Video archive growth accounting [complete]
-- next-112 — Durable archive cursor repository [planned]
+- next-112 — Durable archive cursor repository [complete]
 
 ## Start in
 - src/lib/videos/store.ts
@@ -765,7 +765,7 @@ Users need a bounded explanation of which pages actually became durable catalog 
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-112 — Durable archive cursor repository [planned]
+- next-112 — Durable archive cursor repository [complete]
 - next-114 — Abort slow provider archive requests [planned]
 
 ## Start in
@@ -830,7 +830,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-121 — Saved search workspaces
-Status: planned
+Status: complete
 Track: Search and library navigation
 Priority: P1
 
@@ -870,7 +870,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-122 — Structured search query chips
-Status: planned
+Status: complete
 Track: Search and library navigation
 Priority: P1
 
@@ -887,7 +887,7 @@ Complex searches should expose editable field constraints without requiring undo
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-121 — Saved search workspaces [planned]
+- next-121 — Saved search workspaces [complete]
 
 ## Start in
 - src/lib/videos/search-worker-index.ts
@@ -909,7 +909,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-123 — Multilingual title normalization index
-Status: planned
+Status: complete
 Track: Search and library navigation
 Priority: P1
 
@@ -927,7 +927,7 @@ International creator and title text needs predictable matching without corrupti
 
 ## Dependencies
 - next-013 — Worker crash recovery [complete]
-- next-122 — Structured search query chips [planned]
+- next-122 — Structured search query chips [complete]
 
 ## Start in
 - src/lib/videos/search-worker-index.ts
@@ -949,7 +949,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-124 — Local vocabulary typo suggestions
-Status: planned
+Status: complete
 Track: Search and library navigation
 Priority: P2
 
@@ -966,7 +966,7 @@ Misspelled searches should offer bounded corrections grounded in the user’s ow
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-123 — Multilingual title normalization index [planned]
+- next-123 — Multilingual title normalization index [complete]
 - next-069 — Private recommendation isolation audit [complete]
 
 ## Start in
@@ -989,7 +989,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-125 — Browse task back-and-forward history
-Status: planned
+Status: complete
 Track: Search and library navigation
 Priority: P1
 
@@ -1006,7 +1006,7 @@ Users need to return from a detail or desk change to the exact prior browsing ta
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-121 — Saved search workspaces [planned]
+- next-121 — Saved search workspaces [complete]
 - next-010 — Portable profile boundaries [complete]
 
 ## Start in
@@ -1029,7 +1029,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-126 — Search result count evidence
-Status: planned
+Status: complete
 Track: Search and library navigation
 Priority: P1
 
@@ -1046,7 +1046,7 @@ A displayed count should distinguish full-index matches, loaded pages and provis
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-122 — Structured search query chips [planned]
+- next-122 — Structured search query chips [complete]
 - next-013 — Worker crash recovery [complete]
 
 ## Start in
@@ -1069,7 +1069,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-127 — Publication-evidence date filters
-Status: planned
+Status: complete
 Track: Search and library navigation
 Priority: P1
 
@@ -1087,7 +1087,7 @@ Date filtering should use evidenced publication values and make unknown dates di
 
 ## Dependencies
 - next-027 — YouTube publication uncertainty [complete]
-- next-122 — Structured search query chips [planned]
+- next-122 — Structured search query chips [complete]
 
 ## Start in
 - src/lib/videos/search-worker-index.ts
@@ -1109,7 +1109,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-128 — Stable result bookmarks
-Status: planned
+Status: complete
 Track: Search and library navigation
 Priority: P2
 
@@ -1126,7 +1126,7 @@ A saved place in search should survive reordering and restore the intended logic
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-125 — Browse task back-and-forward history [planned]
+- next-125 — Browse task back-and-forward history [complete]
 - next-009 — File identity migration ledger [complete]
 
 ## Start in
@@ -1167,7 +1167,7 @@ On-demand comments and captions need an explicit bounded path into local text se
 
 ## Dependencies
 - next-049 — Provider-independent subtitles [complete]
-- next-123 — Multilingual title normalization index [planned]
+- next-123 — Multilingual title normalization index [complete]
 
 ## Start in
 - src/lib/videos/search-worker-index.ts
@@ -1206,7 +1206,7 @@ Search results should show which supported fields caused a match without dumping
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-126 — Search result count evidence [planned]
+- next-126 — Search result count evidence [complete]
 - next-129 — Opt-in transcript search slices [planned]
 
 ## Start in
@@ -1229,7 +1229,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-131 — Desk-specific taste controls
-Status: planned
+Status: complete
 Track: Recommendation trust and controls
 Priority: P1
 
@@ -1269,7 +1269,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-132 — Recommendation feedback undo timeline
-Status: planned
+Status: complete
 Track: Recommendation trust and controls
 Priority: P1
 
@@ -1310,7 +1310,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-133 — Followed-creator cold-start tuning
-Status: planned
+Status: complete
 Track: Recommendation trust and controls
 Priority: P1
 
@@ -1350,7 +1350,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-134 — Novelty and familiarity balance
-Status: planned
+Status: complete
 Track: Recommendation trust and controls
 Priority: P2
 
@@ -1369,7 +1369,7 @@ Users need an explicit choice between recent familiar interests and unexplored m
 ## Dependencies
 - next-051 — Recommendation evaluation dataset [complete]
 - next-053 — Recommendation exposure ledger [complete]
-- next-131 — Desk-specific taste controls [planned]
+- next-131 — Desk-specific taste controls [complete]
 
 ## Start in
 - src/lib/videos/guide-picks.ts
@@ -1391,7 +1391,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-135 — Cross-profile recommendation leak proof
-Status: planned
+Status: complete
 Track: Recommendation trust and controls
 Priority: P0
 
@@ -1410,7 +1410,7 @@ New profile boundaries need end-to-end evidence that private feedback cannot inf
 ## Dependencies
 - next-010 — Portable profile boundaries [complete]
 - next-069 — Private recommendation isolation audit [complete]
-- next-131 — Desk-specific taste controls [planned]
+- next-131 — Desk-specific taste controls [complete]
 
 ## Start in
 - src/lib/videos/guide-picks.ts
@@ -1472,7 +1472,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-137 — Recommendation reason provenance
-Status: planned
+Status: complete
 Track: Recommendation trust and controls
 Priority: P1
 
@@ -1512,7 +1512,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-138 — Configurable shelf diversity floors
-Status: planned
+Status: complete
 Track: Recommendation trust and controls
 Priority: P1
 
@@ -1530,7 +1530,7 @@ A fairness report should support optional measurable diversity constraints in th
 
 ## Dependencies
 - next-059 — Recommendation fairness report [complete]
-- next-134 — Novelty and familiarity balance [planned]
+- next-134 — Novelty and familiarity balance [complete]
 
 ## Start in
 - src/lib/videos/guide-picks.ts
@@ -1552,7 +1552,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-139 — Cross-session repeat suppression
-Status: planned
+Status: complete
 Track: Recommendation trust and controls
 Priority: P1
 
@@ -1570,7 +1570,7 @@ Repeatedly exposed unwatched titles need a controllable cooldown that still allo
 
 ## Dependencies
 - next-053 — Recommendation exposure ledger [complete]
-- next-132 — Recommendation feedback undo timeline [planned]
+- next-132 — Recommendation feedback undo timeline [complete]
 
 ## Start in
 - src/lib/videos/guide-picks.ts
@@ -1610,8 +1610,8 @@ Users need a readable portable summary of their chosen taste settings without ex
 
 ## Dependencies
 - next-108 — Portable profile configuration packs [complete]
-- next-131 — Desk-specific taste controls [planned]
-- next-135 — Cross-profile recommendation leak proof [planned]
+- next-131 — Desk-specific taste controls [complete]
+- next-135 — Cross-profile recommendation leak proof [complete]
 
 ## Start in
 - src/lib/videos/guide-picks.ts
@@ -1633,7 +1633,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-141 — Guest arrival readiness checklist
-Status: planned
+Status: complete
 Track: Shared viewing sessions
 Priority: P1
 
@@ -1674,7 +1674,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-142 — Room item transition contract
-Status: planned
+Status: complete
 Track: Shared viewing sessions
 Priority: P0
 
@@ -1714,7 +1714,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-143 — Guest-local queue drafts
-Status: planned
+Status: complete
 Track: Shared viewing sessions
 Priority: P1
 
@@ -1813,7 +1813,7 @@ Equivalent provider links should be reviewable as a group without silently remov
 ## Dependencies
 - next-036 — Twitch media identity aliases [complete]
 - next-048 — Reconnect queue intent reconciliation [complete]
-- next-143 — Guest-local queue drafts [planned]
+- next-143 — Guest-local queue drafts [complete]
 
 ## Start in
 - src/components/library/watch-room-section.tsx
@@ -1853,7 +1853,7 @@ Guest search results should explain whether a result is host-shared, locally sav
 
 ## Dependencies
 - next-043 — Guest catalog privacy review [complete]
-- next-141 — Guest arrival readiness checklist [planned]
+- next-141 — Guest arrival readiness checklist [complete]
 
 ## Start in
 - src/components/library/watch-room-section.tsx
@@ -1893,7 +1893,7 @@ Live rooms need bounded evidence of drift and uncertainty across different provi
 
 ## Dependencies
 - next-045 — Live latency guidance [complete]
-- next-142 — Room item transition contract [planned]
+- next-142 — Room item transition contract [complete]
 
 ## Start in
 - src/components/library/watch-room-section.tsx
@@ -1977,7 +1977,7 @@ Long shared sessions need optional structure without embedding implementation co
 
 ## Dependencies
 - next-047 — Session playlist handoff file [complete]
-- next-142 — Room item transition contract [planned]
+- next-142 — Room item transition contract [complete]
 
 ## Start in
 - src/components/library/watch-room-section.tsx
@@ -2016,7 +2016,7 @@ Browser viewport emulation cannot validate real mobile autoplay, backgrounding a
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-141 — Guest arrival readiness checklist [planned]
+- next-141 — Guest arrival readiness checklist [complete]
 - next-147 — Live-edge drift measurement [planned]
 - next-148 — Host-tab recovery handoff [planned]
 
@@ -2044,7 +2044,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-151 — Movie evidence import crosswalk
-Status: planned
+Status: complete
 Track: Library curation and accessibility
 Priority: P1
 
@@ -2127,7 +2127,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-153 — Anime release watchlist
-Status: planned
+Status: complete
 Track: Library curation and accessibility
 Priority: P2
 
@@ -2169,7 +2169,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-154 — Series progress aggregation and reset recovery
-Status: planned
+Status: complete
 Track: Library curation and accessibility
 Priority: P1
 
@@ -2212,7 +2212,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-155 — Local movie collection import previews
-Status: planned
+Status: complete
 Track: Library curation and accessibility
 Priority: P1
 
@@ -2229,7 +2229,7 @@ Owners need to bring existing collection lists into Movies without turning every
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-151 — Movie evidence import crosswalk [planned]
+- next-151 — Movie evidence import crosswalk [complete]
 - next-061 — Film identity review [complete]
 - next-063 — Movie metadata provenance review [complete]
 
@@ -2339,7 +2339,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-158 — Accessible alternatives for Stats visualizations
-Status: planned
+Status: complete
 Track: Library curation and accessibility
 Priority: P1
 
@@ -2424,7 +2424,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-160 — Saved layouts per desk
-Status: planned
+Status: complete
 Track: Library curation and accessibility
 Priority: P2
 
@@ -2441,9 +2441,9 @@ Owners should be able to keep useful display preferences for each media desk wit
 7. Downloads, publishing, external messages, paid services, real remote desktop sessions and game control require their own applicable user authorization. A roadmap item does not grant blanket authorization for external actions.
 
 ## Dependencies
-- next-121 — Saved search workspaces [planned]
-- next-125 — Browse task back-and-forward history [planned]
-- next-131 — Desk-specific taste controls [planned]
+- next-121 — Saved search workspaces [complete]
+- next-125 — Browse task back-and-forward history [complete]
+- next-131 — Desk-specific taste controls [complete]
 
 ## Start in
 - src/lib/videos/film-review.ts
@@ -2910,7 +2910,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-171 — Image recipe parameter migration
-Status: planned
+Status: complete
 Track: Creative workflow continuity
 Priority: P1
 
@@ -2973,7 +2973,7 @@ A model’s name alone cannot tell owners whether it runs in their selected imag
 ## Dependencies
 - next-081 — Image model compatibility preflight [complete]
 - next-083 — Model card requirements notes [complete]
-- next-171 — Image recipe parameter migration [planned]
+- next-171 — Image recipe parameter migration [complete]
 
 ## Start in
 - src/lib/studio-recipes.ts
@@ -3021,7 +3021,7 @@ Multiple planned image jobs need a review step that makes resource use and engin
 ## Dependencies
 - next-076 — Download disk-budget preflight [complete]
 - next-084 — Generation job lifecycle [complete]
-- next-171 — Image recipe parameter migration [planned]
+- next-171 — Image recipe parameter migration [complete]
 - next-172 — Engine-specific model compatibility cards [planned]
 
 ## Start in
@@ -3140,7 +3140,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-176 — Print edit comparison and revert
-Status: planned
+Status: complete
 Track: Creative workflow continuity
 Priority: P1
 
@@ -3201,7 +3201,7 @@ Repeated model changes should release GPU and worker resources rather than slowl
 
 ## Dependencies
 - next-016 — Artwork decode cancellation [complete]
-- next-176 — Print edit comparison and revert [planned]
+- next-176 — Print edit comparison and revert [complete]
 - next-012 — Provider payload allocation budget [complete]
 
 ## Start in
@@ -3322,7 +3322,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-180 — Chat Plays conditional sequence editor
-Status: planned
+Status: complete
 Track: Creative workflow continuity
 Priority: P1
 
@@ -3698,7 +3698,7 @@ Profile validation must protect saved data while keeping the first useful screen
 - next-010 — Portable profile boundaries [complete]
 - next-104 — Pending-edit inventory before profile switch [planned]
 - next-109 — Profile registry repair preview [planned]
-- next-135 — Cross-profile recommendation leak proof [planned]
+- next-135 — Cross-profile recommendation leak proof [complete]
 
 ## Start in
 - src/lib/periodic-scheduler.ts

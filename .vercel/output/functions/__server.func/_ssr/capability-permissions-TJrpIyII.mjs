@@ -3,7 +3,7 @@ import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { s as require_jsx_runtime } from "../_libs/@radix-ui/react-collection+[...].mjs";
 import { t as Button } from "./button-BBe1bZ7q.mjs";
 import { d as companionFetch } from "./companion-DacueTBp.mjs";
-import { $ as browserConsent, et as refreshBrowserConsent, tt as serverPermissionSnapshot } from "./library-app-CdyqOeNr.mjs";
+import { ct as refreshBrowserConsent, lt as serverPermissionSnapshot, st as browserConsent } from "./library-app-3PBwf-4D.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/capability-permissions-TJrpIyII.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();

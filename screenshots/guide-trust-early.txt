@@ -1,0 +1,28 @@
+✔ exposure uses actual eligible observations and reports shown rather than completed (13.3082ms)
+✔ fixed dense corpus changes familiarity while neutral exactly preserves baseline (6.9153ms)
+✔ sparse corpus stays neutral and private/hidden/other-provider history cannot supply creator evidence (3.8266ms)
+✔ source balance, query relevance and strong favorite preference survive novelty adjustment (5.3101ms)
+✔ resolved Twitch weights change real ranking while Movies results and baseline feedback stay intact (1.9812ms)
+✔ Twitch overlay does not affect Movies or shared defaults; preview has a strict projection cap and cancels (4.6257ms)
+✔ creator cap and long query histories leave absence unknown; exposed is never completed (7.0028ms)
+✔ personal reasons cite real public positive signals and raw shared labels without mutating source fields (8.884ms)
+✔ empty, private-only and orphan signals do not become public counts, evidence or topic choices (1.6506ms)
+✔ history-only input is honest discovery and operational facets cannot train affinity (0.5119ms)
+✔ query reasons distinguish saved title, tag, creator and category with exact field quotes (1.2347ms)
+✔ contradictory feedback, favorite protection and exposure notices state actual evidence (1.2472ms)
+✔ live explanations require actual fresh confirmations rather than grace holds or viewer counts (1.9938ms)
+✔ artifact bounds limit affinity vocabulary, candidate explanations and chooser rows (76.0665ms)
+✔ empty and explicit queries honor cancellation before reading input (0.5828ms)
+✔ reviewed aliases preserve the raw supporting fields in personal explanations (1.1497ms)
+✔ guide preserves favorite/like/tag scores, watched exclusions, stable ties and complete fresh live ordering (66.6551ms)
+✔ 100k guide entries never enter a catalog-sized sort or export a dense sparse signal tree (640.1184ms)
+✔ guide cancellation precedes reads even with mostly removed saved ledgers (19.2712ms)
+✔ prepared answers use bounded existing picks, freshest live counts and handle an empty library (11.2914ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 967.0188

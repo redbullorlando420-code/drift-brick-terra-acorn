@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Collapsed controls, bounded comparison, stale draft guard, neutral no-history evidence, temporary/reload, quota rollback, durable overlay and pick preview",
+        "YouTube and Movies retain shared defaults; selected-source Guide uses overlay in real picks/questions; private content excluded",
+        "Reset one desk keeps another overlay; future schema preserves exact bytes; alternate local profile starts with shared defaults"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Collapsed controls, bounded comparison, stale draft guard, neutral no-history evidence, temporary/reload, quota rollback, durable overlay and pick preview",
+        "YouTube and Movies retain shared defaults; selected-source Guide uses overlay in real picks/questions; private content excluded",
+        "Reset one desk keeps another overlay; future schema preserves exact bytes; alternate local profile starts with shared defaults"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Disposable local profiles and saved fixtures. Real provider playback, physical phones and a long-running large-library soak are not exercised."
+}

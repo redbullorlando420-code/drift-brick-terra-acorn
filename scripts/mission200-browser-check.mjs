@@ -92,7 +92,7 @@ try {
       await page.locator('[data-home-ready="true"]').waitFor();
       await nav();
       let saved = await readPlan();
-      assert.equal(saved.length, 407);
+      assert.equal(saved.length, 410);
       assert.equal(saved.filter((m) => /^next-\d{3}$/.test(m.id)).length, 200);
       assert.equal(saved.find((m) => m.id === "next-010").status, "blocked");
       assert.equal(saved.find((m) => m.id === "next-010").done, false);
@@ -102,15 +102,15 @@ try {
       );
       assert.equal(
         await page.evaluate(() => localStorage.getItem("reelcase.mission-plan.revision")),
-        "87",
+        "101",
       );
       assert(
         saved
           .filter((m) => Number(m.id.slice(5)) >= 101 && /^next-/.test(m.id))
-          .every((m) => ['next-101','next-105','next-106','next-108','next-111'].includes(m.id) ? m.done && m.status === 'complete' : !m.done && m.status === "planned"),
+          .every((m) => ['next-101','next-105','next-106','next-108','next-111','next-112','next-113','next-116','next-117','next-121','next-122','next-123','next-124','next-125','next-126','next-127','next-128','next-131','next-132','next-133','next-134','next-135','next-137','next-138','next-139','next-141','next-142','next-143','next-151','next-153','next-154','next-155','next-158','next-160','next-171','next-176','next-180'].includes(m.id) ? m.done && m.status === 'complete' : !m.done && m.status === "planned"),
       );
       checks.push(
-        "Revision-83 plan gains exactly 100 entries with only five evidenced new-batch completions; old manual decisions remain intact",
+        "Revision-83 plan gains exactly 100 entries with only thirty-seven evidenced new-batch completions; old manual decisions remain intact",
       );
       await page.getByRole('button', { name: 'Show completed work', exact: true }).click();
       await page.getByRole('button', { name: 'Restore Profile rename lifecycle to planned work', exact: true }).click();
@@ -119,7 +119,7 @@ try {
       await queue
         .getByRole("combobox", { name: "Milestone batch", exact: true })
         .selectOption("new");
-      await queue.getByText("96 matching active milestones", { exact: false }).waitFor();
+      await queue.getByText("64 matching active milestones", { exact: false }).waitFor();
       assert.equal(await queue.locator("[data-mission-id]").count(), 20);
       assert.equal(
         await queue.locator("[data-mission-id]").first().getAttribute("data-mission-id"),
@@ -128,18 +128,18 @@ try {
       await queue.getByRole("button", { name: "Next milestones", exact: true }).click();
       assert.equal(
         await queue.locator("[data-mission-id]").first().getAttribute("data-mission-id"),
-        "next-125",
+        "next-148",
       );
       await queue
         .getByRole("combobox", { name: "Milestone workstream" })
         .selectOption("Archive continuity and growth");
-      assert.equal(await queue.locator("[data-mission-id]").count(), 9);
+      assert.equal(await queue.locator("[data-mission-id]").count(), 5);
       assert.equal(
         await queue.locator("[data-mission-page]").getAttribute("data-mission-page"),
         "1",
       );
       await queue.getByRole("combobox", { name: "Milestone priority" }).selectOption("P0");
-      assert.equal(await queue.locator("[data-mission-id]").count(), 3);
+      assert.equal(await queue.locator("[data-mission-id]").count(), 2);
       await queue.getByRole("button", { name: "Clear filters", exact: true }).click();
       assert.equal(
         await queue.getByRole("combobox", { name: "Milestone batch" }).inputValue(),
@@ -224,7 +224,7 @@ try {
       await page.locator('[data-home-ready="true"]').waitFor();
       await nav();
       saved = await readPlan();
-      assert.equal(saved.length, 407);
+      assert.equal(saved.length, 410);
       assert.equal(saved.find((m) => m.id === "next-101").status, "in-progress");
       assert.equal(saved.find((m) => m.id === "next-010").status, "blocked");
       assert.equal(

@@ -1,9 +1,11 @@
+import { searchText, searchTokens } from "./search-text.ts";
 import { visitSearchCandidates } from './search-candidates.ts';
 import { forEachCatalogSlice, sortCatalogRows, yieldCatalogTask } from '../catalog-work.ts';
 import {videoIsPrivate} from './public-visibility.ts';
 import { adultFolderIds } from './adult-providers.ts';
 import { topicsForVideo } from './topics.ts';
 import type { Folder, LibraryVideo, SourceId } from './types';
+import { parseSearchQuery } from './search-query.ts';
 
 export type SearchRankingInput = {
   videos: readonly LibraryVideo[]; positions?: Uint32Array; ids: ReadonlySet<string>; query: string; sourceId: SourceId;
@@ -20,9 +22,10 @@ export async function rankSearchResults(input: SearchRankingInput, signal?: Abor
     signal?.throwIfAborted(); await yieldTask(); signal?.throwIfAborted();
   };
   await turn();
-  const needle = input.query.trim().toLowerCase().replace(/^#/, '');
-  if (!needle || !input.ids.size) return { ranked: [], tags: [] };
-  const terms = needle.split(/[^a-z0-9]+/).filter(Boolean);
+  const parsed = parseSearchQuery(input.query);
+  const needle = searchText(parsed.query.text.trim()).replace(/^#/, '');
+  if (parsed.error || !input.ids.size || !needle && !parsed.filtered) return { ranked: [], tags: [] };
+  const terms = searchTokens(needle);
   const bare = needle.replace(/^(?:fetish|genre|meta|creator|sub|source)-/, '');
   const privateFolders = adultFolderIds(input.folders);
   const inAdults = input.sourceId === 'adults' || input.sourceId === 'adult-fetishes';
@@ -31,13 +34,15 @@ export async function rankSearchResults(input: SearchRankingInput, signal?: Abor
     if (!input.ids.has(video.id) || video.isSample || input.hidden[video.id] || input.unavailable[video.id]) return;
     const isPrivate = videoIsPrivate(privateFolders,video);
     if (inAdults !== isPrivate) return;
-    if (input.sourceId === 'youtube' && video.remote?.kind !== 'youtube') return;
-    if (input.sourceId === 'twitch' && video.remote?.kind !== 'twitch') return;
-    const title = video.name.toLowerCase(), creator = (video.remote?.channelName ?? '').toLowerCase();
-    const tags = [...new Set([...topicsForVideo(video, input.tags[video.id], !inAdults), ...(input.tags[video.id] ?? [])].map(tag => tag.toLowerCase()))];
-    const exactTag = tags.some(tag => tag === needle || tag === bare || tag === `fetish-${bare}` || tag === `genre-${bare}`) ? 220 : 0;
+    if (parsed.query.source === 'all') {
+      if (input.sourceId === 'youtube' && video.remote?.kind !== 'youtube') return;
+      if (input.sourceId === 'twitch' && video.remote?.kind !== 'twitch') return;
+    } else if (parsed.query.source === 'local' ? Boolean(video.remote) : video.remote?.kind !== parsed.query.source) return;
+    const title = searchText(video.name), creator = searchText(video.remote?.channelName ?? '');
+    const tags = [...new Set([...topicsForVideo(video, input.tags[video.id], !inAdults), ...(input.tags[video.id] ?? [])].map(tag => searchText(tag)))];
+    const exactTag = needle && tags.some(tag => tag === needle || tag === bare || tag === `fetish-${bare}` || tag === `genre-${bare}`) ? 220 : 0;
     const tagHits = tags.filter(tag => terms.some(term => tag === term || tag.includes(term))).length;
-    const score = exactTag + (title.includes(needle) ? 120 : 0) + (creator.includes(needle) ? 95 : 0)
+    const score = exactTag + (needle && title.includes(needle) ? 120 : 0) + (needle && creator.includes(needle) ? 95 : 0)
       + terms.filter(term => title.includes(term)).length * 28 + terms.filter(term => creator.includes(term)).length * 22
       + tagHits * 18 + input.ratingPreference(input.ratingOf(video.id)) * 7 + (input.favorites[video.id] ? 12 : 0)
       + (input.likes[video.id] ? 6 : 0) + Math.min(8, input.viewCounts[video.id] ?? 0);
@@ -48,7 +53,7 @@ export async function rankSearchResults(input: SearchRankingInput, signal?: Abor
   const sorted = await sortCatalogRows(rows, (a, b) => b.score - a.score || b.video.addedAt - a.video.addedAt || a.video.name.localeCompare(b.video.name), turn);
   const tagRows = new Map<string, { count: number; score: number }>();
   await forEachCatalogSlice(sorted.slice(0, 240), row => {
-    for (const tag of new Set([...topicsForVideo(row.video, input.tags[row.video.id], !inAdults), ...(input.tags[row.video.id] ?? [])].map(tag => tag.toLowerCase()))) {
+    for (const tag of new Set([...topicsForVideo(row.video, input.tags[row.video.id], !inAdults), ...(input.tags[row.video.id] ?? [])].map(tag => searchText(tag)))) {
       if (tag.length < 2 || /^(?:year|month|day|type|format|provider)-/.test(tag)) continue;
       const previous = tagRows.get(tag) ?? { count: 0, score: 0 };
       tagRows.set(tag, { count: previous.count + 1, score: previous.score + row.score });

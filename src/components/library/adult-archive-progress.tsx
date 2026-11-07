@@ -24,6 +24,8 @@ import {
 } from "@/lib/pull-settings";
 import { remoteEntryCounts, type EntryCounts } from "@/lib/videos/entry-limits";
 import { adultGrowthCounts, type AdultGrowthCounts } from "@/lib/videos/adult-growth";
+import {ArchiveWorkStatus} from './archive-work-window-panel';
+import {explainAdultDiscovery} from '@/lib/videos/adult-discovery-plan';
 
 const names: Record<string, string> = {
   eporner: "Eporner",
@@ -123,6 +125,7 @@ export function AdultArchiveProgress() {
         Archive growth · {savedCount.toLocaleString()} saved entries
       </summary>
       <div className="mt-3 space-y-3 text-sm leading-6 text-muted">
+        {open && <ArchiveWorkStatus window={policy.archiveWorkWindow}/>}
         <p>
           Automatic archived-video goal:{" "}
           <strong className="text-fg">{policy.adultCatalogTarget.toLocaleString()}</strong> · Adults
@@ -186,6 +189,13 @@ export function AdultArchiveProgress() {
             {resume.phase === "error" ? "Retry archive recovery" : "Refresh coverage"}
           </Button>
         </div>
+        {open && resume.phase==='ready' && <div aria-label="Automatic source planning" className="rounded-md border border-border p-3">
+          <p className="font-medium text-fg">Automatic source planning</p>
+          <p className="text-xs">The oldest eligible source gets a guaranteed turn. Remaining compatible slots favor new entries and useful refreshes. Intervals, manual choices and provider cooldowns stay authoritative. This is a preview; it does not start a pull.</p>
+          <ul className="mt-2 space-y-2">{explainAdultDiscovery(order=>lanes.find(lane=>lane.order===order)?.cursors??{},Date.now()).tasks.map(task=><li key={task.provider} className="text-xs" data-yield-provider={task.provider}>
+            <strong className="text-fg">{names[task.provider]}</strong> · {task.reason} · {task.sample?`${task.sample.windows} sampled windows · useful-yield score ${(task.weight/10).toFixed(1)}%`:'No durable yield sample yet'}
+          </li>)}</ul>
+        </div>}
         {(policy.adultCatalogTarget < 250000 ||
           (policy.adultMaxEntries > 0 && policy.adultMaxEntries < 300000) ||
           policy.adultBatchVideos < 10000 ||
@@ -332,7 +342,9 @@ export function AdultArchiveProgress() {
                                   })
                                   .then(() =>
                                     setNote(
-                                      "Accepted entries and the selected listing’s resume position were saved.",
+                                      adultArchiveResumeStatus().phase === "error"
+                                        ? adultArchiveResumeStatus().error ?? "Archive recovery needs attention."
+                                        : 'Archive turn finished. Review the saved position and provider status below.',
                                     ),
                                   )
                                   .catch((error) =>

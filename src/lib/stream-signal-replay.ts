@@ -1,8 +1,9 @@
-import { createLabState, startLabWindow, closeLabWindow, receiveLabBallot, stepLabController, stopLab, type LabState } from './stream-signal-lab.ts';
+import {readLabPlan,type LabPlan} from './lab-conditional.ts';
+import { createLabState, startLabWindow, closeLabWindow, receiveLabBallot, stepLabController, stopLab, observeLabState,receiveConditionalBallot,type LabState } from './stream-signal-lab.ts';
 
 export const LAB_EVENT_LIMIT = 512, LAB_REPLAY_BYTES = 1048576;
-export type LabEvent = { type: 'start'; at: number; seconds: number } | { type: 'ballot'; at: number; viewer: string; id: string; text: string } | { type: 'close' | 'step' | 'stop'; at: number };
-export type LabTrace = { version: 1; simulator: 'battle-v1'; config: { seed: number; seconds: number }; events: Array<{ event: LabEvent; checksum: string }> };
+export type LabEvent = {type:'plan-ballot';at:number;viewer:string;id:string;plan:LabPlan}|{type:'observe';at:number}| { type: 'start'; at: number; seconds: number } | { type: 'ballot'; at: number; viewer: string; id: string; text: string } | { type: 'close' | 'step' | 'stop'; at: number };
+export type LabTrace = { version: 1|2; simulator: 'battle-v1'|'battle-v2'; config: { seed: number; seconds: number }; events: Array<{ event: LabEvent; checksum: string }> };
 export type LabRun = { trace: LabTrace; state: LabState };
 export type LabPlayback = { trace: LabTrace; state: LabState; index: number; status: 'ready' | 'complete' | 'diverged' | 'stopped'; divergence?: { index: number; expected: string; actual: string } };
 const integer = (v: unknown, min: number, max: number): v is number => Number.isSafeInteger(v) && (v as number) >= min && (v as number) <= max;
@@ -11,6 +12,8 @@ function fields(v: Record<string, unknown>, keys: string[]) { if (Object.keys(v)
 export function normalizeLabEvent(value: unknown): LabEvent {
   const e = record(value); if (!integer(e.at, 0, 86400000)) throw Error('Event time must be an integer offset within one day.');
   if (e.type === 'start') { fields(e, ['type', 'at', 'seconds']); if (!integer(e.seconds, 2, 120)) throw Error('Voting windows must be 2–120 seconds.'); return { type: 'start', at: e.at, seconds: e.seconds }; }
+  if(e.type==='plan-ballot'){fields(e,['type','at','viewer','id','plan']);const basic=normalizeLabEvent({type:'ballot',at:e.at,viewer:e.viewer,id:e.id,text:'attack'}) as Extract<LabEvent,{type:'ballot'}>;return {type:'plan-ballot',at:e.at,viewer:basic.viewer,id:basic.id,plan:readLabPlan(e.plan)};}
+  if(e.type==='observe'){fields(e,['type','at']);return {type:'observe',at:e.at};}
   if (e.type === 'ballot') {
     fields(e, ['type', 'at', 'viewer', 'id', 'text']);
     if (typeof e.viewer !== 'string' || e.viewer.length > 64 || !/^[\p{L}\p{N}_-]{1,64}$/u.test(e.viewer.normalize('NFKC').trim().toLowerCase()) || typeof e.id !== 'string' || !e.id.trim() || e.id.length > 128 || typeof e.text !== 'string' || e.text.length > 160) throw Error('Invalid simulated viewer, message ID or command size.');
@@ -30,8 +33,10 @@ function reduce(state: LabState, event: LabEvent): LabState {
   switch (event.type) {
     case 'start': return startLabWindow(state, event.seconds, event.at);
     case 'ballot': return receiveLabBallot(state, event.viewer, event.id, event.text, event.at);
-    case 'close': return closeLabWindow(state);
-    case 'step': return stepLabController(state);
+    case 'plan-ballot':return receiveConditionalBallot(state,event.viewer,event.id,event.plan,event.at);
+    case 'observe':return observeLabState(state,event.at);
+    case 'close': return closeLabWindow(state,event.at);
+    case 'step': return stepLabController(state,event.at);
     case 'stop': return stopLab(state);
   }
 }
@@ -45,7 +50,7 @@ export function recordLabEvent(run: LabRun, raw: unknown): LabRun {
   if (event.type === 'stop' && run.state.status === 'stopped') return run;
   if (run.trace.events.length >= (event.type === 'stop' ? LAB_EVENT_LIMIT : LAB_EVENT_LIMIT - 1)) throw Error('Recording is full. Export or save it, then reset. One final emergency-stop slot is reserved.');
   const state = reduce(run.state, event);
-  return { state, trace: { ...run.trace, events: [...run.trace.events, { event, checksum: labChecksum(state) }] } };
+  return { state, trace: { ...run.trace,...(event.type==='plan-ballot'||event.type==='observe'?{version:2 as const,simulator:'battle-v2' as const}:{}),events: [...run.trace.events, { event, checksum: labChecksum(state) }] } };
 }
 /** Stop remains usable after the bounded recording clock expires. It never
  * depends on an input message or on the browser's wall clock remaining valid. */
@@ -55,11 +60,11 @@ export function stopLabRecording(run: LabRun, at: number): LabRun {
 }
 export function readLabTrace(raw: unknown): LabTrace {
   const trace = record(raw); fields(trace, ['version', 'simulator', 'config', 'events']);
-  if (trace.version !== 1 || trace.simulator !== 'battle-v1' || !Array.isArray(trace.events) || trace.events.length > LAB_EVENT_LIMIT) throw Error('Unsupported replay version, simulator or event count.');
+  if (!((trace.version===1&&trace.simulator==='battle-v1')||(trace.version===2&&trace.simulator==='battle-v2')) || !Array.isArray(trace.events) || trace.events.length > LAB_EVENT_LIMIT) throw Error('Unsupported replay version, simulator or event count.');
   const config = record(trace.config); fields(config, ['seed', 'seconds']); const run = createLabRun(config.seed as number, config.seconds as number);
   let at = 0;
-  const events = trace.events.map(rawRow => { const row = record(rawRow); fields(row, ['event', 'checksum']); const event = normalizeLabEvent(row.event); if (event.at < at || typeof row.checksum !== 'string' || !/^[a-f0-9]{16}$/.test(row.checksum)) throw Error('Replay has out-of-order events or an invalid checkpoint.'); at = event.at; return { event, checksum: row.checksum }; });
-  return { ...run.trace, events };
+  const events = trace.events.map(rawRow => { const row = record(rawRow); fields(row, ['event', 'checksum']); const event = normalizeLabEvent(row.event);if(trace.version===1&&(event.type==='plan-ballot'||event.type==='observe'))throw Error('Conditional events require battle-v2 replay.'); if (event.at < at || typeof row.checksum !== 'string' || !/^[a-f0-9]{16}$/.test(row.checksum)) throw Error('Replay has out-of-order events or an invalid checkpoint.'); at = event.at; return { event, checksum: row.checksum }; });
+  return { ...run.trace,version:trace.version as 1|2,simulator:trace.simulator as 'battle-v1'|'battle-v2',events };
 }
 export function parseLabTrace(text: string) { if (text.length > LAB_REPLAY_BYTES || new TextEncoder().encode(text).length > LAB_REPLAY_BYTES) throw Error('Replay files are limited to 1 MiB.'); return readLabTrace(JSON.parse(text)); }
 export function exportLabTrace(trace: LabTrace) { const text = JSON.stringify(readLabTrace(trace), null, 2); if (new TextEncoder().encode(text).length > LAB_REPLAY_BYTES) throw Error('Replay is too large to export.'); return text; }

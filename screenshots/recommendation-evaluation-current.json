@@ -2401,11 +2401,11 @@
       "files": [
         {
           "path": "src/lib/videos/guide-picks.ts",
-          "sha256": "71d58eec9d7c9787af2f0a546f43b97ddbe5a0c9f8f736540042738355a95aea"
+          "sha256": "9bf62a818b975edb345d3576a3cb149fee5e68558b05f785257661ee1ab08fa2"
         },
         {
           "path": "src/lib/videos/guide-evidence.ts",
-          "sha256": "973dbe4bc9bd7c28b3d39064494edd155d80b1130869862672f17ccec510c0ce"
+          "sha256": "f6766c2dc10f9e6e93a95d02359188e2f45e619074bab934895ef76f78ee5253"
         },
         {
           "path": "src/lib/videos/guide-affinity.ts",
@@ -2413,7 +2413,7 @@
         },
         {
           "path": "src/lib/videos/recommendation-report.ts",
-          "sha256": "26f0965e773b5306f62716808321e5464eee7dbe2d726c63ba8122c9d3c751a9"
+          "sha256": "e7b06097e70d48a45f1a4ca805e848475bf2e1337b5ba9307b185f334d31742e"
         },
         {
           "path": "src/lib/videos/guide-preset.ts",
@@ -2441,11 +2441,11 @@
         },
         {
           "path": "src/lib/videos/twitch-recommendations.ts",
-          "sha256": "7f69f97709497de48060f42ee375476900c7cfeb63f317a683a62c96ff0eb467"
+          "sha256": "8b66140686d743b587a7732eef2881b2cbe8fd8750fad9801d4a36a9f0c1ce1f"
         },
         {
           "path": "src/lib/videos/twitch-vod-ranking.ts",
-          "sha256": "572b06565a8146313bccc90591c11e2833ff5bc5fd3a1c403379dcbd872ca381"
+          "sha256": "4e76357e806cbbde7deb95278826205bca3b8945702eacae5fc334eee99d41fa"
         },
         {
           "path": "src/lib/videos/ranking-core.ts",

@@ -1,0 +1,63 @@
+back 0 {
+  title: 'Twitch\n' +
+    '\n' +
+    'Control room\n' +
+    '\n' +
+    'Default\n' +
+    'Waypoint youtube\n' +
+    'Name\n' +
+    '11:40 PM\n' +
+    'Resume pulls\n' +
+    'Folder',
+  focus: null
+}
+back 1 {
+  title: 'YouTube\n' +
+    '\n' +
+    'Control room\n' +
+    '\n' +
+    'Default\n' +
+    'Waypoint youtube\n' +
+    'Name\n' +
+    '11:40 PM\n' +
+    'Resume pulls\n' +
+    'Folder',
+  focus: 'youtube-3'
+}
+back-home 0 {
+  title: 'YouTube\n\nControl room\n\nDefault\nWaypoint\nName\n11:40 PM\nResume pulls\nFolder',
+  focus: 'youtube-0',
+  notice: 'Saved title position restored.',
+  scroll: 118,
+  grid: [ { loaded: '8', pending: 'false', ids: [Array] } ]
+}
+back-home 1 {
+  title: 'Home\n\n142 indexed\n\nDefault\nWaypoint\nName\n11:40 PM\nResume pulls\nFolder',
+  focus: 'local-90',
+  notice: 'Saved title position restored.',
+  scroll: 4180,
+  grid: [ { loaded: '123', pending: 'true', ids: [Array] } ]
+}
+back 0 {
+  title: 'Twitch\n\nControl room\n\nDefault\nWaypoint youtube\nName\nResume pulls',
+  focus: null
+}
+back 1 {
+  title: 'YouTube\n\nControl room\n\nDefault\nWaypoint youtube\nName\nResume pulls',
+  focus: 'youtube-3'
+}
+back-home 0 {
+  title: 'YouTube\n\nControl room\n\nDefault\nWaypoint\nName\nResume pulls',
+  focus: null,
+  notice: 'Browse task restored.',
+  scroll: 0,
+  grid: [ { loaded: '8', pending: 'false', ids: [Array] } ]
+}
+back-home 1 {
+  title: 'Home\n\n142 indexed\n\nDefault\nWaypoint\nName\nResume pulls',
+  focus: 'local-90',
+  notice: 'Saved title position restored.',
+  scroll: 12678,
+  grid: [ { loaded: '127', pending: 'false', ids: [Array] } ]
+}
+{"ok":true,"output":"E:\\codex\\drift-brick-terra-acorn\\screenshots\\personal-desks-browse-regression.json"}

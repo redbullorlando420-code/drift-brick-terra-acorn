@@ -2,8 +2,8 @@ import { useEffect, useState, type RefObject } from "react";
 
 type CaptureVideo = HTMLVideoElement & { captureStream?: () => MediaStream; mozCaptureStream?: () => MediaStream };
 
-export function useRoomLocalStream(ref: RefObject<HTMLVideoElement | null>, source: string, enabled: boolean, publish: (stream: MediaStream | null) => void) {
-  const [captured, setCaptured] = useState<{source:string;id:string}|null>(null);
+export function useRoomLocalStream(ref: RefObject<HTMLVideoElement | null>, source: string, enabled: boolean, publish: (stream: MediaStream | null) => void, generation = '') {
+  const [captured, setCaptured] = useState<{source:string;generation:string;id:string}|null>(null);
   const [status, setStatus] = useState("");
   useEffect(() => {
     setCaptured(null);
@@ -19,7 +19,7 @@ export function useRoomLocalStream(ref: RefObject<HTMLVideoElement | null>, sour
     stream.addEventListener("addtrack", update);
     stream.addEventListener("removetrack", update);
     publish(stream);
-    setCaptured({source,id:stream.id});
+    setCaptured({source,generation,id:stream.id});
     setStatus("Local playback streams directly to connected guests. Keep the host player open.");
     return () => {
       stream.removeEventListener("addtrack", update);
@@ -27,6 +27,6 @@ export function useRoomLocalStream(ref: RefObject<HTMLVideoElement | null>, sour
       publish(null);
       for (const track of stream.getTracks()) track.stop();
     };
-  }, [enabled, publish, ref, source]);
-  return { streamId:captured?.source===source?captured.id:"", status };
+  }, [enabled, publish, ref, source, generation]);
+  return { streamId:captured?.source===source&&captured.generation===generation?captured.id:"", status };
 }

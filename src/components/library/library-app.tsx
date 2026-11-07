@@ -1,4 +1,7 @@
+import {DeskLayoutPanel,useSavedDeskLayout} from './desk-layout-panel';
+import type {DeskLayout} from '@/lib/desk-layouts';
 import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+import {DeskTasteControl} from './desk-taste-control';
 import {ConsequenceAction} from './consequence-action';
 import {clearWatchHistoryWithRecovery} from '@/lib/videos/store';
 import { CatalogWriterStatus } from './catalog-writer-status';
@@ -20,6 +23,8 @@ import { useFavoriteRails } from './use-favorite-rails';
 import { useContinueInsights } from './use-continue-insights';
 import { rememberVideo } from '@/lib/videos/video-lookup';
 import { getPullSettings } from '@/lib/pull-settings';
+import {archiveNotBefore,archiveWindowState} from '@/lib/archive-work-window';
+import {ArchiveWindowNotice} from './archive-work-window-panel';
 import { setRenderBudgetMonitoring } from '@/lib/render-budget';
 import { registerPeriodicTask, wakePeriodicTasks } from '@/lib/periodic-work';
 import { DeskDisclosure } from "./desk-disclosure";
@@ -44,6 +49,8 @@ import { lazy, startTransition, Suspense, useCallback, useEffect, useMemo, useRe
 import { hubLoaders, warmHubDesk } from './hub-loader';
 import { toast, Toaster } from "sonner";
 import { getBrowseLibrarySnapshot, useBrowseLibrary } from './use-browse-library';
+import { useBrowseTasks } from './use-browse-tasks';
+import { BrowseTaskNotice } from './browse-task-controls';
 import { AlertCircle, CheckCircle2, LoaderCircle, Lock, Shuffle, Upload, X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -132,7 +139,10 @@ import { hasFreshViewerCount } from "@/lib/videos/types";
 import { useThumbs } from "@/lib/videos/thumbs";
 import { ensureImageBudgetVisibilityHook } from "@/lib/videos/image-load-budget";
 import { hasAdultThumb, adultThumbCandidatesForVideo } from "@/lib/videos/adult-thumbs";
-import { searchCatalog } from "@/lib/videos/search-index";
+import { structuredSearch } from "@/lib/videos/structured-search";
+import { SearchQueryChips } from './search-workspaces';
+import { SearchSpelling } from './search-spelling';
+import { SearchCountStatus } from './search-count-status';
 import { searchWorkerIndex } from "@/lib/videos/search-worker-index";
 import { useSearchRanking } from "./use-search-ranking";
 import { isExcludedDemoVideo } from '@/lib/videos/youtube-browse';
@@ -946,16 +956,18 @@ export function LibraryApp() {
     const needle = query.trim().toLowerCase();
     if (!hydrated || !searchDeskActive) { searchWorkerIndex.retire(); return; }
     const controller = new AbortController();
-    searchWorkerIndex.sync(catalogVideos, tags, categories);
-    void searchWorkerIndex.searchMatches(needle, controller.signal, sourceId !== "adults" && sourceId !== "adult-fetishes").then(async (result) => {
-      const ids = result?.ids ?? null;
+    void structuredSearch(catalogVideos, tags, categories, needle, controller.signal, sourceId !== "adults" && sourceId !== "adult-fetishes", (text, signal, reviewed) => {
+      searchWorkerIndex.sync(catalogVideos, tags, categories);
+      return searchWorkerIndex.searchMatches(text, signal, reviewed);
+    }).then(async (result) => {
+      const ids = result.ids;
       if (controller.signal.aborted || !allowAutomaticRefresh()) return;
-      const matches = ids === null ? await searchCatalog(catalogVideos, tags, categories, needle, controller.signal, sourceId !== "adults" && sourceId !== "adult-fetishes") : new Set<string>();
+      const matches = new Set<string>();
       if (ids) await forEachCatalogSlice(ids, id => { matches.add(id); }, async () => {
         controller.signal.throwIfAborted(); await yieldCatalogTask(); controller.signal.throwIfAborted();
       });
       if (controller.signal.aborted || !allowAutomaticRefresh()) return;
-      useLibrary.setState({ searchResult: { query: needle, ids: matches, positions: result?.videos === catalogVideos ? result.positions : undefined, videos: catalogVideos, tags, categories } });
+      useLibrary.setState({ searchResult: { query: needle, ids: matches, positions: result.positions, videos: catalogVideos, tags, categories } });
     }).catch(() => { /* Cancellation discards a superseded fallback scan. */ });
     return () => { controller.abort(); };
   }, [catalogVideos, categories, hydrated, query, searchDeskActive, tags, aliasRevision, sourceId,searchAttempt]);
@@ -1026,7 +1038,7 @@ export function LibraryApp() {
       catch { return 0; }
     };
     const tick = async () => {
-      if (cancelled || running || !getPullSettings().automaticPulls || !catalogPullAvailable() || !navigator.onLine) return;
+      if (cancelled || running || !getPullSettings().automaticPulls || !archiveWindowState(getPullSettings().archiveWorkWindow).open || !catalogPullAvailable() || !navigator.onLine) return;
       const state = useLibrary.getState();
       if (state.refreshing || state.remoteBusy) return;
       const now = Date.now(), settings = getPullSettings();
@@ -1065,6 +1077,7 @@ export function LibraryApp() {
       finally { running = false; }
     };
     const task = registerPeriodicTask({ name: 'Provider pulls', everyMs: 15_000, firstMs: 1_500, mode: 'visible',
+      notBefore:()=>archiveNotBefore(getPullSettings().archiveWorkWindow),
       enabled: () => getPullSettings().automaticPulls && catalogPullAvailable(true) && navigator.onLine, work: tick });
     const stopAvailability = subscribePullAvailability(task.wake);
     const stopViewer = useLibrary.subscribe((next, previous) => {
@@ -1182,6 +1195,23 @@ export function LibraryApp() {
       sourceId === "live");
   const isHubSection = HUB_SOURCES.has(sourceId) || invitedToTheater;
 
+  useBrowseTasks({ ready: hydrated && !navigationPending && !searchPending, source: sourceId, query, resultRevision: searchRankingRevision,
+    options: { youtubeTagFilter, youtubeTagsExpanded, youtubeExploreVisible, youtubeDeepVisible, youtubeHealthVisible,
+      twitchExploreVisible, twitchCatalogVisible, twitchCoverageVisible, twitchArchiveSearchVisible, twitchSort, twitchContentFilter, twitchFilter, twitchTagFilter, twitchClipOrder, twitchClipCreator, twitchMixSeed, twitchClipSeed,
+      adultTag, adultSource, adultView, adultArtworkOnly, adultDeepVisible, adultSort, adultRailSeed, historyWindow, historySource, savedFilter },
+    restoreOptions(values) {
+      const setters: Record<string, (value: string | boolean | number) => void> = {
+        youtubeTagFilter:v=>setYoutubeTagFilter(v as typeof youtubeTagFilter), youtubeTagsExpanded:v=>setYoutubeTagsExpanded(v as boolean), youtubeExploreVisible:v=>setYoutubeExploreVisible(v as boolean), youtubeDeepVisible:v=>setYoutubeDeepVisible(v as boolean), youtubeHealthVisible:v=>setYoutubeHealthVisible(v as boolean),
+        twitchExploreVisible:v=>setTwitchExploreVisible(v as boolean), twitchCatalogVisible:v=>setTwitchCatalogVisible(v as boolean), twitchCoverageVisible:v=>setTwitchCoverageVisible(v as boolean), twitchArchiveSearchVisible:v=>setTwitchArchiveSearchVisible(v as boolean), twitchSort:v=>setTwitchSort(v as typeof twitchSort), twitchContentFilter:v=>setTwitchContentFilter(v as typeof twitchContentFilter), twitchFilter:v=>setTwitchFilter(v as typeof twitchFilter), twitchTagFilter:v=>setTwitchTagFilter(v as string), twitchClipOrder:v=>setTwitchClipOrder(v as typeof twitchClipOrder), twitchClipCreator:v=>setTwitchClipCreator(v as string), twitchMixSeed:v=>setTwitchMixSeed(v as number), twitchClipSeed:v=>setTwitchClipSeed(v as number),
+        adultTag:v=>setAdultTag(v as string), adultSource:v=>setAdultSource(v as string), adultView:v=>setAdultView(v as typeof adultView), adultArtworkOnly:v=>setAdultArtworkOnly(v as boolean), adultDeepVisible:v=>setAdultDeepVisible(v as boolean), adultSort:v=>setAdultSort(v as typeof adultSort), adultRailSeed:v=>setAdultRailSeed(v as number),
+        historyWindow:v=>setHistoryWindow(v as typeof historyWindow), historySource:v=>setHistorySource(v as typeof historySource), savedFilter:v=>setSavedFilter(v as typeof savedFilter),
+      };
+      for (const [key,value] of Object.entries(values)) setters[key]?.(value);
+    },
+  });
+  const layoutView=useBrowseLibrary(s=>s.view);
+  const applyDeskLayout=(value:DeskLayout)=>{if(useLibrary.getState().view!==value.view)useLibrary.getState().setView(value.view);if(sourceId==='youtube'){setYoutubeExploreVisible(value.explore);setYoutubeDeepVisible(value.explore&&value.catalog);}if(sourceId==='twitch'){setTwitchExploreVisible(value.explore);setTwitchCatalogVisible(value.catalog);}};
+  useSavedDeskLayout(sourceId,applyDeskLayout);
   return (
     <div className="flex min-h-dvh bg-bg text-fg">
       {desktopLayout && <DesktopSidebar onAddFolder={addSidebarFolder} />}
@@ -1201,6 +1231,7 @@ export function LibraryApp() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar menuOpen={menuOpen} onMenu={openMobileMenu} onAddFolder={addHeaderFolder} />
         <main data-library-focus tabIndex={-1} aria-busy={navigationPending} className="w-full max-w-none flex-1 px-4 py-6 outline-none sm:px-6 xl:px-8 2xl:px-10">
+          <BrowseTaskNotice />
           {searchDeskActive&&Boolean(query.trim())&&<SearchWorkerRecovery onRetry={()=>{searchWorkerIndex.retry(catalogVideos,tags,categories);setSearchAttempt(value=>value+1);}}/>}
           {navigationPending ? <section role="status" aria-live="polite" className="rounded-xl bg-elevated p-6 shadow-border sm:p-8">
             <h1 className="font-display text-3xl text-fg">{navigationSourceLabel(requestedSource, folders)}</h1>
@@ -1235,6 +1266,7 @@ export function LibraryApp() {
             </Suspense>
           ) : (
             <>
+              {['youtube','twitch','adults'].includes(sourceId)&&<ArchiveWindowNotice onSettings={()=>setSource('settings')}/>}
               {sourceId === "landing" && !query && <DiscoveryDesk videos={videos} />}
               {!hasUserFolders && sourceId === "landing" && (
                 <InviteStrip
@@ -1258,6 +1290,8 @@ export function LibraryApp() {
               {sourceId === "landing" && browsing && (
                 <LandingShelves videos={videos} youtube={youtubeVideos} twitch={twitchVideos} live={liveVideos} folders={folders} follows={follows} seed={homePickShuffle} onMix={() => setHomePickShuffle(Date.now())} ready={homeRecommendationsReady && !navigationPending} revision={ratingRevision} />
               )}
+              {browsing && !query && (sourceId==='youtube'||sourceId==='twitch'||sourceId==='movies')&&<DeskLayoutPanel key={sourceId} desk={sourceId} current={{view:layoutView,explore:sourceId==='youtube'?youtubeExploreVisible:sourceId==='twitch'?twitchExploreVisible:false,catalog:sourceId==='youtube'?youtubeDeepVisible:sourceId==='twitch'?twitchCatalogVisible:false}} apply={applyDeskLayout}/>}
+              {browsing && !query && (sourceId === "youtube" || sourceId === "twitch" || sourceId === "movies") && <DeskTasteControl desk={sourceId} movieVideos={sourceId === "movies" ? movieOrderSources.all : undefined}/>}
               {sourceId === "youtube" && browsing && (
                 <>
                   <section className="mb-7 overflow-hidden rounded-xl border border-border bg-surface shadow-border">
@@ -1671,6 +1705,9 @@ export function LibraryApp() {
                       </div>
                     )}
                   </div>
+                  {query && <SearchQueryChips raw={query}/>}
+                  {query && <SearchCountStatus pending={searchPending} count={searchInsights.ranked.length} query={query}/>}
+                  {searchDeskActive && !searchPending && !searchRankingError && searchInsights.ranked.length === 0 && <SearchSpelling/>}
                   {query && <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Search ranking and matching tags">
                     <div className="flex flex-wrap items-baseline justify-between gap-3">
                       <div>

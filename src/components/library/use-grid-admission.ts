@@ -13,5 +13,5 @@ export function useGridAdmission(pageSize: number, count: number, source: string
     controller.hold(viewer || phase !== 'active');
     return () => controller.hold(true);
   }, [controller, viewer, phase]);
-  return { ...state, request: controller.request };
+  return { ...state, request: controller.request, restoreThrough: controller.restoreThrough };
 }

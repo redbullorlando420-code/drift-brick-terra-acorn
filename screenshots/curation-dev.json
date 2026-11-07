@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Metadata preview distinguishes exact IDs, ambiguity and private exclusion; explicit Apply preserves owner identity locks and personal history while saving a reviewed receipt",
+        "Metadata inverse patch and receipt survive reload; Undo restores prior evidence without rewriting source classification",
+        "Movie collection imports retain rejected trailer/lecture rows, filter real movie memberships across editions, leave eligibility unchanged and preserve durable state on quota failures",
+        "Series summaries count duplicate editions once, exclude missing/alternate/unresolved entries, support owner corrections and durable reset/undo, and preserve resume/history after quota rejection",
+        "A separate saved local profile cannot read the original profile’s movie receipts, collections or series decisions; returning preserves all original playback marks"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Metadata preview distinguishes exact IDs, ambiguity and private exclusion; explicit Apply preserves owner identity locks and personal history while saving a reviewed receipt",
+        "Metadata inverse patch and receipt survive reload; Undo restores prior evidence without rewriting source classification",
+        "Movie collection imports retain rejected trailer/lecture rows, filter real movie memberships across editions, leave eligibility unchanged and preserve durable state on quota failures",
+        "Series summaries count duplicate editions once, exclude missing/alternate/unresolved entries, support owner corrections and durable reset/undo, and preserve resume/history after quota rejection",
+        "A separate saved local profile cannot read the original profile’s movie receipts, collections or series decisions; returning preserves all original playback marks"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Disposable profiles, saved film/anime evidence and controlled provider assets. No external movie database verification, actual media playback or physical-phone certification."
+}

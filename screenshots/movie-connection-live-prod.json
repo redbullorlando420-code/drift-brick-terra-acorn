@@ -1,0 +1,37 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "live": true,
+      "checks": [
+        "Actual anonymous YouTube catalog returns dedicated films through the running app",
+        "Actual movie-only shelf expansion returns further films",
+        "Actual Movies-filter search returns film cards for Dune",
+        "No hidden players, uncaught console errors or horizontal overflow"
+      ],
+      "errors": [],
+      "catalog": [
+        {
+          "id": "n8PkjOCX-CY",
+          "text": "Resident Evil\n\nHorror • 2026 · R\n\n1:33:50\n\nBuy or rent\n\nOpen on YouTube\nSave movie"
+        },
+        {
+          "id": "YF0lpFHGO-M",
+          "text": "Spider-Man: Brand New Day\n\nAction & adventure • 2026 · PG-13\n\n2:25:01\n\nBuy\n\nOpen on YouTube\nSave movie"
+        },
+        {
+          "id": "j6JwswiuwoM",
+          "text": "Buddy\n\nHorror • 2026 · TV-MA\n\n1:35:50\n\nBuy or rent\n\nOpen on YouTube\nSave movie"
+        },
+        {
+          "id": "QpUVV1sql6g",
+          "text": "Verity\n\nMystery & suspense • 2026 · R\n\n1:56:43\n\nBuy or rent\n\nOpen on YouTube\nSave movie"
+        }
+      ],
+      "shelfCount": 24,
+      "search": 19
+    }
+  ],
+  "limitation": "Anonymous catalog/search observations only. No purchases, entitlement verification or film playback."
+}

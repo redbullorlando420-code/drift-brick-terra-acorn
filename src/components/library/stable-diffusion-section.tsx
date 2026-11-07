@@ -18,7 +18,7 @@ import { readModelPreflight, type ModelPreflight } from '@/lib/studio-model-note
 import { StudioModelRequirements } from './studio-model-requirements';
 import { StudioJobHistory } from './studio-job-history';
 
-type EngineStatus = { engine?: 'a1111' | 'comfy'; connected: boolean; ready: boolean; models: string[]; modelPreflight?:boolean; busy?: boolean; canStart?: boolean; ownedEngine?: boolean; note?: string; connectionIssue?: string };
+type EngineStatus = { parameterContract?:unknown; engine?: 'a1111' | 'comfy'; connected: boolean; ready: boolean; models: string[]; modelPreflight?:boolean; busy?: boolean; canStart?: boolean; ownedEngine?: boolean; note?: string; connectionIssue?: string };
 const getSession = createStudioSessions((path, body) => localTool<{ image?: string; info?: string;engineJobId?:string }>(path, body),studioJobsDocument);
 
 export function StableDiffusionSection() {
@@ -119,6 +119,6 @@ function StudioWorkspace({ owner }: { owner: string }) {
     <StudioModelRequirements owner={owner} review={review} />
     <StudioJobHistory jobs={work.jobs} busy={busy} onReuse={setSettings} />
     {(!work.ready||work.saveError)&&<div className="mt-4 rounded-md border border-border p-4"><p role="alert" className="text-sm text-danger">{work.saveError||'Job history is not ready. Recover it before generating.'}</p><Button variant="secondary" disabled={busy} onClick={()=>void(work.ready?session.retrySave():session.hydrate())}>Retry job history</Button></div>}
-    <StudioRecipes owner={owner} disabled={busy} result={image ? { name: image.settings.prompt.trim().slice(0, 80), settings: { ...image.settings, seed: image.seed ?? image.settings.seed }, checkpoint: image.checkpoint, provenance:image.provenance } : undefined} engine={settings.engine??"a1111"} models={status?.models??[]} review={review??undefined} onReuse={setSettings} />
+    <StudioRecipes contract={status?.connected&&status?.ready?status.parameterContract:undefined} owner={owner} disabled={busy} result={image ? { name: image.settings.prompt.trim().slice(0, 80), settings: { ...image.settings, seed: image.seed ?? image.settings.seed }, checkpoint: image.checkpoint, provenance:image.provenance } : undefined} engine={settings.engine??"a1111"} models={status?.models??[]} review={review??undefined} onReuse={setSettings} />
   </HubShell>;
 }

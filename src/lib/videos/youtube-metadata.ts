@@ -1,14 +1,18 @@
 import type { LibraryVideo, RemoteRef } from './types.ts';
+import {searchDateEvidence} from './search-dates.ts';
 
 export type YoutubeContentKind = 'upload' | 'short' | 'replay' | 'live' | 'upcoming';
 export type YoutubePublishedSource = 'rss' | 'provider' | 'watch' | 'unknown' | 'legacy';
+const partialPrecisionWeight={year:1,month:2,day:3,instant:4};
+const partialEvidence=(video:LibraryVideo)=>video.remote?.publishedPrecision==='year'||video.remote?.publishedPrecision==='month'?searchDateEvidence(video,'published'):undefined;
 const minimumDate = Date.UTC(2000, 0, 1);
 export function youtubePublicationTime(video: LibraryVideo) {
   const remote = video.remote;
   if (remote?.kind === 'youtube' && remote.publishedSource !== 'rss' && remote.publishedSource !== 'provider' && remote.publishedSource !== 'watch') return 0;
-  if(remote?.publishedPrecision==='relative'||remote?.publishedPrecision==='unknown'||remote?.publishedSource==='unknown'||!Number.isFinite(video.addedAt)||video.addedAt<=minimumDate)return 0;
+  if(remote?.publishedPrecision==='relative'||remote?.publishedPrecision==='unknown'||remote?.publishedPrecision==='year'||remote?.publishedPrecision==='month'||remote?.publishedSource==='unknown')return 0;
   // Calendar-only evidence is anchored to UTC, never the viewer’s time zone.
-  if(remote?.publishedDate && (remote.publishedPrecision==='day'||!remote.publishedPrecision&&remote.publishedSource!=='rss')){const date=exactYoutubePublished(remote.publishedDate);if(date?.length===10)return Date.parse(date);}
+  if(remote?.publishedDate&&(remote.publishedPrecision==='day'||!remote.publishedPrecision&&remote.publishedSource!=='rss')){const date=exactYoutubePublished(remote.publishedDate);if(date)return Date.parse(date);return 0;}
+  if(!Number.isFinite(video.addedAt)||video.addedAt<=minimumDate)return 0;
   return video.addedAt;
 }
 export function youtubeContentKind(video: LibraryVideo): YoutubeContentKind {
@@ -17,6 +21,8 @@ export function youtubeContentKind(video: LibraryVideo): YoutubeContentKind {
   return type === 'short' || type === 'replay' || type === 'live' || type === 'upcoming' ? type : 'upload';
 }
 export function youtubeDateSource(video: LibraryVideo): YoutubePublishedSource {
+  const partial=partialEvidence(video);
+  if(partial&&(partial.precision==='year'||partial.precision==='month'))return video.remote!.publishedSource!;
   if (!youtubePublicationTime(video)) return 'unknown';
   const source = video.remote?.publishedSource;
   return source === 'rss' || source === 'provider' || source === 'watch' ? source : 'legacy';
@@ -25,6 +31,8 @@ export function youtubeDateSource(video: LibraryVideo): YoutubePublishedSource {
  * prevents this compatibility repair from erasing a real RSS/provider date. */
 export function repairYoutubePublication(video: LibraryVideo): LibraryVideo {
   if (video.remote?.kind !== 'youtube') return video;
+  const partial=partialEvidence(video);
+  if(partial&&(partial.precision==='year'||partial.precision==='month'))return video.addedAt===0?video:{...video,addedAt:0};
   const synthetic = !video.remote.publishedSource && video.remote.channelName
     && video.description === `${video.remote.channelName} public channel catalog item.`;
   if ((!synthetic && youtubePublicationTime(video)) || video.addedAt === 0) return video;
@@ -40,6 +48,10 @@ export function retainYoutubeMetadata(previous: LibraryVideo | undefined, incomi
   if (previous?.remote?.kind !== 'youtube') return incoming;
   previous = repairYoutubePublication(previous);
   if(previous.remote?.videoId && incoming.remote?.videoId && previous.remote.videoId!==incoming.remote.videoId)return incoming;
+  const oldPartial=partialEvidence(previous),newPartial=oldPartial?searchDateEvidence(incoming,'published'):undefined;
+  if(oldPartial&&(!newPartial||partialPrecisionWeight[oldPartial.precision]>partialPrecisionWeight[newPartial.precision])){
+    incoming={...incoming,addedAt:0,remote:{...incoming.remote!,publishedSource:previous.remote!.publishedSource,publishedDate:previous.remote!.publishedDate,publishedPrecision:previous.remote!.publishedPrecision,publishedLabel:undefined,publishedLabelAt:undefined}};
+  }
   const oldSource = youtubeDateSource(previous), newSource = youtubeDateSource(incoming);
   const oldPrecision=youtubePublicationPrecision(previous),newPrecision=youtubePublicationPrecision(incoming);
   const keepDate = Boolean(youtubePublicationTime(previous)) && (incoming.remote?.youtubeType==='upcoming'||incoming.remote?.live===true||precisionStrength[oldPrecision]>precisionStrength[newPrecision]||priority[oldSource]>priority[newSource]);
@@ -109,7 +121,7 @@ export function cleanYoutubePublishedLabel(value:unknown):string|undefined {
  if(typeof value!=='string')return;const label=value.replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,120);return label||undefined;
 }
 export function youtubePublicationPrecision(video:LibraryVideo):'instant'|'day'|'relative'|'unknown' {
- if(youtubePublicationTime(video))return video.remote?.publishedPrecision==='day'||!video.remote?.publishedPrecision&&video.remote?.publishedDate&&video.remote?.publishedSource!=='rss'?'day':'instant';
+ if(youtubePublicationTime(video))return video.remote?.publishedPrecision==='day'||!video.remote?.publishedPrecision&&video.remote?.publishedDate?.length===10&&video.remote?.publishedSource!=='rss'?'day':'instant';
  return cleanYoutubePublishedLabel(video.remote?.publishedLabel)&&youtubeContentKind(video)!=='upcoming'&&youtubeContentKind(video)!=='live'?'relative':'unknown';
 }
 /** Exact repair inputs are tied to the selected canonical identity. Relative and

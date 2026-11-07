@@ -123,8 +123,10 @@ test("a pure restore plan checkpoints every personal field together and preserve
         },
       ],
     ]);
+  before.rows.push({store:"activity",key:"feedback",value:{ratings:{unrelated:4},manualTimeline:{version:1,entries:[{id:"old-inverse",kind:"rating",target:"unrelated",label:"Unrelated",before:1,after:4,at:100}]}}});
   const after = await planLibraryRestore(before, original, incoming, "merge", 1000),
     docs = new Map(after.rows.map((r) => [r.key, r.value]));
+  assert.deepEqual(docs.get("feedback").manualTimeline,{version:1,entries:[],updatedAt:1000});
   assert.equal(docs.get("feedback").ratings.v, 1);
   assert.equal(docs.get("feedback").ratings.unrelated, 4);
   assert.equal(docs.get("feedback").notes.v, "Imported");
@@ -145,7 +147,8 @@ test("a pure restore plan checkpoints every personal field together and preserve
     ),
   );
   assert.equal(original.get("marks/ratings.json").ratings.v, 5);
-  assert.equal(before.rows.length, 3);
+  assert.equal(before.rows.length, 4);
+  assert.equal(before.rows.find(r=>r.key==='feedback').value.manualTimeline.entries[0].id,'old-inverse');
   assert.equal(after.mirrors["reelcase.media-feedback.v1"], null);
   assert.equal(after.mirrors["reelcase.catalog-edits.v1"], null);
   await verifyRestoreSnapshot(after);
@@ -251,4 +254,12 @@ test("follow merge retains a newer observation without changing the stable sourc
   assert.equal(follow.id, "tw:old");
   assert.equal(follow.lastCheckedAt, 500);
   assert.equal(follow.channelId, "123");
+});
+
+test("personal-only restore cannot import an archive continuation without its accepted catalog", async () => {
+  const { restoreActivityKey } = await import("../src/lib/videos/restore-snapshot.ts");
+  assert.equal(restoreActivityKey("adult-archive-cursors:v1"), false);
+  const snapshot = base();
+  snapshot.rows.push({store:"activity",key:"adult-archive-cursors:v1",value:{version:1,positions:{}}});
+  await assert.rejects(verifyRestoreSnapshot(snapshot), /unsupported|invalid|unknown/i);
 });

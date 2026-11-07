@@ -16,6 +16,11 @@ test('migration keeps durable positions authoritative and leaves separate sort p
  assert.equal(migrated.positions['eporner::all::latest']!.cursor.page,7);assert.equal(migrated.positions['eporner::all::top-rated']!.cursor.page,30);
  assert.deepEqual(migrateArchiveLedger(migrated,{}),migrated);
 });
+
+test('future and oversized yield sketches cannot enter an otherwise valid checkpoint',()=>{
+ assert(validArchiveCheckpoint({...point,observeYield:false}));assert.equal(validArchiveCheckpoint({...point,observeYield:'disabled'}),false);
+ for(const yieldValue of [{version:2,windows:1,score:1,recovery:1},{version:1,windows:9,score:1,recovery:1},{version:1,windows:1,score:1001,recovery:1},{version:1,windows:1,score:1,recovery:1,privatePayload:'unbounded'}])assert.equal(validArchiveCheckpoint({...point,cursor:{...cursor,yield:yieldValue}}),false);
+});
 test('coverage separates not checked, exhausted, cooling down and retryable failures without blocking another sort',()=>{
  const now=1000;assert.equal(archiveCoverageState(undefined,now).label,'Not checked');
  assert.equal(archiveCoverageState({...cursor,state:'exhausted',retryAt:2000},now).canContinue,false);

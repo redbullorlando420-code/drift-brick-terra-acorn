@@ -1,3 +1,4 @@
+import {AnimeReleaseWatchlist} from './anime-release-watchlist';
 import { animeEvidence } from '@/lib/videos/content-classification';
 import { useEffect, useMemo, useState } from "react";
 import { Clapperboard } from "lucide-react";
@@ -69,6 +70,7 @@ export function AnimeSection() {
       title="Keep anime on its own shelf."
       copy="A fast, local-first view for anime already in your Realhub catalog. Saved #anime tags and clear anime title/episode evidence keep it separate without copying or proxying third-party playback."
     >
+      <AnimeReleaseWatchlist/>
       <section className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Anime library summary">
         <Stat label="Anime titles" value={animeCount ?? '…'} />
         <Stat label="Continue watching" value={continueCount ?? '…'} />

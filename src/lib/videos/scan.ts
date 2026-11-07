@@ -228,8 +228,9 @@ export async function ingestFileList(
   arg?: ScanOpts | ((p: ScanProgress) => void),
 ): Promise<LibraryVideo[]> {
   const opts = asOpts(arg);
-  await Promise.all([hydrateFileIdentities(),hydrateCatalogDeletions()]);
+  // File inputs are cleared by their change handler; capture the live list before yielding.
   const files = Array.from(list);
+  await Promise.all([hydrateFileIdentities(),hydrateCatalogDeletions()]);
   const acc: LibraryVideo[] = [];
   const flushed = { n: 0 };
   let looked = 0;
@@ -306,7 +307,6 @@ export async function ingestDataTransfer(
   arg?: ScanOpts | ((p: ScanProgress) => void),
 ): Promise<LibraryVideo[]> {
   const opts = asOpts(arg);
-  await Promise.all([hydrateFileIdentities(),hydrateCatalogDeletions()]);
   const acc: LibraryVideo[] = [];
   const flushed = { n: 0 };
   const items = dt.items;
@@ -325,6 +325,10 @@ export async function ingestDataTransfer(
     }
   }
 
+  // Browser drag data becomes protected after the drop event returns.
+  const files = Array.from(dt.files ?? []);
+  await Promise.all([hydrateFileIdentities(),hydrateCatalogDeletions()]);
+
   if (entries.length) {
     for (const entry of entries) {
       await walkEntry(entry, "", folderId, acc, folderName, opts, flushed, 0);
@@ -333,8 +337,8 @@ export async function ingestDataTransfer(
     if (acc.length) return acc;
   }
 
-  if (dt.files?.length) {
-    return ingestFileList(dt.files, folderId, folderName, opts);
+  if (files.length) {
+    return ingestFileList(files, folderId, folderName, opts);
   }
   return acc;
 }

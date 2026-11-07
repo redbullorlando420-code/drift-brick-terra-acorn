@@ -71,6 +71,7 @@ try {
     await context.route("**/__catalog-recovery-probe.mjs", (route) =>
       route.fulfill({ contentType: "text/javascript", body: code }),
     );
+    await context.route('**/__catalog-recovery-native.html',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><title>Isolated catalog writer</title><p>Native recovery phase</p>'}));
     await context.route("http://127.0.0.1:43123/**", (route) =>
       route.fulfill({
         headers: { "access-control-allow-origin": "*" },
@@ -86,12 +87,24 @@ try {
         .getByRole("button", { name, exact: true })
         .click();
     };
+    // Await the resolved IndexedDB predicate. The browser's synchronous
+    // waitForFunction poller treats an async function's Promise as truthy.
+    const waitForNative = async (predicate) => {
+      const deadline = Date.now() + 30000;
+      do {
+        if (await page.evaluate(predicate)) return;
+        await page.waitForTimeout(100);
+      } while (Date.now() < deadline);
+      throw Error("Native recovery predicate did not become true within 30 seconds.");
+    };
     try {
-      await page.goto(url);
-      await page.locator('[data-home-ready="true"]').waitFor();
+      // Fault injection owns one writer. Mount the app only after native
+      // boundaries finish, so startup cannot race its controlled failures.
+      await page.goto(new URL('/__catalog-recovery-native.html',url).href);
       const result = await page.evaluate(async () => {
         const p = await import("/__catalog-recovery-probe.mjs");
         window.__catalogProbe = p;
+        await p.loadCatalogVideos();
         const db = await new Promise((yes, no) => {
           const r = indexedDB.open("reelcase", 8);
           r.onsuccess = () => yes(r.result);
@@ -583,8 +596,10 @@ try {
         recoveryCatalogScans: result.recoveryScans,
         maxStagedRows: result.stagedChunkLimit,
       };
+      await page.goto(url);
+      await page.locator('[data-home-ready="true"]').waitFor();
       await page.evaluate(() => {
-        window.__scaleReading = window.__catalogProbe.loadCatalogVideos().then((rows) => {
+        window.__scaleReading = import('/__catalog-recovery-probe.mjs').then(p=>{window.__catalogProbe=p;return p.loadCatalogVideos();}).then((rows) => {
           window.__scaleRows = rows.length;
         });
       });
@@ -687,13 +702,19 @@ try {
       checks.push(
         "Desktop/touch-mobile UI previews a bounded artwork-only cleanup; cancel deletes nothing, confirmation skips changed artwork and preserves personal records with approximate byte reporting.",
       );
-      // The current in-memory app remains its original empty fixture; the separate
-      // stored 100k scale catalog must survive an explicit current-snapshot retry.
+      // Saving the current remote snapshot must preserve the 100k local catalog.
       await panel.getByRole("button", { name: "Retry pending saves", exact: true }).click();
       await panel
         .getByRole("status")
         .filter({ hasText: "library preferences were saved" })
         .waitFor();
+      // Stage interruption with one owner, then reopen the actual app. A
+      // separately bundled probe must not compete with mounted app writers.
+      await page.goto(new URL('/__catalog-recovery-native.html',url).href);
+      await waitForNative(async()=>{
+        const p=await import('/__catalog-recovery-probe.mjs');window.__catalogProbe=p;
+        const lease=await p.catalogWriter.inspect();return !lease || lease.expiresAt<=Date.now();
+      });
       await page.evaluate(async () => {
         const p = window.__catalogProbe,
           originalPut = IDBObjectStore.prototype.put,
@@ -724,15 +745,16 @@ try {
               addedAt: 1,
             },
           ]);
-        } catch {
+        } catch (error) {
+          if (!prepared || !String(error.message).includes("Controlled tab interruption")) throw error;
         } finally {
           IDBObjectStore.prototype.put = originalPut;
           IDBObjectStore.prototype.openCursor = originalCursor;
         }
       });
-      await page.reload();
+      await page.goto(url);
       await page.locator('[data-home-ready="true"]').waitFor();
-      await page.waitForFunction(
+      const waitForRecoveredRow = () => waitForNative(
         async () => {
           const db = await new Promise((r) => {
             const q = indexedDB.open("reelcase", 8);
@@ -752,7 +774,6 @@ try {
             db.close();
           }
         },
-        { timeout: 30000 },
       );
       await nav("Settings");
       const restoredPanel = page.getByRole("region", {
@@ -762,13 +783,29 @@ try {
       await restoredPanel
         .getByRole("button", { name: "Review storage recovery", exact: true })
         .click();
+      // Reload intentionally interrupts a separately bundled writer. Its short
+      // lease must expire (or be released) before the new app owner can retry.
+      await waitForNative(async () => {
+        const db = await new Promise((resolve, reject) => {
+          const request = indexedDB.open("reelcase", 8);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        try {
+          return await new Promise(resolve => {
+            const tx = db.transaction("remote-cache"), request = tx.objectStore("remote-cache").get("writer-lease:v1:catalog");
+            tx.oncomplete = () => resolve(!request.result || request.result.expiresAt <= Date.now());
+          });
+        } finally { db.close(); }
+      });
       await restoredPanel.getByRole("button", { name: "Retry pending saves", exact: true }).click();
       await restoredPanel
         .getByRole("status")
         .filter({ hasText: "library preferences were saved" })
         .waitFor();
+      await waitForRecoveredRow();
       checks.push(
-        "A real page reload recovers the prepared accepted row before new writers; independent category clocks, expired previews, unavailable estimates and partial cleanup quota reporting also pass.",
+        "After a real page reload and expiration of the interrupted writer lease, explicit retry recovers the prepared accepted row before saving the current snapshot; independent category clocks, expired previews, unavailable estimates and partial cleanup quota reporting also pass.",
       );
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
@@ -779,6 +816,7 @@ try {
     } catch (error) {
       report.ok = false;
       report.error = error.stack;
+      report.visibleAlerts = await page.getByRole("alert").allTextContents();
       await page.screenshot({
         path: output.replace(".json", "-failure-" + viewport.name + ".png"),
       });

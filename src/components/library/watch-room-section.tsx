@@ -1,3 +1,5 @@
+import {RoomGuestArrival} from './room-guest-arrival';
+import {acceptsRoomTransition,transitionIntent} from '@/lib/multiplayer/room-transition';
 import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import { companionFetch } from '@/lib/companion';
 import { RoomDeviceCaptions } from './room-device-captions';
@@ -450,7 +452,9 @@ export function WatchRoomSection() {
     }).catch((error) => { if (!cancelled) setInviteNotice(error instanceof Error ? error.message : "The host could not open this local file."); });
     return () => { cancelled = true; sourceController.abort(); release(); };
   }, [joinedAsGuest, sharedVideo, room]);
-  const localStream = useRoomLocalStream(roomVideoRef, hostLocalSource, Boolean(room) && !joinedAsGuest, p2p.setMediaStream);
+  const playerGeneration=room+':'+sharedVideoId+':'+(joinedAsGuest?acceptedSelectionRevision.current:selectionRevision.current)+':'+playerReload;
+  const playerGenerationRef=useRef(playerGeneration);playerGenerationRef.current=playerGeneration;
+  const localStream = useRoomLocalStream(roomVideoRef, hostLocalSource, Boolean(room) && !joinedAsGuest, p2p.setMediaStream,playerGeneration);
   const roomMedia = useMemo(() => {
     const descriptor = describeRoomMedia(sharedVideo, sharedVideoId === `local:${localShare?.fingerprint}` ? localShare : null);
     const seconds = measuredDuration?.videoId === sharedVideoId ? measuredDuration.seconds : descriptor?.duration;
@@ -465,7 +469,7 @@ export function WatchRoomSection() {
   const guestLocalStream = joinedAsGuest && !matchingLocalSource && sharedLocalMedia?.id === sharedVideoId && sharedLocalMedia.streamId === incomingStream?.id ? incomingStream : undefined;
   const playerCapability=sharedVideo?.remote?.kind==='youtube'?'youtube':sharedVideo?.remote?.kind==='twitch'?(twitchClip?'clip':'twitch'):sharedVideoId?'local':'none';
   const playerInitial=!sharedVideoId?'idle':twitchClip||sharedVideo?.remote?.kind==='twitch'&&twitchEnvironment.blocked?'unsupported':playerCapability==='local'&&!guestLocalStream&&!matchingLocalSource&&!libraryLocalSource?'waiting':'loading';
-  const playerScope=room+':'+sharedVideoId+':'+playerReload+':'+(guestLocalStream?.id||matchingLocalSource||libraryLocalSource);
+  const playerScope=playerGeneration+':'+(guestLocalStream?.id||matchingLocalSource||libraryLocalSource);
   const {report:localPlayerReadiness,observe:observePlayer}=useRoomPlayerReadiness(playerScope,joinedAsGuest?acceptedSelectionRevision.current:selectionRevision.current,playerCapability,playerInitial);
   const youtubeDiagnostics=useYoutubeEmbedDiagnostics(room,sharedVideo?.remote?.kind==='youtube'?sharedVideo.remote.videoId??'':'',playerReload);
   const youtubeFailure=useRef<'error'|'timeout'|undefined>(undefined);
@@ -725,7 +729,8 @@ export function WatchRoomSection() {
           lastAcceptedRoomStateAt.current = 0; lastAcceptedTimelineAt.current = 0;
         }
         if (joinedAsGuest && ['room-state', 'video', 'sync'].includes(data.type ?? '')) {
-          if (data.type !== 'video' && !trustedRoomSentAt(data.sentAt, Date.now() + (joinedAsGuest ? clockOffset.current : 0))) return;
+          if (data.type !== 'video' && (!trustedRoomSentAt(data.sentAt, Date.now() + (joinedAsGuest ? clockOffset.current : 0)) || Number(data.sentAt)<Math.max(lastAcceptedTimelineAt.current,lastAcceptedRoomStateAt.current))) return;
+          if (!acceptsRoomTransition(transitionIntent(acceptedSelectionRevision.current,currentVideoIdRef.current),data)) return;
           if (!acceptsRoomSelection(acceptedSelectionRevision.current, data.selectionRevision, currentVideoIdRef.current, data.videoId)) return;
           if (typeof data.selectionRevision === 'number') acceptedSelectionRevision.current = data.selectionRevision;
         }
@@ -957,7 +962,7 @@ export function WatchRoomSection() {
             if (typeof data.guestPlaybackEnabled === 'boolean') setGuestPlaybackEnabled(data.guestPlaybackEnabled);
             if (typeof data.guestSeekingEnabled === 'boolean') setGuestSeekingEnabled(data.guestSeekingEnabled);
           }
-          if (data.videoId) setSharedVideoId(data.videoId);
+          if (typeof data.videoId === "string") setSharedVideoId(data.videoId);
           acceptRoomMedia(from, data.media, data.videoId);
           acceptLiveStatus(data.videoId, data.live);
           if ((data.live === true || data.media?.live === true) && data.videoId) markRoomLive(data.videoId);
@@ -1003,6 +1008,7 @@ export function WatchRoomSection() {
     [joinedAsGuest, guestQueueEnabled, guestPlaybackEnabled, guestSeekingEnabled, reviewQueue, localQueue, noteRoom, p2p.onMessage, p2p.send, playback.playing, playback.position, queue, sharedVideoId, videos, sharedRoomVideos, measuredDuration, acceptRoomMedia, roomMedia, roomQueueMedia, replayQueueReceipt, confirmQueueChange, acceptQueueReceipt, guardQueueIntent, observeQueueHost, receiveQueueDelivery],
   );
   const sync = (next: { playing: boolean; position: number }, seek = false, explicit = false) => {
+    if(playerGenerationRef.current!==playerGeneration)return;
     if (seek && isRoomLive()) return;
     if (!seek && !explicit && Date.now() < applyingRemotePlaybackUntil.current) return;
     if (joinedAsGuest) {
@@ -1067,6 +1073,7 @@ export function WatchRoomSection() {
     const provider = sharedVideo?.remote?.kind;
     if (!provider || !playback.playing) return;
     const task = registerPeriodicTask({ name:'Room playback clock', mode:'always', background:false, everyMs:1000, work:()=>{
+      if(playerGenerationRef.current!==playerGeneration)return;
       const observed = !joinedAsGuest && provider === 'youtube' ? providerPosition(youtubeClock.current, sharedVideo.id, performance.now()) : undefined;
       const twitchRaw = !joinedAsGuest && provider === 'twitch' ? twitchPlayerRef.current?.getCurrentTime() : undefined;
       const twitchTime = typeof twitchRaw==='number' && (twitchRaw>0.25 || playback.position<=0.25) ? twitchRaw : undefined;
@@ -1083,7 +1090,7 @@ export function WatchRoomSection() {
        if (!joinedAsGuest) p2p.send({type:'sync',playing:true,position:estimated,live:providerClockFlags().live,clockRunning:running,observed:actual !== undefined,videoId:sharedVideoId,selectionRevision:selectionRevision.current,seek:false,sentAt:Date.now()});
     }});
     return task.cancel;
-  },[joinedAsGuest,p2p.send,playback.playing,sharedVideo?.id,sharedVideo?.remote?.kind,hostClockRunning]);
+  },[joinedAsGuest,p2p.send,playback.playing,sharedVideo?.id,sharedVideo?.remote?.kind,hostClockRunning,playerGeneration]);
   const resync = () => {
     if (joinedAsGuest) {
       p2p.send({ type: "resync-request", sentAt: Date.now() });
@@ -1229,7 +1236,7 @@ export function WatchRoomSection() {
     return () => { cancelled = true; clearTimeout(readyTimeout); twitchPlayerRef.current = null; lastTwitchPlaybackCommand.current = null; host.replaceChildren(); };
   // The player belongs to the selected card, not to every timeline tick.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p2p.selfId, room, sharedVideo?.id, playerReload]);
+  }, [p2p.selfId, room, sharedVideo?.id, playerReload,playerScope]);
   useEffect(() => {
     if (sharedVideo?.remote?.kind !== "twitch" || twitchClip) return;
     const player = twitchPlayerRef.current;
@@ -1678,6 +1685,7 @@ export function WatchRoomSection() {
     video: joinedAsGuest ? sharedRoomVideos[id] ?? lookupVideo(videos, id) : lookupVideo(videos, id) ?? sharedRoomVideos[id],
   })), [joinedAsGuest, queue, sharedRoomVideos, videos]);
   const finishRoomTitle = () => {
+    if(playerGenerationRef.current!==playerGeneration)return;
     if (joinedAsGuest || !playback.playing || sharedVideoId !== currentVideoIdRef.current || lastEndedTitle.current===sharedVideoId) return;
     lastEndedTitle.current=sharedVideoId;
     if (autoAdvance && queueRef.current.length && playNext()) return;
@@ -1686,7 +1694,7 @@ export function WatchRoomSection() {
   };
   const finishLatestRoomTitle=useRef(finishRoomTitle);
   finishLatestRoomTitle.current=finishRoomTitle;
-  useEffect(()=>{lastEndedTitle.current='';youtubeFailure.current=undefined;setPlayerNotice('');youtubeClock.current=undefined;youtubeReady.current=false;youtubeMetadataReady.current='';lastYoutubePlaybackCommand.current=null;catchUpOnStart.current=true;},[sharedVideoId]);
+  useEffect(()=>{lastEndedTitle.current='';youtubeFailure.current=undefined;setPlayerNotice('');youtubeClock.current=undefined;youtubeReady.current=false;youtubeMetadataReady.current='';lastYoutubePlaybackCommand.current=null;catchUpOnStart.current=true;},[sharedVideoId,playerScope]);
   const reloadThisPlayer = () => {
     suppressRemotePlayerEchoUntil.current = Date.now() + 1500;
     youtubeFailure.current=undefined;
@@ -1751,7 +1759,7 @@ export function WatchRoomSection() {
       try{const data=typeof event.data==='string'?JSON.parse(event.data):event.data;if(data && typeof data==='object')youtubeMessages.current(data);}catch{}
     };
     window.addEventListener('message',listener);return()=>window.removeEventListener('message',listener);
-  },[sharedVideo?.id,playerReload]);
+  },[sharedVideo?.id,playerReload,playerScope]);
   useEffect(()=>{
     if(sharedVideo?.remote?.kind!=='youtube'||remoteFrameReady?.id!==sharedVideo.id)return;
     let attempts=0;
@@ -1904,6 +1912,7 @@ export function WatchRoomSection() {
           </div>
           {!roomInvite && <p className="mt-2 text-xs leading-5 text-muted">A localhost invitation cannot open on another device. Open this room through the home-network address before sharing. <button type="button" className="text-accent underline" onClick={() => useLibrary.getState().setSource("connection")}>Open Connection guide</button></p>}
           <RoomConnectionPanel scope={room+':'+joinedAsGuest} input={connectionInput} queueCount={queue.length} queueRevision={roomHealth.queueRevision} onSignaling={p2p.retrySignaling} onPeers={p2p.retryPeers} onHandshake={resync} onPlayer={onReloadThisPlayer} onNotice={setInviteNotice}/>
+        {joinedAsGuest&&room&&<RoomGuestArrival input={{connected:Boolean(connectionInput.transport||connectionInput.relay),handshake:Boolean(roomHealth.lastHostStateAt),selected:Boolean(sharedVideoId),player:localPlayerReadiness,roomPlaying:playback.playing,external:twitchClip||Boolean(sharedVideo?.remote?.kind==='twitch'&&twitchEnvironment.blocked)}} onStart={startThisDevice} onReload={reloadThisPlayer} watchUrl={sharedVideo?.remote?.watchUrl}/>}
           <details className="mt-3 rounded-sm bg-bg/45 p-3"><summary className="cursor-pointer text-xs font-medium text-fg">Connection details · {p2p.peers.filter((peer) => peer.connectionState === "connected").length}/{p2p.peers.length} connected</summary>
             <div className="flex items-center justify-between gap-3"><p className="text-xs font-medium text-fg">Connection signals</p><span className="text-xs text-muted">{p2p.peers.filter((peer) => peer.connectionState === "connected").length}/{p2p.peers.length} connected · {p2p.peers.filter((peer) => peer.connectionState === "connected" && peer.candidateType === "relay").length} relayed</span></div>
             <RoomRelaySettings config={relayConfig} onChange={setRelayConfig} />
@@ -1974,9 +1983,9 @@ export function WatchRoomSection() {
             data-room-stage={stageSize}
             className={`mt-3 mx-auto w-full max-w-full scroll-mt-36 overflow-hidden rounded-md bg-bg shadow-border ${stageSize === "compact" ? "max-w-md" : ""}`}
           >
-            {guestLocalStream ? <RoomStreamPlayer stream={guestLocalStream} title={sharedVideo?.name ?? sharedLocalMedia?.name ?? "Host video"} playing={playback.playing} position={playback.position} duration={roomDuration()} onPlayback={playing=>sync({...playback,playing},false,true)} onSeek={position=>sync({...playback,position},true,true)} onResync={resync} onReadiness={observePlayer}/> : matchingLocalSource && localShareIsMatched ? (
+            {guestLocalStream ? <RoomStreamPlayer key={playerScope} stream={guestLocalStream} title={sharedVideo?.name ?? sharedLocalMedia?.name ?? "Host video"} playing={playback.playing} position={playback.position} duration={roomDuration()} onPlayback={playing=>sync({...playback,playing},false,true)} onSeek={position=>sync({...playback,position},true,true)} onResync={resync} onReadiness={observePlayer}/> : matchingLocalSource && localShareIsMatched ? (
               <video
-                key={sharedVideoId}
+                key={playerScope}
                 ref={roomVideoRef}
                 className="aspect-video w-full bg-bg"
                 src={matchingLocalSource}
@@ -2002,11 +2011,11 @@ export function WatchRoomSection() {
                 <div className="relative aspect-video w-full" style={{ minWidth: 400, minHeight: 300 }}><div ref={twitchPlayerHostRef} className="absolute inset-0" /></div>
               </div>
             ) : twitchClip && sharedVideo?.remote?.embedUrl ? (
-              <div className="w-full overflow-x-auto" aria-label="Twitch player viewport"><iframe title={sharedVideo.name} key={sharedVideo.id + ':' + playerReload} src={watchRoomEmbed(sharedVideo)} className="aspect-video w-full border-0" style={{ minWidth: 400, minHeight: 300 }} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen /></div>
+              <div className="w-full overflow-x-auto" aria-label="Twitch player viewport"><iframe title={sharedVideo.name} key={playerScope} src={watchRoomEmbed(sharedVideo)} className="aspect-video w-full border-0" style={{ minWidth: 400, minHeight: 300 }} allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen /></div>
             ) : sharedVideo?.remote?.embedUrl ? (
               <iframe
                 ref={remoteFrameRef}
-                key={`${sharedVideo.id}:${playerReload}`}
+                key={playerScope}
                 title={sharedVideo.name}
                 src={youtubeSource || watchRoomEmbed(sharedVideo)}
                 className="aspect-video w-full border-0"
@@ -2016,7 +2025,7 @@ export function WatchRoomSection() {
               />
             ) : libraryLocalSource ? (
               <video
-                key={sharedVideoId}
+                key={playerScope}
                 ref={roomVideoRef}
                 className="aspect-video w-full bg-bg"
                 src={libraryLocalSource}
@@ -2054,7 +2063,7 @@ export function WatchRoomSection() {
           {sharedVideo?.remote && !twitchClip && <RoomLiveGuidance key={'live:'+sharedVideoId} live={isRoomLive()} playing={playback.playing} hostRunning={hostClockRunning} status={localPlayerReadiness.status} onReload={onReloadThisPlayer}/>}
           {sharedVideoId && !guestLocalStream && <RoomDeviceCaptions key={'captions:'+sharedVideoId} provider={sharedVideo?.remote?.kind === 'youtube' ? 'youtube' : sharedVideo?.remote?.kind === 'twitch' ? twitchClip ? 'clip' : 'twitch' : 'local'} mediaRef={roomVideoRef} scope={playerScope} onReload={onReloadThisPlayer}/>}
           {localStream.status && <p className="mt-2 text-xs text-muted">{localStream.status}</p>}
-          {joinedAsGuest && sharedVideo?.remote && !twitchClip && !(sharedVideo.remote.kind === "twitch" && twitchEnvironment.blocked) && <div className="mt-3 rounded-md border border-border bg-bg/45 p-3" aria-label="Start phone playback"><Button variant="secondary" className="min-h-11" onClick={startThisDevice}>Start on this device</Button><p className="mt-2 text-xs leading-5 text-muted">{sharedVideo.remote.live ? 'If this phone needs a tap, start here or press Play inside the video. This starts your live player without pausing everyone. YouTube and Twitch control each viewer’s live delay.' : 'If this phone needs a tap, start here or press Play inside the video. Your player catches up with the host without pausing everyone. Returning from the lock screen requests fresh timing automatically.'}</p></div>}
+
           {guestLocalStream && <p className="mt-2 text-xs text-muted">Watching the host’s local video. Use the room controls to pause or seek for everyone.</p>}
           {sharedVideo?.remote?.kind === "youtube" ? (
             <p className="mt-2 text-xs text-subtle">
@@ -2247,7 +2256,7 @@ export function WatchRoomSection() {
         </div>
         <div className={stageSize==='cinema'?'grid min-w-0 items-start gap-4 lg:grid-cols-2':'min-w-0 space-y-4 self-start'}>
         {room && <div ref={roomParticipationAnchor} className="scroll-mt-36"><RoomParticipationPanel key={room + ':' + joinedAsGuest} localPlayer={localPlayerReadiness} playing={playback.playing} onWait={onWaitForPlayers} room={room} guest={joinedAsGuest} hostId={mediaHostId} selfId={p2p.selfId} peers={p2p.peers} readyRevision={p2p.readyRevision} send={p2p.send} onMessage={p2p.onMessage} queue={queuePanelRows} onPrioritize={onQueueChange} /></div>}
-        <div ref={roomQueueAnchor} className="scroll-mt-36"><RoomQueueDeliveryPanel guest={joinedAsGuest} rows={queueIntentRows} transport={p2p.transport} basis={{queueRevision:joinedAsGuest?lastAcceptedQueueRevision.current:queueRevisionRef.current,selectionRevision:joinedAsGuest?acceptedSelectionRevision.current:selectionRevision.current}} epoch={joinedAsGuest?guestDeliveryEpoch:queueDeliveryStamp().deliveryEpoch}/><RoomQueuePanel key={room} hostCatalog={joinedAsGuest?hostCatalog:undefined} preferHost={joinedAsGuest&&!videos.length} candidates={roomCandidates} queue={queuePanelRows} currentId={sharedVideoId} currentTitle={sharedVideo?.name} currentMediaKey={sharedVideo?roomMediaKey(sharedVideo):undefined} guest={joinedAsGuest} writable={queueWritable} suggesting={canSuggest} reviewMode={reviewQueue} onReviewMode={onReviewQueue} guestEditing={guestQueueEnabled} onGuestEditing={onGuestQueueEditing} canUndo={!joinedAsGuest && undoRevision === queueRevisionRef.current} onUndo={onQueueUndo} savedCount={savedQueue?.media.length ?? 0} onRestore={onQueueRestore} notice={queueNotice} pending={pendingQueueChanges} autoAdvance={autoAdvance} onAutoAdvance={onQueueAutoAdvance} onSelect={onQueueSelect} onAdd={onQueueAdd} onChange={onQueueChange} onEdit={onQueueEdit} onClear={onQueueClear} onNext={onQueueNext} onShuffle={onQueueShuffle} onLink={onQueueLink} onLoadList={onQueueLoadList} onImportSession={onImportSession} currentMedia={queueCurrentMedia} playedMedia={sessionPlayedMedia} catalogPending={roomCandidatesPending}/></div>
+        <div ref={roomQueueAnchor} className="scroll-mt-36"><RoomQueueDeliveryPanel guest={joinedAsGuest} rows={queueIntentRows} transport={p2p.transport} basis={{queueRevision:joinedAsGuest?lastAcceptedQueueRevision.current:queueRevisionRef.current,selectionRevision:joinedAsGuest?acceptedSelectionRevision.current:selectionRevision.current}} epoch={joinedAsGuest?guestDeliveryEpoch:queueDeliveryStamp().deliveryEpoch}/><RoomQueuePanel key={room} roomId={room} hostConnected={Boolean(connectionInput.transport||connectionInput.relay)} hostCatalog={joinedAsGuest?hostCatalog:undefined} preferHost={joinedAsGuest&&!videos.length} candidates={roomCandidates} queue={queuePanelRows} currentId={sharedVideoId} currentTitle={sharedVideo?.name} currentMediaKey={sharedVideo?roomMediaKey(sharedVideo):undefined} guest={joinedAsGuest} writable={queueWritable} suggesting={canSuggest} reviewMode={reviewQueue} onReviewMode={onReviewQueue} guestEditing={guestQueueEnabled} onGuestEditing={onGuestQueueEditing} canUndo={!joinedAsGuest && undoRevision === queueRevisionRef.current} onUndo={onQueueUndo} savedCount={savedQueue?.media.length ?? 0} onRestore={onQueueRestore} notice={queueNotice} pending={pendingQueueChanges} autoAdvance={autoAdvance} onAutoAdvance={onQueueAutoAdvance} onSelect={onQueueSelect} onAdd={onQueueAdd} onChange={onQueueChange} onEdit={onQueueEdit} onClear={onQueueClear} onNext={onQueueNext} onShuffle={onQueueShuffle} onLink={onQueueLink} onLoadList={onQueueLoadList} onImportSession={onImportSession} currentMedia={queueCurrentMedia} playedMedia={sessionPlayedMedia} catalogPending={roomCandidatesPending}/></div>
         <section ref={roomChat} className="scroll-mt-36 rounded-lg bg-elevated p-4 shadow-border">
           <p className="flex items-center gap-2 text-sm font-medium text-fg">
             <MessageCircle className="size-4 text-accent" /> Room chat

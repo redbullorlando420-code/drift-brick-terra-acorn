@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Held final worker batch keeps count pending; completing the snapshot publishes an exact loaded-catalog count without moving focus",
+        "UTC day evidence stays on its stated day across opposite timezones; an offset instant uses its actual UTC day, with explicit partial-period overlap/exclusion",
+        "Unknown-only/include modes and local import time stay distinct from older publication evidence; private rows never affect the public count",
+        "Saved date filters reopen after reload, invalid ranges preserve prior bytes, and removing the date chip preserves the text search",
+        "Updating a provider estimate is labelled approximate and preserves the focused real room-result node"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Held final worker batch keeps count pending; completing the snapshot publishes an exact loaded-catalog count without moving focus",
+        "UTC day evidence stays on its stated day across opposite timezones; an offset instant uses its actual UTC day, with explicit partial-period overlap/exclusion",
+        "Unknown-only/include modes and local import time stay distinct from older publication evidence; private rows never affect the public count",
+        "Saved date filters reopen after reload, invalid ranges preserve prior bytes, and removing the date chip preserves the text search",
+        "Updating a provider estimate is labelled approximate and preserves the focused real room-result node"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Disposable metadata, held real worker completion and isolated real-component count/room-card focus fixture; no upstream provider or physical phone is exercised."
+}

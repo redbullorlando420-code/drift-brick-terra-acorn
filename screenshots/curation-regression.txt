@@ -1,0 +1,27 @@
+✔ identity proposals remain unverified and remakes need distinct explicit reviewed identities (5.3619ms)
+✔ confirmation requires a real release year and a runtime strictly over ten minutes without mutating media or feedback (0.4335ms)
+✔ reviewed identity updates Movies membership, canonical title/year, genre and runtime without rewriting source records (8.4539ms)
+✔ explicit review cannot expose private, hidden, unavailable, live, sample, Twitch, adult or orphan records (1.5232ms)
+✔ public YouTube records do not need a local folder, while private provider folders and unknown local roots stay excluded (0.4037ms)
+✔ edition parsing requires explicit edition tokens; resolution alone cannot invent a new cut (0.3499ms)
+✔ grouping is explicit, same-film only, bounded and retains per-version identity, edition and runtime (0.5935ms)
+✔ ungrouping restores individual representation while keeping review, source IDs and per-version progress (0.5738ms)
+✔ preferred selection requires available reviewed membership and never compares file size or moves resume marks (0.4158ms)
+✔ poster-only correction previews locks and cannot overwrite locked title, year or source category (0.8073ms)
+✔ invalid alternate metadata preserves the last confirmed film; unlocking one field never unlocks another (0.7742ms)
+✔ Undo is durable and monotonic across identities, grouping and metadata; old mirrors cannot resurrect corrections (0.5937ms)
+✔ validation strips extraneous fields, rejects broken graphs/versions/unsafe keys and never evicts at capacity (6.9922ms)
+✔ 100k catalog processing yields, bounds reviewed groups and never mutates underlying file metadata (219.3148ms)
+✔ movie shelves preserve visibility, genre order, file groups and classic membership in one pass (11.5487ms)
+✔ shuffle matches the previous full native stable ordering without mutating the catalog (118.0283ms)
+✔ random picks reuse shelf membership without rescanning metadata (30.2759ms)
+✔ movie work yields before inspecting rows and cancellation stops filtering or ordering (86.4285ms)
+✔ file shelves retain the ten largest types with alphabetical ties, including unusual imports (3.9932ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 436.5871

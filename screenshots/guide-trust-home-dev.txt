@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "hydrationVerified": true,
+      "bodyTextLen": 1586,
+      "bodyTextHash": "8f82104a9d1cf2e1381475e0c7850df7668fff3d1ba93850ec1492aaa93b1e81",
+      "bodyTextPrefix": "Realhub Vault · networks · live Default Library Home Landing pag",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\guide-trust-home-dev.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Realhub",
+      "hasCanvas": false,
+      "hydrationVerified": true,
+      "bodyTextLen": 1357,
+      "bodyTextHash": "ecdb132fdd2faa47daf2fa3b26024f69030a2dd09f414b91dca43b9d539c9b7f",
+      "bodyTextPrefix": "Home 0 indexed Default Search Date added Pause pulls REALHUB · Y",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\guide-trust-home-dev-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "E:\\codex\\drift-brick-terra-acorn\\screenshots\\guide-trust-home-dev.json"
+}

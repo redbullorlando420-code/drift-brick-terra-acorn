@@ -4,6 +4,12 @@ import { roomSearchPage } from '../src/lib/multiplayer/room-search.ts';
 import { readRoomHistory, rememberRoomVideo, ROOM_HISTORY_LIMIT } from '../src/lib/multiplayer/room-watch-history.ts';
 import { describeRoomMedia, resolveRoomMedia } from '../src/lib/multiplayer/room-media.ts';
 import { parseRoomYoutubeSearch, roomYoutubeSearchInput } from '../src/lib/remote/room-youtube-search.ts';
+
+test('optional provider estimates stay separate from loaded cards and malformed totals remain unknown',()=>{
+ const base={contents:{twoColumnSearchResultsRenderer:{primaryContents:{sectionListRenderer:{contents:[]}}}}};
+ const estimate=parseRoomYoutubeSearch({...base,estimatedResults:'9000'});assert.equal(estimate.videos.length,0);assert.equal(estimate.estimatedTotal,9000);
+ for(const value of ['about 9000','-1','NaN','99999999999999999999',9000,undefined])assert.equal(parseRoomYoutubeSearch({...base,estimatedResults:value}).estimatedTotal,undefined);
+});
 const video=index=>({id:`yt:${index}`,name:`Racing ${index}`,folderId:'yt:channel',path:'',size:0,mime:'video/youtube',extension:'yt',addedAt:0,description:'Learning a wet circuit',remote:{kind:'youtube',videoId:`v${String(index).padStart(10,'0')}`,channelName:'Café Driver',youtubeKeywords:['overtake','strategy']}});
 test('room search pages beyond twenty results without mounting the whole catalog',async()=>{
  const videos=Array.from({length:90},(_,i)=>video(i)),turn=async()=>{};

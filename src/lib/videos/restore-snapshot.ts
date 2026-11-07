@@ -21,7 +21,6 @@ export const RESTORE_ACTIVITY_KEYS = [
   "provider-viewing",
   "recommendation-exposure",
   "media-health:v1",
-  "adult-archive-cursors:v1",
 ] as const;
 export const RESTORE_PREFIXES = [
   "catalog-metadata:",

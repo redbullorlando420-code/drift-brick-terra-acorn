@@ -1100,3 +1100,29 @@ test('Twitch clip aliases preserve manual tags, locks, ratings, history and one 
  await useLibrary.getState().followRemoteQuery('another','twitch');await flush();const state=useLibrary.getState();
  assert.equal(state.videos.length,1);assert.equal(state.videos[0].id,old.id);assert.deepEqual(state.videos[0].remote.sourceIds,[tw.id,'tw:another-owner']);assert.deepEqual(state.tags[old.id],['my-manual-tag']);assert.deepEqual(state.metadataProvenance[old.id].lockedFields,['tags']);assert.equal(state.categories,categories);assert.equal(state.favorites,favorites);assert.equal(state.likes,likes);assert.equal(state.history,history);assert.equal(state.progress,progress);assert.equal(getRating(old.id),5);assert(fixture.writes.length);assert(fixture.writes.every(row=>row.id===old.id));assert.equal(state.tags[next.id],undefined);
 });
+
+test('Adult automatic window closure preserves accepted pages without manufacturing provider failures',async()=>{
+ reset([]);const realNow=Date.now;let now=Date.parse('2026-11-03T10:59:00Z');Date.now=()=>now;
+ try{
+  updatePullSettings({adultMaxEntries:10000,remoteMaxEntries:10000,adultCatalogTarget:1000,adultBatchVideos:1000,archiveWorkWindow:{version:1,enabled:true,startMinute:600,endMinute:660,timeZone:'UTC'}});
+  fixture.responseForRequest=()=>{now=Date.parse('2026-11-03T11:00:00Z');return {videos:[card('window-accepted','eporner','eporner:discover')],providerNextPages:{eporner:2},providerNextOffsets:{eporner:0},providerDiagnostics:[{provider:'eporner',status:'loaded',titles:1,detail:'fixture'}]};};
+  await useLibrary.getState().searchAdultFeed('all','latest',{automatic:true,providers:['eporner'],maxVideos:1000});
+  assert.equal(fixture.requests,1);assert(fixture.writes.some(row=>row.id==='window-accepted'));
+  assert.equal(fixture.archiveLedger.positions['eporner::all::latest'].cursor.page,2);
+  assert.notEqual(fixture.archiveLedger.positions['eporner::all::latest'].cursor.state,'failed');
+  assert.match(useLibrary.getState().adultPullStatus.note,/paused/);assert.equal(useLibrary.getState().pullHistory[0].failed,0);
+  const before=fixture.requests;await useLibrary.getState().searchAdultFeed('all','latest',{automatic:true,providers:['eporner']});assert.equal(fixture.requests,before);
+  await useLibrary.getState().searchAdultFeed('all','latest',{providers:['eporner'],maxVideos:1});assert(fixture.requests>before,'manual pulls remain available outside hours');
+ }finally{Date.now=realNow;reset([]);}
+});
+
+test('saved archive hours hold scheduled YouTube and Twitch turns before source preparation',async()=>{
+ reset([]);const realNow=Date.now;Date.now=()=>Date.parse('2026-11-03T12:00:00Z');
+ try{
+  updatePullSettings({archiveWorkWindow:{version:1,enabled:true,startMinute:60,endMinute:120,timeZone:'UTC'}});
+  const youtube=await useLibrary.getState().refreshFollows('youtube',{catalog:true,scheduled:true});
+  useLibrary.setState({follows:[{id:'tw:window-fixture',kind:'twitch',handle:'windowfixture',title:'Window fixture'}]});
+  const twitch=await useLibrary.getState().refreshFollows('twitch',{twitchRoutine:true,scheduled:true});
+  assert.equal(youtube.skipped,'busy');assert.equal(twitch.skipped,'busy');assert.equal(fixture.requests,0);assert.equal(fixture.followsWrites.length,0);
+ }finally{Date.now=realNow;reset([]);}
+});

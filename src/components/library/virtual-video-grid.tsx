@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ReactNode } from 'react';
 import { Button } from "@/components/ui/button";
 import { GridRowMetrics, gridWindow, gridKeyboardTarget, type GridWindow } from "@/lib/virtual-grid";
@@ -9,6 +9,10 @@ import { useLibrary } from "@/lib/videos/store";
 import { usePerformanceProfile } from './use-performance-profile';
 import { useGridAdmission } from './use-grid-admission';
 import { measureInteraction } from '@/lib/interaction-budget';
+import { browseTaskSnapshot, subscribeBrowseTasks, finishBrowseRestore } from '@/lib/browse-task-session';
+import { canonicalLocalId } from '@/lib/videos/local-identity';
+import { yieldCatalogTask } from '@/lib/catalog-work';
+import { resolveBrowseAnchor } from '@/lib/browse-tasks';
 
 type Variant = "grid" | "poster" | "list";
 export type VideoCatalog = LibraryVideo[] | (() => LibraryVideo[]);
@@ -72,6 +76,61 @@ export function VirtualVideoGrid({ videos: source, playedAt: timeSource, variant
   lengthRef.current = length;
   const rowObserver = useRef<{ observer: ResizeObserver; nodes: Set<Element> } | undefined>(undefined);
   const returnAnchor = useRef<{ catalog: LibraryVideo[]; source: string; index: number; id: string; top: number; focused: boolean } | undefined>(undefined);
+  const taskSession = useSyncExternalStore(subscribeBrowseTasks, browseTaskSnapshot, browseTaskSnapshot);
+  const restoration = useRef<{ticket?:number;index:number;id:string;top:number;exact:boolean;stable:number;frames:number}|undefined>(undefined);
+  const restoreFrame=useRef<number|undefined>(undefined);
+  const focusContinuity = useRef<{id:string;top:number;source:string;catalog:WeakRef<LibraryVideo[]>}|undefined>(undefined);
+  useEffect(() => {
+    const pending=taskSession.restore;
+    if(viewerOpen || !root.current || !layout.width)return;
+    const state=useLibrary.getState(),task=pending?.task,held=focusContinuity.current;
+    let anchor=task?.anchor;
+    if(pending){
+      if(!pending.ready||!anchor||task!.source!==state.sourceId||task!.query!==state.query||task!.sort!==state.sort||task!.view!==state.view)return;
+      if([...document.querySelectorAll('[data-virtual-video-grid]')].indexOf(root.current)!==anchor.grid)return;
+    }else{
+      if(!held||held.source!==sourceKey||held.catalog.deref()===videos)return;
+      anchor={ids:[held.id],top:held.top,grid:0};
+    }
+    const controller=new AbortController();
+    void resolveBrowseAnchor(anchor!,videos,canonicalLocalId,async()=>{controller.signal.throwIfAborted();await yieldCatalogTask();controller.signal.throwIfAborted();}).then(result=>{
+      if(controller.signal.aborted||(pending?browseTaskSnapshot().restore?.ticket!==pending.ticket:focusContinuity.current!==held))return;
+      const index=result?.index;
+      if(index===undefined){focusContinuity.current=undefined;if(pending){globalThis.window.scrollTo({top:Math.min(task!.scroll,document.documentElement.scrollHeight),behavior:'instant'});finishBrowseRestore(pending.ticket,'The saved title is unavailable in this view. Your browse task is still open.');}return;}
+      if(!admission.restoreThrough(index+1))return;
+      restoration.current={ticket:pending?.ticket,index,id:videos[index]!.id,top:anchor!.top,exact:result!.exact,stable:0,frames:0};
+      setMeasurement(value=>value+1);
+    }).catch(()=>{/* Replaced views discard their pending identity scan. */});
+    return()=>{controller.abort();restoration.current=undefined;if(restoreFrame.current!==undefined)globalThis.window.cancelAnimationFrame(restoreFrame.current);restoreFrame.current=undefined;};
+  },[taskSession.restore,videos,sourceKey,viewerOpen,layout.width,admission.restoreThrough]);
+
+  useLayoutEffect(()=>{
+    const target=restoration.current,el=root.current;
+    if(!target||!el||target.index>=length||!layout.width||(target.ticket!==undefined&&browseTaskSnapshot().restore?.ticket!==target.ticket))return;
+    if(target.ticket===undefined&&(!focusContinuity.current||canonicalLocalId(focusContinuity.current.id)!==canonicalLocalId(target.id)))return;
+    const card=el.querySelector<HTMLElement>(`[data-video-grid-index="${target.index}"] [data-video-card-open]`);
+    if(card){
+      const box=card.getBoundingClientRect();
+      const safeTop=Math.max(8,Math.min(target.top,globalThis.window.innerHeight-Math.min(box.height,globalThis.window.innerHeight-16)-8));
+      const delta=box.top-safeTop;
+      globalThis.window.scrollBy({top:delta,behavior:'instant'});
+      // Row calibration and page admission can alter scroll extent just after
+      // the first target mounts. Require two stable frames before announcing
+      // completion, and keep the focused title inside the mobile viewport.
+      target.stable=Math.abs(delta)<=2?target.stable+1:0;
+      if(target.stable<2&&target.frames++<120){
+        if(restoreFrame.current===undefined)restoreFrame.current=globalThis.window.requestAnimationFrame(()=>{restoreFrame.current=undefined;if(restoration.current===target)setMeasurement(value=>value+1);});
+        return;
+      }
+      card.focus({preventScroll:true});restoration.current=undefined;
+      focusContinuity.current={id:target.id,top:safeTop,source:sourceKey,catalog:new WeakRef(videos)};
+      if(target.ticket!==undefined)finishBrowseRestore(target.ticket,target.exact?'Saved title position restored.':'The original title is unavailable. A nearby visible title was restored; your browse task is still open.');
+    }else{
+      const docTop=el.getBoundingClientRect().top+globalThis.window.scrollY;
+      globalThis.window.scrollTo({top:Math.max(0,docTop+geometry.offset(Math.floor(target.index/layout.columns))-target.top),behavior:'instant'});
+      scheduleRefresh();
+    }
+  });
 
   useLayoutEffect(() => {
     const el = root.current;
@@ -272,7 +331,12 @@ export function VirtualVideoGrid({ videos: source, playedAt: timeSource, variant
     refresh();
   };
   return <div ref={root} data-virtual-video-grid data-grid-columns={layout.columns} data-grid-loaded={length} data-grid-target={Math.min(admission.target, videos.length)} data-grid-pending={admission.pending} data-grid-mount-cap={budget.gridMountCap}
-    style={{ overflowAnchor: "none" }} onKeyDown={event => {
+    style={{ overflowAnchor: "none" }} onFocusCapture={event=>{
+      const card=event.target.closest<HTMLElement>('[data-video-card-id]');
+      if(card?.dataset.videoCardId)focusContinuity.current={id:card.dataset.videoCardId,top:card.getBoundingClientRect().top,source:sourceKey,catalog:new WeakRef(videos)};
+    }} onBlurCapture={event=>{
+      if(event.relatedTarget instanceof Node&&!root.current?.contains(event.relatedTarget))focusContinuity.current=undefined;
+    }} onKeyDown={event => {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
       if (!(event.target as HTMLElement).matches("[data-video-card-open]")) return;
       const item = (event.target as HTMLElement).closest<HTMLElement>("[data-video-grid-index]");

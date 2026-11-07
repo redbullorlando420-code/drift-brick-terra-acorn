@@ -10,10 +10,11 @@ export const movieReleaseYear = (video: LibraryVideo) => {
   const match=/\((18[89]\d|19\d{2}|20\d{2})\)/.exec(title)??/\b(18[89]\d|19\d{2}|20\d{2})(?=(?:[._ -](?:1080p|720p|2160p|bluray|webrip|brrip|x26[45]|h26[45]))|$)/i.exec(title);
   const year=match?Number(match[1]):undefined;return year&&year<=limit?year:undefined;
 };
-export async function selectMovies(catalog: MovieCatalog, filters: MovieFilters, favorites: Record<string, unknown>, watched: Record<string, unknown>, turn: () => Promise<void>) {
+export async function selectMovies(catalog: MovieCatalog, filters: MovieFilters, favorites: Record<string, unknown>, watched: Record<string, unknown>, turn: () => Promise<void>, memberKeys?:ReadonlySet<string>) {
   const needle = filters.query.trim().toLocaleLowerCase(), rows: LibraryVideo[] = [];
   const genreRows = filters.genre === 'all' ? undefined : new Set(catalog.genres.find(row => row.genre === filters.genre)?.videos ?? []);
   await forEachCatalogSlice(catalog.videos, video => {
+    if(memberKeys&&!memberKeys.has('video:'+video.id)&&!memberKeys.has(video.filmReview?.filmId??''))return;
     const year = movieReleaseYear(video);
     if (needle && !video.name.toLocaleLowerCase().includes(needle)) return;
     if (filters.runtime === 'feature' && video.duration! < 2400 || filters.runtime === 'short' && video.duration! >= 2400) return;

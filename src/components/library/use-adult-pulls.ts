@@ -6,6 +6,7 @@ import { loadAdultArchiveCursors,hydrateAdultArchiveCursors } from '@/lib/videos
 import { adultRedditPullSources } from '@/lib/videos/adult-pull-plan';
 import {planAdultDiscovery} from '@/lib/videos/adult-discovery-plan';
 import { getPullSettings } from '@/lib/pull-settings';
+import {archiveNotBefore,archiveWindowState} from '@/lib/archive-work-window';
 import { catalogPullAvailable, subscribePullAvailability } from '@/lib/pull-control';
 import { allowAutomaticRefresh } from '@/lib/session-activity';
 import { registerPeriodicTask } from '@/lib/periodic-work';
@@ -27,7 +28,7 @@ export function useAdultPulls() {
     try { const saved = Number(localStorage.getItem(LAST_ATTEMPT_KEY)); if (Number.isFinite(saved) && saved <= Date.now()) lastAttempt = Math.max(lastAttempt, saved); } catch { /* Session pacing remains. */ }
     const tick = async () => {
       const policy = getPullSettings(), now = Date.now();
-      if (stopped || busy || !policy.automaticPulls || !catalogPullAvailable() || !allowAutomaticRefresh() || !navigator.onLine || now - lastAttempt < policy.adultIntervalSeconds * 1000) return;
+      if (stopped || busy || !policy.automaticPulls || !archiveWindowState(policy.archiveWorkWindow,now).open || !catalogPullAvailable() || !allowAutomaticRefresh() || !navigator.onLine || now - lastAttempt < policy.adultIntervalSeconds * 1000) return;
       const state = useLibrary.getState();
       if (state.remoteBusy || state.refreshing || !state.adultsUnlocked || state.sourceId !== 'adults') return;
       if (policy.adultMaxEntries <= 0 || policy.remoteMaxEntries <= 0) return;
@@ -41,7 +42,7 @@ export function useAdultPulls() {
         const growth = await adultGrowthCounts(useLibrary.getState().videos);
         const currentPolicy = adultAdmissionPolicy(getPullSettings(), true);
         const capacity = Math.min(replacementRequestBudget(counts, currentPolicy, 'adult'), adultVideoGoalRemaining(growth, currentPolicy.adultCatalogTarget));
-        if (!currentPolicy.automaticPulls || !capacity || stopped || !catalogPullAvailable() || !allowAutomaticRefresh()) return;
+        if (!currentPolicy.automaticPulls || !archiveWindowState(currentPolicy.archiveWorkWindow).open || !capacity || stopped || !catalogPullAvailable() || !allowAutomaticRefresh()) return;
         lastAttempt = Date.now();
         try { localStorage.setItem(LAST_ATTEMPT_KEY, String(lastAttempt)); } catch { /* Session pacing remains. */ }
         await state.searchAdultFeed('all', discovery.order, { append: true, providers:discovery.providers, automatic: true,
@@ -50,6 +51,7 @@ export function useAdultPulls() {
       finally { busy = false; }
     };
     const task = registerPeriodicTask({ name: 'Adult pulls', everyMs: 15_000, firstMs: 8_000,
+      notBefore:()=>archiveNotBefore(getPullSettings().archiveWorkWindow),
       enabled: () => getPullSettings().automaticPulls && catalogPullAvailable(true) && navigator.onLine, work: tick });
     const stopAvailability = subscribePullAvailability(task.wake);
     return () => { stopped = true; task.cancel(); stopAvailability(); };

@@ -200,7 +200,7 @@ export type RemoteRef = {
   /** Provider display label (for example “2 days ago”); never an inferred date. */
   publishedLabel?: string;
   /** Precision belongs to the provider observation; relative labels never create an epoch. */
-  publishedPrecision?: 'instant' | 'day' | 'relative' | 'unknown';
+  publishedPrecision?: 'instant' | 'day' | 'month' | 'year' | 'relative' | 'unknown';
   publishedLabelAt?: number;
   viewers?: number;
   /** Epoch time of the provider response that supplied live metadata. */

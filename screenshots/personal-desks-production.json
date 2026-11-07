@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Different saved YouTube/Movies layouts restore on entry; quota rollback preserves UI; desk reset and undo survive reload",
+        "Stats data table matches plotted provider counts, opens by keyboard and returns focus without hover or animation",
+        "Expected due reminder never implies availability; postponed/edit replaces one identity; reload persists; only reviewed available episode shows available; ambiguous time is rejected",
+        "Future layout schema retains bytes and usable desk; alternate profile contains no previous watchlist"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Different saved YouTube/Movies layouts restore on entry; quota rollback preserves UI; desk reset and undo survive reload",
+        "Stats data table matches plotted provider counts, opens by keyboard and returns focus without hover or animation",
+        "Expected due reminder never implies availability; postponed/edit replaces one identity; reload persists; only reviewed available episode shows available; ambiguous time is rejected",
+        "Future layout schema retains bytes and usable desk; alternate profile contains no previous watchlist"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Disposable saved metadata and browser viewports. No physical screen-reader session, background reminder delivery, or real media playback is claimed."
+}

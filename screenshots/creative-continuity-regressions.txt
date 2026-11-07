@@ -1,0 +1,30 @@
+✔ GLB export/reopen preserves world transforms and material color while excluding explode and wireframe without mutating the source (27.0306ms)
+✔ save naming, dirty signatures and corrupt local edit state are bounded and meaningful (1.1627ms)
+✔ saved-copy receipts are bounded and storage failure never fabricates persistence (11.0102ms)
+✔ pack generation keeps both stream links, all four editable drafts, short X text and manual-only sharing (8.3388ms)
+✔ channel validation rejects spoofed domains, credentials, non-HTTPS and video links; owner namespaces cannot overlap (0.705ms)
+✔ ballots use latest valid normalized viewer vote, deduplicate IDs, preserve invalid replacements, and reject late messages (1.7631ms)
+✔ whole-sequence ties are deterministic regardless of arrival order; overflow rejects all moves (0.4523ms)
+✔ controller checks resources for every move, interrupts a blocked sequence, and emergency stop clears everything (0.4676ms)
+✔ simulator retains bounded logs, replay IDs and viewer entries under sustained messages (11.5045ms)
+✔ preflight recognizes complete SD1/SDXL headers and leaves incomplete/SD2/component artifacts unverified (80.0995ms)
+✔ Qwen requires actual architecture evidence plus matching encoder and VAE; filenames alone cannot enable generation (43.8758ms)
+✔ format/path errors are bounded, missing files stay visible, changed headers invalidate the cache and source fields are allowlisted (21.2122ms)
+✔ generation revalidates compatibility in Companion before any engine request and preserves the selected file on rejection (16.4295ms)
+✔ requirements notes retain canonical role/family/source data while dropping executable and credential fields (1.7455ms)
+✔ reviewed requirements never grant model compatibility and notes distinguish every supported artifact role (0.3533ms)
+✔ requirements ledger preserves unrelated notes, is bounded without eviction, and rejects malformed/future storage (10.6838ms)
+✔ job intent is saved before submission and running/completed states keep parameters separate from output bytes (3.2324ms)
+✔ reload recovers unfinished receipts as interrupted without contacting or resubmitting the engine (0.5788ms)
+✔ an intent save failure prevents generation and a later explicit retry can recover (0.4726ms)
+✔ cancel-before-submit cannot launch work and duplicate cancel requests are coalesced (0.245ms)
+✔ disconnect and cancellation preserve the prior completed image, with honest unknown or partial outcomes (0.3401ms)
+✔ job history stays bounded, rejects damaged parameters, and exports no unexpected response objects (1.006ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 426.351

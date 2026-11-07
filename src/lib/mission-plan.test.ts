@@ -637,3 +637,54 @@ test('revision 87 promotes video growth accounting once and retains unrelated ar
  const migrated=mergeMissionPlan(saved,current,86);assert.deepEqual(migrated.map(row=>row.done),[false,true,false,false,false]);
  assert.equal(migrated.at(-1)?.detail,saved.at(-1)?.detail);assert(mergeMissionPlan(saved,current,87).every(row=>!row.done));
 });
+
+test('revision 88 promotes only durable archive resume and coverage once, retaining manual reopens',()=>{
+ const current:Mission[]=['next-111','next-112','next-113','next-114'].map(id=>({id,title:id,detail:'Current verified contract',done:id!=='next-114',status:id==='next-114'?'planned':'complete'}));
+ const saved:Mission[]=[...current.map(row=>({...row,done:false,status:'blocked' as const})),{id:'custom-archive',title:'Custom',detail:'Keep my exact archive notes',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,87);
+ assert.deepEqual(migrated.map(row=>row.done),[false,true,true,false,false]);
+ assert.equal(migrated.at(-1)?.detail,saved.at(-1)?.detail);
+ assert(mergeMissionPlan(saved,current,88).every(row=>!row.done));
+});
+
+test('revision 89 promotes only archive hours and yield planning, preserving old reopens and custom notes',()=>{
+ const verified=['next-116','next-117'];
+ const current:Mission[]=['next-112','next-114','next-116','next-117','next-119'].map(id=>({id,title:id,detail:'Current contract',done:verified.includes(id)||id==='next-112',status:verified.includes(id)||id==='next-112'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(row=>({...row,done:false,status:'blocked' as const})),{id:'custom-schedule',title:'Custom',detail:'Keep these exact hours notes',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,88);assert.deepEqual(migrated.map(row=>row.done),[false,false,true,true,false,false]);assert.equal(migrated.at(-1)?.detail,saved.at(-1)?.detail);
+ assert(mergeMissionPlan(saved,current,89).every(row=>!row.done));
+});
+
+test('revision 90 promotes only saved workspaces and structured filters, preserving prior reopens and custom notes',()=>{
+ const verified=['next-121','next-122'];
+ const current:Mission[]=['next-116','next-117','next-121','next-122','next-123'].map(id=>({id,title:id,detail:'Current contract',done:id!=='next-123',status:id!=='next-123'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(row=>({...row,done:false,status:'blocked' as const})),{id:'custom-search',title:'Custom',detail:'Keep my search notes',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,89);assert.deepEqual(migrated.map(row=>row.done),[false,false,true,true,false,false]);assert.equal(migrated.at(-1)?.detail,saved.at(-1)?.detail);
+ assert(mergeMissionPlan(saved,current,90).every(row=>!row.done));
+ assert.deepEqual(migrated.filter(row=>row.done).map(row=>row.id),verified);
+});
+
+test('revision 91 promotes only multilingual search and local spelling, preserving earlier reopens and notes',()=>{
+ const verified=['next-123','next-124'];
+ const current:Mission[]=['next-121','next-122','next-123','next-124','next-125'].map(id=>({id,title:id,detail:'Current contract',done:id!=='next-125',status:id!=='next-125'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(row=>({...row,done:false,status:'blocked' as const})),{id:'custom-unicode',title:'Custom',detail:'Keep my Unicode notes',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,90);assert.deepEqual(migrated.map(row=>row.done),[false,false,true,true,false,false]);assert.equal(migrated.at(-1)?.detail,saved.at(-1)?.detail);
+ assert(mergeMissionPlan(saved,current,91).every(row=>!row.done));
+ assert.deepEqual(migrated.filter(row=>row.done).map(row=>row.id),verified);
+});
+
+test('revision 92 promotes only count evidence and publication filters, preserving earlier reopens and notes',()=>{
+ const verified=['next-126','next-127'];
+ const current:Mission[]=['next-123','next-124','next-125','next-126','next-127','next-128'].map(id=>({id,title:id,detail:'Current contract',done:!['next-125','next-128'].includes(id),status:!['next-125','next-128'].includes(id)?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(row=>({...row,done:false,status:'blocked' as const})),{id:'custom-dates',title:'Custom',detail:'Keep date notes',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,91);assert.deepEqual(migrated.map(row=>row.done),[false,false,false,true,true,false,false]);assert.equal(migrated.at(-1)?.detail,saved.at(-1)?.detail);
+ assert(mergeMissionPlan(saved,current,92).every(row=>!row.done));assert.deepEqual(migrated.filter(row=>row.done).map(row=>row.id),verified);
+});
+
+test('revision 93 promotes only browse tasks and result bookmarks, preserving earlier reopens and notes',()=>{
+ const verified=['next-125','next-128'];
+ const current:Mission[]=['next-123','next-125','next-126','next-127','next-128','next-129'].map(id=>({id,title:id,detail:'Current contract',done:id!=='next-129',status:id!=='next-129'?'complete':'planned'}));
+ const saved:Mission[]=[...current.map(row=>({...row,done:false,status:'blocked' as const})),{id:'custom-browse',title:'Custom',detail:'Keep place notes',done:false,status:'in-progress'}];
+ const migrated=mergeMissionPlan(saved,current,92);assert.deepEqual(migrated.map(row=>row.done),[false,true,false,false,true,false,false]);assert.equal(migrated.at(-1)?.detail,saved.at(-1)?.detail);
+ assert(mergeMissionPlan(saved,current,93).every(row=>!row.done));assert.deepEqual(migrated.filter(row=>row.done).map(row=>row.id),verified);
+});

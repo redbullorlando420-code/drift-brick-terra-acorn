@@ -1,3 +1,4 @@
+import {RoomGuestDrafts,type GuestDraftAPI} from './room-guest-drafts';
 import { useRoomListFocus } from './use-room-list-focus';
 import { RoomSessionFilePanel } from './room-session-file-panel';
 import type { RoomSessionFile } from '@/lib/multiplayer/room-session-file';
@@ -17,6 +18,8 @@ import { RoomVideoSearch } from './room-video-search';
 import type { RoomHostCatalog } from '@/lib/multiplayer/room-host-catalog';
 export const RoomQueuePanel = memo(function RoomQueuePanel({
   candidates,
+  roomId="",
+  hostConnected=true,
   queue,
   currentId,
   currentMediaKey,
@@ -50,6 +53,8 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
   preferHost,
   currentMedia, playedMedia, onImportSession,
 }: {
+  roomId?:string;
+  hostConnected?:boolean;
   candidates: LibraryVideo[];
   queue: Array<{ id: string; video?: LibraryVideo }>;
   currentId: string;
@@ -86,6 +91,7 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
   playedMedia?:RoomMediaDescriptor[];
   onImportSession:(file:RoomSessionFile)=>boolean;
 }) {
+  const guestDraftRef=useRef<GuestDraftAPI>(null);
   const focusRoot = useRef<HTMLElement>(null);
   useRoomListFocus(focusRoot, 'data-room-queue-id', queue.map(row=>row.id));
   const [link, setLink] = useState("");
@@ -319,7 +325,8 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
           {suggestMode && ' Suggestions wait for host review and do not change the live queue. Up to 8 pending per guest connection.'}
         </p>
       </form>
-      <RoomVideoSearch candidates={candidates} catalogPending={catalogPending} writable={writable} canAdd={canAdd} suggestMode={suggestMode} pending={pending>0} full={queue.length>=ROOM_QUEUE_LIMIT} queuedKeys={queuedKeys} currentKey={currentMediaKey} onPlay={onSelect} onAdd={onAdd} hostCatalog={hostCatalog} preferHost={preferHost}/>
+        {guest&&roomId&&<RoomGuestDrafts ref={guestDraftRef} room={roomId} connected={hostConnected} catalogRevision={hostCatalog?.revision} canSubmit={canAdd} pending={pending>0} onSubmit={onLoadList}/>}
+      <RoomVideoSearch onDraft={guest?(video,origin,revision)=>guestDraftRef.current?.stage(video,origin,revision):undefined} candidates={candidates} catalogPending={catalogPending} writable={writable} canAdd={canAdd} suggestMode={suggestMode} pending={pending>0} full={queue.length>=ROOM_QUEUE_LIMIT} queuedKeys={queuedKeys} currentKey={currentMediaKey} onPlay={onSelect} onAdd={onAdd} hostCatalog={hostCatalog} preferHost={preferHost}/>
       </details>
     </section>
   );

@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Revision-83 plan gains exactly 100 entries with only nineteen evidenced new-batch completions; old manual decisions remain intact",
+        "Batch, track, priority, paging and search keep 20 cards mounted; expanded/copy/fallback briefs resolve current old-batch prerequisite state",
+        "New-only and full Markdown downloads contain 100/200 briefs with saved statuses and dependency context; full CSV retains custom notes",
+        "New statuses persist after reload with no duplicate rows, console errors or horizontal overflow"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Revision-83 plan gains exactly 100 entries with only nineteen evidenced new-batch completions; old manual decisions remain intact",
+        "Batch, track, priority, paging and search keep 20 cards mounted; expanded/copy/fallback briefs resolve current old-batch prerequisite state",
+        "New-only and full Markdown downloads contain 100/200 briefs with saved statuses and dependency context; full CSV retains custom notes",
+        "New statuses persist after reload with no duplicate rows, console errors or horizontal overflow"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Disposable browser contexts and synthetic plan fixtures only; real user profiles and media were not modified."
+}

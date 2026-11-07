@@ -5,8 +5,9 @@ export const FILM_FIELDS=['title','year','poster','genre'] as const;
 export type FilmField=typeof FILM_FIELDS[number];
 export type FilmRecord={id:string;title:string;year:number;poster?:string;genre?:string;locks:FilmField[];origins:Partial<Record<FilmField,'owner-review'|'saved-catalog'>>;preferred?:string;at:number};
 export type FilmVersion={filmId:string;runtime:number;edition:string;grouped:boolean;at:number};
-type FilmPatch={films:Record<string,FilmRecord|null>;versions:Record<string,FilmVersion|null>};
-export type FilmLedger={version:1;updatedAt:number;films:Record<string,FilmRecord>;versions:Record<string,FilmVersion>;undo?:FilmPatch;action?:string};
+type FilmPatch={films:Record<string,FilmRecord|null>;versions:Record<string,FilmVersion|null>;importReceipt?:FilmImportReceipt|null};
+export type FilmImportReceipt={source:string;name:string;at:number;rows:Array<{filmId:string;fields:FilmField[];identifier?:string}>};
+export type FilmLedger={version:1;updatedAt:number;films:Record<string,FilmRecord>;versions:Record<string,FilmVersion>;undo?:FilmPatch;action?:string;importUndo?:FilmPatch;importReceipt?:FilmImportReceipt};
 export const EMPTY_FILMS:FilmLedger={version:1,updatedAt:0,films:{},versions:{}};
 const clean=(value:unknown,max=160)=>typeof value==='string'?value.replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max):'';
 const key=(value:unknown)=>typeof value==='string'&&value.length>0&&value.length<=500&&!/[\u0000-\u001f]/.test(value)&&!['__proto__','constructor','prototype'].includes(value);
@@ -20,18 +21,25 @@ function readFilm(raw:FilmRecord,id:string):FilmRecord{
  return {id,title:clean(raw.title),year:raw.year,...(raw.poster?{poster:filmPoster(raw.poster)}:{}),...(clean(raw.genre,80)?{genre:clean(raw.genre,80)}:{}),locks:[...new Set(raw.locks)],origins,...(raw.preferred?{preferred:raw.preferred}:{}),at:raw.at};
 }
 function readVersion(raw:FilmVersion):FilmVersion{if(!raw||!/^film:[a-z0-9-]{1,80}$/i.test(raw.filmId)||!validFilmRuntime(raw.runtime)||!stamp(raw.at)||typeof raw.grouped!=='boolean')throw Error('Invalid reviewed film version.');return {filmId:raw.filmId,runtime:raw.runtime,edition:clean(raw.edition,80)||'Unspecified edition',grouped:raw.grouped,at:raw.at};}
+function readFilmImportReceipt(raw:FilmImportReceipt|undefined){
+ let importReceipt:FilmImportReceipt|undefined;if(raw){const receipt=raw;if(!clean(receipt.source,160)||!clean(receipt.name,100)||!stamp(receipt.at)||!Array.isArray(receipt.rows)||!receipt.rows.length||receipt.rows.length>8||receipt.rows.some(row=>!row||!/^film:[a-z0-9-]{1,80}$/i.test(row.filmId)||!Array.isArray(row.fields)||row.fields.some(f=>!FILM_FIELDS.includes(f))||row.identifier!==undefined&&!/^(imdb:tt\d{7,10}|tmdb:\d{1,12})$/.test(row.identifier)))throw Error('Invalid movie import receipt.');importReceipt={source:clean(receipt.source,160),name:clean(receipt.name,100),at:receipt.at,rows:receipt.rows.map(row=>({filmId:row.filmId,fields:[...new Set(row.fields)],...(row.identifier?{identifier:row.identifier}:{})}))};}return importReceipt;
+}
+function readFilmPatch(raw:FilmPatch|undefined,maxFilms:number){
+ let undo:FilmPatch|undefined;if(raw){if(!raw.films||!raw.versions||Object.keys(raw.films).length>maxFilms||Object.keys(raw.versions).length>48)throw Error('Invalid film undo record.');undo={films:Object.create(null),versions:Object.create(null)};for(const [id,v]of Object.entries(raw.films))undo.films[id]=v===null?null:readFilm(v,id);for(const [id,v]of Object.entries(raw.versions)){if(!key(id))throw Error('Invalid undo version.');undo.versions[id]=v===null?null:readVersion(v);}}if(undo&&raw&&Object.prototype.hasOwnProperty.call(raw,'importReceipt'))undo.importReceipt=raw.importReceipt===null?null:readFilmImportReceipt(raw.importReceipt);return undo;}
 export function parseFilmLedger(raw:unknown):FilmLedger{
  const r=raw as FilmLedger;if(!r||r.version!==1||!stamp(r.updatedAt)||!r.films||!r.versions||typeof r.films!=='object'||typeof r.versions!=='object'||Array.isArray(r.films)||Array.isArray(r.versions)||Object.keys(r.films).length>FILM_LIMIT||Object.keys(r.versions).length>FILM_VERSION_LIMIT)throw Error('Unsupported or invalid film review ledger.');
  const films:FilmLedger['films']=Object.create(null),versions:FilmLedger['versions']=Object.create(null);for(const [id,value]of Object.entries(r.films))films[id]=readFilm(value,id);for(const [id,value]of Object.entries(r.versions)){if(!key(id))throw Error('Invalid version identity.');const v=readVersion(value);if(!films[v.filmId])throw Error('Reviewed version has no film.');versions[id]=v;}
- let undo:FilmPatch|undefined;if(r.undo){if(!r.undo.films||!r.undo.versions||Object.keys(r.undo.films).length>1||Object.keys(r.undo.versions).length>48)throw Error('Invalid film undo record.');undo={films:Object.create(null),versions:Object.create(null)};for(const [id,v]of Object.entries(r.undo.films))undo.films[id]=v===null?null:readFilm(v,id);for(const [id,v]of Object.entries(r.undo.versions)){if(!key(id))throw Error('Invalid undo version.');undo.versions[id]=v===null?null:readVersion(v);}}
- return {version:1,updatedAt:r.updatedAt,films,versions,...(undo?{undo}:{}),...(clean(r.action,100)?{action:clean(r.action,100)}:{})};
+ const undo=readFilmPatch(r.undo,1),importUndo=readFilmPatch(r.importUndo,8);
+ const importReceipt=readFilmImportReceipt(r.importReceipt);
+ return {version:1,updatedAt:r.updatedAt,films,versions,...(importReceipt?{importReceipt}:{}),...(undo?{undo}:{}),...(importUndo?{importUndo}:{}),...(clean(r.action,100)?{action:clean(r.action,100)}:{})};
 }
 export function normalizeFilmLedger(raw:unknown){try{return parseFilmLedger(raw);}catch{return EMPTY_FILMS;}}
 export function newestFilms(a:unknown,b:unknown){const left=normalizeFilmLedger(a),right=normalizeFilmLedger(b);return right.updatedAt>=left.updatedAt?right:left;}
 function commit(ledger:FilmLedger,patch:FilmPatch,action:string,now:number):FilmLedger{
  const films={...ledger.films},versions={...ledger.versions},undo:FilmPatch={films:{},versions:{}};for(const [id,v]of Object.entries(patch.films)){undo.films[id]=films[id]??null;if(v)films[id]=v;else delete films[id];}for(const [id,v]of Object.entries(patch.versions)){undo.versions[id]=versions[id]??null;if(v)versions[id]=v;else delete versions[id];}
  if(Object.keys(films).length>FILM_LIMIT||Object.keys(versions).length>FILM_VERSION_LIMIT)throw Error('The review limit is 1,024 film identities and 4,096 source versions. Undo a recent addition before adding another.');
- return parseFilmLedger({version:1,updatedAt:Math.max(now,ledger.updatedAt+1),films,versions,undo,action});
+ if(Object.prototype.hasOwnProperty.call(patch,'importReceipt'))undo.importReceipt=ledger.importReceipt??null;const receipt=Object.prototype.hasOwnProperty.call(patch,'importReceipt')?patch.importReceipt:ledger.importReceipt;
+ return parseFilmLedger({version:1,updatedAt:Math.max(now,ledger.updatedAt+1),films,versions,undo,action,...(receipt?{importReceipt:receipt}:{})});
 }
 export function confirmFilm(ledger:FilmLedger,videoId:string,choice:{filmId:string;title:string;year:number;runtime:number;edition:string;existing?:boolean},now=Date.now()){
  if(!key(videoId)||!validFilmRuntime(choice.runtime))throw Error('Confirm a runtime over 10 minutes.');const existing=ledger.films[choice.filmId];if(choice.existing&&!existing)throw Error('Select an existing reviewed film.');
@@ -54,9 +62,25 @@ export function applyFilmFields(ledger:FilmLedger,id:string,proposal:FilmProposa
  const film=ledger.films[id];if(!film)throw Error('Review the film identity first.');const preview=previewFilmFields(film,proposal,selected,categoryLocked);if(preview.some(row=>row.state==='invalid'))throw Error('The selected metadata proposal is invalid. Previous fields were kept.');const ready=preview.filter(row=>row.state==='ready');if(!ready.length)throw Error('No unlocked changed fields are selected.');const next={...film,origins:{...film.origins},at:now};for(const row of ready){if(row.field==='year')next.year=Number(row.after);else next[row.field]=clean(row.after,row.field==='poster'?2048:row.field==='genre'?80:160);next.origins[row.field]=origin;}
  return commit(ledger,{films:{[id]:next},versions:{}},'Applied selected film fields: '+ready.map(r=>r.field).join(', '),now);
 }
-export function undoFilmReview(ledger:FilmLedger,now=Date.now()){return ledger.undo?commit(ledger,ledger.undo,'Undid last film review change',now):ledger;}
+export function undoFilmReview(ledger:FilmLedger,now=Date.now()){
+ if(ledger.importUndo&&['Applied reviewed movie metadata import','Undid reviewed movie metadata import'].includes(ledger.action??'')){
+  const patch=ledger.importUndo,films={...ledger.films},versions={...ledger.versions},inverse:FilmPatch={films:{},versions:{},importReceipt:ledger.importReceipt??null};
+  for(const [id,value]of Object.entries(patch.films)){inverse.films[id]=films[id]??null;if(value)films[id]=value;else delete films[id];}
+  for(const [id,value]of Object.entries(patch.versions)){inverse.versions[id]=versions[id]??null;if(value)versions[id]=value;else delete versions[id];}
+  return parseFilmLedger({...ledger,updatedAt:Math.max(now,ledger.updatedAt+1),films,versions,undo:{films:{},versions:{}},importReceipt:patch.importReceipt??undefined,importUndo:inverse,action:'Undid reviewed movie metadata import'});
+ }
+ return ledger.undo?commit(ledger,ledger.undo,'Undid last film review change',now):ledger;
+}
+
 export function editionEvidence(name:string){const title=name.slice(0,500).replace(/[._]/g,' ');const rows:[RegExp,string][]=[[/\b(director'?s cut)\b/i,"Director’s cut"],[/\b(extended(?: edition| cut)?)\b/i,'Extended cut'],[/\b(theatrical(?: edition| cut)?)\b/i,'Theatrical cut'],[/\b(final cut)\b/i,'Final cut'],[/\b(unrated)\b/i,'Unrated'],[/\b(remastered|remaster)\b/i,'Remastered']];return rows.find(([pattern])=>pattern.test(title))?.[1];}
 export function filmNameEvidence(video:LibraryVideo){const base=video.name.replace(/\.(mkv|mp4|avi|mov|m4v|webm)$/i,'').replace(/[._]/g,' '),year=/\b(18[89]\d|19\d{2}|20\d{2})\b/.exec(base);return {title:base.split(/\b(?:18[89]\d|19\d{2}|20\d{2}|2160p|1080p|720p|bluray|webrip|extended|theatrical|directors? cut)\b/i)[0]!.replace(/[()[\] -]+$/g,'').trim().slice(0,160),year:validFilmYear(video.year)?video.year:year?Number(year[1]):undefined,edition:editionEvidence(video.name),runtime:validFilmRuntime(video.duration)?video.duration:undefined,origin:'Saved title/year/runtime; unverified identity until owner review'};}
 export function filmVisibility(scope:{folders:readonly {id:string;adult?:boolean}[];hidden:Record<string,unknown>;unavailable:Record<string,unknown>}){const publicIds=new Set(scope.folders.filter(f=>!f.adult).map(f=>f.id)),privateIds=new Set(scope.folders.filter(f=>f.adult).map(f=>f.id));return (video:LibraryVideo)=>!scope.hidden[video.id]&&!scope.unavailable[video.id]&&!videoIsPrivate(privateIds,video)&&!video.isSample&&!video.remote?.live&&(!video.remote?publicIds.has(video.folderId):video.remote.kind==='youtube'&&video.remote.youtubeType!=='short'&&video.remote.youtubeType!=='upcoming');}
 export function filmVideoVisible(video:LibraryVideo,scope:Parameters<typeof filmVisibility>[0]){return filmVisibility(scope)(video);}
 export function projectFilmVideo(video:LibraryVideo,ledger:FilmLedger,provenance?:VideoMetadataProvenance){const version=ledger.versions[video.id],film=version&&ledger.films[version.filmId];if(!film)return video;return {...video,name:film.title+' ('+film.year+')'+(version.edition==='Unspecified edition'?'':' · '+version.edition),year:film.year,duration:version.runtime,...(film.poster?{poster:film.poster}:{}),...(film.genre&&!provenance?.lockedFields?.includes('category')?{genre:film.genre}:{}),filmReview:{filmId:film.id,edition:version.edition,ownerReviewed:true as const}};}
+
+/** One film-ledger transaction retains one inverse patch for every accepted import row. */
+export function commitFilmReviewBatch(ledger:FilmLedger,films:FilmLedger['films'],receipt:FilmImportReceipt,now=Date.now()){
+ if(!Object.keys(films).length)return ledger;
+ if(Object.keys(films).length>8)throw Error('Import at most eight reviewed films per transaction.');
+ return parseFilmLedger({version:1,updatedAt:Math.max(now,ledger.updatedAt+1),films:{...ledger.films,...films},versions:ledger.versions,undo:{films:{},versions:{}},importUndo:{films:Object.fromEntries(Object.keys(films).map(id=>[id,ledger.films[id]??null])),versions:{},importReceipt:ledger.importReceipt??null},importReceipt:receipt,action:'Applied reviewed movie metadata import'});
+}

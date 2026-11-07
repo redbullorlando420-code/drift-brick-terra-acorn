@@ -1,4 +1,6 @@
 import {profileLocalStorage as localStorage} from "../local-profile-storage.ts";
+import {archiveWindowState} from '../archive-work-window';
+import {PullPriorityDeferredError} from '../pull-scheduler';
 import {yieldNavigationTask} from '../navigation-work';
 import {RESTORE_EVENT,RESTORE_HEAD} from '../restore-epoch';
 import {hideLocalSource,hiddenSourceFolders,loadHiddenSources} from './persist';
@@ -1711,6 +1713,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     persistNow(get);
   },
   searchAdultFeed: async (query = "all", order = "top-weekly", opts) => {
+    if(opts?.automatic&&!archiveWindowState(getPullSettings().archiveWorkWindow).open)return 0;
     if (get().remoteBusy || get().refreshing) throw new Error('A catalog pull is already running. Pause or finish it before starting another.');
     const policyFor: PullPolicySelector = settings => adultAdmissionPolicy(settings, opts?.automatic);
     const policy = policyFor(getPullSettings());
@@ -1721,6 +1724,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     await hydrateAdultArchiveCursors(true);
     const initialCounts = await remoteEntryCounts(get().videos);
     const initialGrowth = await adultGrowthCounts(get().videos);
+    if(opts?.automatic&&!archiveWindowState(getPullSettings().archiveWorkWindow).open)return 0;
     const cleanupRemaining = cleanupBudgets(policy);
     const requestCapacity = replacementRequestBudget(initialCounts, policy, 'adult', cleanupRemaining);
     if (!requestCapacity) throw new Error(ENTRY_LIMIT_MESSAGE);
@@ -1731,7 +1735,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const cursors=loadAdultArchiveCursors(query,order);
     const maxWindows=Math.max(providerList.length,Math.ceil(maxVideos/400)+providerList.length*4);
     const deadline=Date.now()+(opts?.automatic?90_000:300_000);
-    let received = 0, added = 0, done = 0, carryBudget = 0;
+    let received = 0, added = 0, done = 0, carryBudget = 0, automaticDeferred=false;
     const diagnostics: AdultPullDiagnostic[] = [];
     const counts = new Map<string, number>();
     // Once per pull, rather than a full catalog scan on every provider page.
@@ -1747,6 +1751,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     try {
       await forEachCatalogSlice(get().videos, video => { if (isAdultPullKind(video.remote?.kind)) knownAdultIds.add(video.id); }, turn);
       for (let window=0;window<maxWindows&&pendingProviders.length&&added<maxVideos&&Date.now()<deadline;window++) {
+        if(opts?.automatic&&!archiveWindowState(getPullSettings().archiveWorkWindow).open){automaticDeferred=true;break;}
         const provider=pendingProviders.shift()!;
         const firstWindow=!visitedProviders.has(provider);visitedProviders.add(provider);done=visitedProviders.size;
         let continueProvider=false;
@@ -1764,8 +1769,9 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         set({ importProgress: { done, total: providerList.length, label: `Pulling ${provider} · page ${page} · up to ${budget} entries…` } });
         try {
           const walked = await walkAdultPull(budget, page, offset, async (nextPage, nextOffset, limit) => {
+            if(opts?.automatic&&!archiveWindowState(getPullSettings().archiveWorkWindow).open)throw new PullPriorityDeferredError();
             set({ importProgress: { done, total: providerList.length, label: `Pulling ${provider} · page ${nextPage} · target ${budget.toLocaleString()} entries…` } });
-            const response = await searchAdultVideos({ data: { query, order, page: nextPage, maxVideos: limit, append: true, providers: [provider], providerPages: { [provider]: nextPage }, providerOffsets: { [provider]: nextOffset }, redditSources: opts?.redditSources } });
+            const response = await searchAdultVideos({ data: { query, order, page: nextPage, maxVideos: limit, append: true, providers: [provider], providerPages: { [provider]: nextPage }, providerOffsets: { [provider]: nextOffset }, redditSources: opts?.redditSources, automatic:opts?.automatic===true } });
             return { ...response, nextPage: response.providerNextPages[provider] ?? null, nextOffset: response.providerNextOffsets[provider] ?? 0 };
           }, turn, { known: provider === 'chaturbate' || provider === 'myfreecams' ? undefined : knownAdultIds, refreshLimit: 32,
             maxRequests: opts?.automatic ? 12 : 40, maxMs: Math.min(deadline-Date.now(),opts?.automatic ? 20_000 : 40_000) });
@@ -1775,10 +1781,12 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             get().updatePull({ done, received, added, failed: diagnostics.filter(row => row.status === 'failed').length });
             continue;
           }
+          const deferred=walked.error instanceof Error&&walked.error.name==='PullPriorityDeferredError';
+          if(deferred)automaticDeferred=true;
           continueProvider=walked.latest.nextPage!=null&&!walked.error;
           const result = { ...walked.latest, videos: walked.videos,
-            providerDiagnostics: walked.latest.providerDiagnostics.map(row => ({ ...row, titles: walked.videos.length, detail: row.status==='failed'?row.detail:`${walked.newCount.toLocaleString()} new candidates · ${walked.refreshedCount} saved titles refreshed · ${walked.requests} requests · ${walked.duplicates.toLocaleString()} already-saved/repeated titles skipped${walked.error ? ' · stopped after a provider error; saved results are retained' : ''}` })) };
-          if (walked.error) result.providerDiagnostics.push({ provider, status: 'failed', titles: 0, detail: walked.error instanceof Error ? walked.error.message : String(walked.error) });
+            providerDiagnostics: walked.latest.providerDiagnostics.map(row => ({ ...row, titles: walked.videos.length, detail: row.status==='failed'?row.detail:`${walked.newCount.toLocaleString()} new candidates · ${walked.refreshedCount} saved titles refreshed · ${walked.requests} requests · ${walked.duplicates.toLocaleString()} already-saved/repeated titles skipped${walked.error ? deferred ? ' · automatic work deferred; accepted results were kept' : ' · stopped after a provider error; saved results are retained' : ''}` })) };
+          if (walked.error&&!deferred) result.providerDiagnostics.push({ provider, status: 'failed', titles: 0, detail: walked.error instanceof Error ? walked.error.message : String(walked.error) });
           await turn();
           const fetchedVideos = applyCachedAdultUrls(result.videos);
           let fetched = dedupeAdultVideoCards(fetchedVideos);
@@ -1788,7 +1796,8 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           if (admission.skipped) {continueProvider=false;result.providerDiagnostics.push({ provider, status: 'empty', titles: 0, detail: ENTRY_LIMIT_MESSAGE });}
           const pointFor=(rows:LibraryVideo[],newCount:number)=>{
             const point=prepareAdultArchiveCheckpoint(query,order,provider,admission.skipped?page:result.providerNextPages[provider]??null,admission.skipped?offset:result.providerNextOffsets[provider]??0,{added:newCount,duplicates:walked.duplicates,received:rows.length},rows.map(row=>row.id));
-            if(walked.error||result.providerDiagnostics.some(row=>row.status==='failed'))point.cursor={...point.cursor,state:'failed',retryAt:Date.now()+5*60000};
+            point.observeYield=!admission.skipped;
+            if(walked.error&&!deferred||result.providerDiagnostics.some(row=>row.status==='failed'))point.cursor={...point.cursor,state:'failed',retryAt:Date.now()+5*60000};
             return point;
           };
           if (!videos.length) {
@@ -1800,6 +1809,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
             if (!admission.skipped) carryBudget += budget;
 
             get().updatePull({ done, received, added, failed: diagnostics.filter(row => row.status === 'failed').length });
+            if(automaticDeferred)break;
             continue;
           }
           // Enrichment is bounded by this response and runs outside the store
@@ -1890,6 +1900,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
           if (!admission.skipped) carryBudget += Math.max(0, budget - admission.added);
         } catch (error) {
           continueProvider=false;
+          if(error instanceof Error&&error.name==='PullPriorityDeferredError'){automaticDeferred=true;break;}
           if (getPullCancellationRevision() !== cancellation) break;
           if(adultArchiveResumeStatus().phase==='error')throw error;
           Object.assign(cursors,await saveAdultArchiveFailure(query,order,provider));
@@ -1898,13 +1909,14 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         }
         if(continueProvider&&added<maxVideos)pendingProviders.push(provider);
         get().updatePull({ done, received, added, failed: diagnostics.filter(row => row.status === 'failed').length });
+        if(automaticDeferred)break;
         await new Promise(resolve => setTimeout(resolve, 0));
       }
       if (received) persistSoon(get);
       const failed = diagnostics.filter(row => row.status === 'failed');
       const cancelled = getPullCancellationRevision() !== cancellation;
-      const resumable = pendingProviders.length>0&&added<maxVideos;
-      set({ adultPullStatus: { note: cancelled ? 'Pull cancelled. Accepted entries and archive resume points are saved.' : `${added.toLocaleString()} new entries · ${received.toLocaleString()} received. Archive pages are saved after each small window.${resumable?' More pages remain; use Continue archive.':''}`, diagnostics } });
+      const resumable = automaticDeferred||pendingProviders.length>0&&added<maxVideos;
+      set({ adultPullStatus: { note: cancelled ? 'Pull cancelled. Accepted entries and archive resume points are saved.' : automaticDeferred?'Automatic archive work paused. Accepted entries and saved positions were kept.': `${added.toLocaleString()} new entries · ${received.toLocaleString()} received. Archive pages are saved after each small window.${resumable?' More pages remain; use Continue archive.':''}`, diagnostics } });
       get().finishPull({ id: pullId, provider: 'adult', action: 'Catalog pull', startedAt, finishedAt: Date.now(), targets, done, total: providerList.length, received, added, failed: failed.length, status: cancelled || resumable ? 'partial' : failed.length ? received ? 'partial' : 'failed' : received ? 'success' : 'partial', errors: cancelled ? ['Pull cancelled. Accepted entries and archive resume points are saved.'] : failed.map(row => `${row.provider}: ${row.detail}`).slice(0, 12) });
       return [...counts.values()].reduce((sum, count) => sum + count, 0);
     } catch(error) {
@@ -2880,7 +2892,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
     const liveOnly = Boolean(options?.youtubeLiveOnly || options?.twitchLiveOnly);
     const feedRepair = kind === 'youtube' && options?.youtubeFeedRepair === true;
     const recentQueue = !liveOnly && !options?.catalog && !options?.twitchContinueArchive && !feedRepair;
-    if (!liveOnly && options?.scheduled && !automaticPullAvailable(kind)) return { wentLive: [], newVideos: [], skipped: 'busy' };
+    if (!liveOnly && options?.scheduled && (!automaticPullAvailable(kind)||!archiveWindowState(getPullSettings().archiveWorkWindow).open)) return { wentLive: [], newVideos: [], skipped: 'busy' };
     if (liveOnly && options?.scheduled && !options.liveDemand && pullsPaused()) return { wentLive: [], newVideos: [], skipped: 'paused' };
     const liveRetryAt = kind === 'twitch' && options?.twitchLiveOnly ? get().twitchLiveProgress?.retryAt : options?.youtubeLiveOnly ? Math.max(get().youtubeLiveProgress?.retryAt ?? 0, youtubeLiveCooldown(get().follows)?.retryAt ?? 0) || undefined : undefined;
     if (liveOnly && kind && liveRetryAt && liveRetryAt > Date.now()) return { wentLive: [], newVideos: [], skipped: 'cooldown', retryAt: liveRetryAt };
@@ -3092,7 +3104,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
       concurrency: 2,
       take: () => {
         if (dispatchedRecent >= current.length || getPullCancellationRevision() !== cancellation || recentRetryAt > Date.now()) return;
-        if (options?.scheduled && (!automaticPullAvailable(kind) || Date.now() - startedAt >= 20_000)) { yieldedLiveTurn = true; return; }
+        if (options?.scheduled && (!automaticPullAvailable(kind) || !archiveWindowState(getPullSettings().archiveWorkWindow).open || Date.now() - startedAt >= 20_000)) { yieldedLiveTurn = true; return; }
         const channels = current.slice(dispatchedRecent, dispatchedRecent + recentBatchSize); dispatchedRecent += channels.length;
         return { channels, attemptAt: Date.now() };
       },

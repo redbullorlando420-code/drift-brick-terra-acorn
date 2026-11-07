@@ -8,7 +8,7 @@ globalThis.document = Object.assign(new EventTarget(), { visibilityState: 'visib
 const writes = [];
 globalThis.__rankingFeedbackWrites = writes;
 registerHooks({ resolve(specifier, context, next) {
-  if (specifier === './videos/persist' && context.parentURL?.endsWith('/media-feedback.ts')) return { url: 'data:text/javascript,' + encodeURIComponent('export async function restoreDurableFeedback(){return null;} export function saveDurableFeedback(value){globalThis.__rankingFeedbackWrites.push(structuredClone(value)); return globalThis.__rankingFeedbackSaveResult;}'), shortCircuit: true };
+  if (specifier === './videos/persist' && context.parentURL?.endsWith('/media-feedback.ts')) return { url: 'data:text/javascript,' + encodeURIComponent('export const waitForDurableWrites=async()=>{};export const commitFeedbackUndo=async()=>{throw Error("Unexpected undo in legacy feedback fixture");};export async function restoreDurableFeedback(){return null;} export function saveDurableFeedback(value){globalThis.__rankingFeedbackWrites.push(structuredClone(value)); return globalThis.__rankingFeedbackSaveResult;}'), shortCircuit: true };
   try { return next(specifier, context); } catch (error) {
     if (specifier.startsWith('.') && !/\.[a-z]+$/i.test(specifier)) return next(`${specifier}.ts`, context);
     throw error;

@@ -1,0 +1,48 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Real worker rebuilds a mixed-script 100k/10k index in acknowledged batches, accepts replacement keyboard input, and publishes only the final query",
+        "Composed/decomposed accents, Cyrillic, CJK, Arabic and Korean match; unaccented names stay distinct and exact Unicode fields round-trip",
+        "A grounded repeated-title correction is explicit, keyboard accessible, and preserves source/duration filters without silently changing zero results",
+        "Private-only vocabulary never surfaces in the public desk; a replacement Unicode query immediately retires stale correction controls",
+        "Reload rebuilds disposable keys while preserving original decomposed catalog spelling, with clean consoles and no horizontal overflow"
+      ],
+      "errors": [],
+      "worker": {
+        "rows": 100012,
+        "batches": 197,
+        "maxBatch": 512,
+        "ready": 2,
+        "keys": [
+          "Enter",
+          "Enter"
+        ]
+      }
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Real worker rebuilds a mixed-script 100k/10k index in acknowledged batches, accepts replacement keyboard input, and publishes only the final query",
+        "Composed/decomposed accents, Cyrillic, CJK, Arabic and Korean match; unaccented names stay distinct and exact Unicode fields round-trip",
+        "A grounded repeated-title correction is explicit, keyboard accessible, and preserves source/duration filters without silently changing zero results",
+        "Private-only vocabulary never surfaces in the public desk; a replacement Unicode query immediately retires stale correction controls",
+        "Reload rebuilds disposable keys while preserving original decomposed catalog spelling, with clean consoles and no horizontal overflow"
+      ],
+      "errors": [],
+      "worker": {
+        "rows": 15132,
+        "batches": 30,
+        "maxBatch": 512,
+        "ready": 1,
+        "keys": [
+          "Enter",
+          "Enter"
+        ]
+      }
+    }
+  ],
+  "limitation": "Disposable saved metadata and simulated companion/provider responses; no real user library or upstream download."
+}

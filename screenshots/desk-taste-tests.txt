@@ -1,0 +1,32 @@
+✔ exposure uses actual eligible observations and reports shown rather than completed (38.1921ms)
+✔ fixed dense corpus changes familiarity while neutral exactly preserves baseline (17.4016ms)
+✔ sparse corpus stays neutral and private/hidden/other-provider history cannot supply creator evidence (8.9439ms)
+✔ source balance, query relevance and strong favorite preference survive novelty adjustment (8.1803ms)
+✔ resolved Twitch weights change real ranking while Movies results and baseline feedback stay intact (4.2587ms)
+✔ Twitch overlay does not affect Movies or shared defaults; preview has a strict projection cap and cancels (12.2906ms)
+✔ creator cap and long query histories leave absence unknown; exposed is never completed (9.8509ms)
+✔ exactly 100 distinct milestones with only evidenced completions cover ten workstreams with executable contracts (167.4249ms)
+✔ all prerequisite references exist, are acyclic and precede dependent work (0.403ms)
+✔ roadmap migration appends briefs once without resetting prior manual choices or custom ideas (3.6311ms)
+✔ known brief updates retain saved status while adopting the current implementation contract (0.4012ms)
+✔ copied briefs include concrete scope, dependency status, acceptance and safe execution boundaries (0.4916ms)
+✔ checked-in roadmap is reproducible and exports all 100 full briefs without completing work (4.5381ms)
+✔ 100 append-only milestones retain evidenced completions across 20 roadmap tracks (157.9921ms)
+✔ every dependency exists, is distinct and precedes its dependent milestone (4.0975ms)
+✔ the new batch appends exactly once and preserves old manual decisions and custom notes (22.1656ms)
+✔ revision 94 promotes only the desk/novelty pair and preserves earlier reopens (28.428ms)
+✔ new-batch filters use exact membership and preserve the historical first batch (0.5713ms)
+✔ new-batch exports resolve old dependencies and retain current status and external requirements (3.0171ms)
+✔ checked-in new and combined roadmaps reproduce from the executable definitions (11.1613ms)
+✔ temporary, saved and shared precedence; reset touches one desk only (5.3727ms)
+✔ strict version/fields/ranges reject unknown formats without replacement writes (1.6819ms)
+✔ quota and concurrent edits retain active choices and exact prior bytes (0.9855ms)
+✔ same browser profile namespaces remain isolated (0.8824ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 491.7648

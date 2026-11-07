@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "checks": [
+        "Owner confirmation distinguishes the 1984/2021 remakes, never confirms inferred candidates automatically and preserves original metadata, ratings and per-version resume records",
+        "Explicit edition grouping preserves two independent resume marks, preferred selection opens the correct source, preview review works and Ungroup keeps individual movie records",
+        "Alternate saved metadata is staged first; poster-only application preserves title/year/category locks, records source/confidence, rejects unsafe proposals and supports durable Undo",
+        "All three milestones survive reload and actual ZIP backup/restore, retain choices on unsupported/legacy imports, recover disk-only reviews and show retry after both mirrors fail",
+        "Desktop/mobile identity, edition and metadata workflows render without overflow or uncaught errors"
+      ],
+      "errors": []
+    },
+    {
+      "viewport": "mobile",
+      "checks": [
+        "Owner confirmation distinguishes the 1984/2021 remakes, never confirms inferred candidates automatically and preserves original metadata, ratings and per-version resume records",
+        "Explicit edition grouping preserves two independent resume marks, preferred selection opens the correct source, preview review works and Ungroup keeps individual movie records",
+        "Alternate saved metadata is staged first; poster-only application preserves title/year/category locks, records source/confidence, rejects unsafe proposals and supports durable Undo",
+        "All three milestones survive reload and actual ZIP backup/restore, retain choices on unsupported/legacy imports, recover disk-only reviews and show retry after both mirrors fail",
+        "Desktop/mobile identity, edition and metadata workflows render without overflow or uncaught errors"
+      ],
+      "errors": []
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import {profileSessionStorage as sessionStorage} from "../../lib/local-profile-storage.ts";
 import { PullDispatchPanel } from './pull-dispatch-panel';
+import {ArchiveWorkWindowPanel} from './archive-work-window-panel';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,9 +28,10 @@ export function PullSettingsPanel() {
   const processing = useLibrary(state => state.remoteBusy || state.refreshing);
   useEffect(() => {
     try {
-      if (sessionStorage.getItem('reelcase.settings-section') !== 'youtube-cleanup') return;
+      const target=sessionStorage.getItem('reelcase.settings-section');
+      if (target !== 'youtube-cleanup' && target !== 'archive-work-window') return;
       sessionStorage.removeItem('reelcase.settings-section');
-      const frame = requestAnimationFrame(() => document.querySelector('[data-youtube-cleanup]')?.scrollIntoView({ block: 'start' }));
+      const frame = requestAnimationFrame(() => document.querySelector(target==='archive-work-window'?'[data-archive-work-window]':'[data-youtube-cleanup]')?.scrollIntoView({ block: 'start' }));
       return () => cancelAnimationFrame(frame);
     } catch { /* The settings page remains usable without a jump hint. */ }
   }, []);
@@ -43,6 +45,7 @@ export function PullSettingsPanel() {
       <span className="text-xs text-muted" role="status">{queue.active} active · {queue.waiting} queued{queue.held ? ' · waiting for browsing to settle' : processing && !queue.active && !queue.waiting ? ' · preparing catalog batch' : ''}</span>
     </div>
     <PullDispatchPanel />
+    <ArchiveWorkWindowPanel settings={settings}/>
     <EntryLimitSettings settings={settings} />
     {CLEANUP_GROUPS.map(group => <YoutubeCleanupSettings key={group} settings={settings} group={group} />)}
     <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

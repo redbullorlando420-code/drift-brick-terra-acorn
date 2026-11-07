@@ -23,6 +23,8 @@ const entry = "\0archive-native",
                 "src/lib/videos/adult-archive-cursors.ts",
                 "src/lib/videos/adult-archive-model.ts",
                 "src/lib/videos/catalog-mutations.ts",
+                "src/lib/local-profiles.ts",
+                "src/lib/pull-settings.ts",
               ]
                 .map(
                   (file) =>
@@ -257,6 +259,9 @@ try {
             batch.map((r) => r.id),
           );
           await p.commitAdultArchiveWindow(batch, retry);
+          const yieldBefore=p.loadAdultArchiveCursors(query,'latest').eporner.yield;
+          await p.commitAdultArchiveWindow(batch,retry);
+          check(JSON.stringify(p.loadAdultArchiveCursors(query,'latest').eporner.yield)===JSON.stringify(yieldBefore),'Same checkpoint token counted yield twice');
           check(!!(await read("videos", target)), "Replayed tail missing " + phase);
           const edit = await read("activity", p.CATALOG_EDIT_PREFIX + base[0].id);
           check(
@@ -292,6 +297,13 @@ try {
       checks.push(
         "A stale checkpoint cannot replace a newer committed position or poison journal recovery",
       );
+      checks.push('Durable yield observations roll back with failed checkpoints and replaying the same token cannot count them twice');
+      const held=p.prepareAdultArchiveCheckpoint('cap-held','latest','eporner',1);held.observeYield=false;
+      await p.commitAdultArchiveWindow([],held);
+      check(!p.loadAdultArchiveCursors('cap-held','latest').eporner.yield,'A local admission hold trained a provider yield score');
+      const accepted=p.prepareAdultArchiveCheckpoint('cap-held','latest','eporner',2,0,{added:1,received:1},['cap-accepted']);await p.commitAdultArchiveWindow([card('cap-accepted')],accepted);
+      check(p.loadAdultArchiveCursors('cap-held','latest').eporner.yield.windows===1,'Skipped admission consumed a successful yield observation');
+      checks.push('Retention-blocked windows keep provider scores unchanged; the next accepted window starts the yield observation');
       const saved = await read("activity", key);
       await put("activity", key, { version: 99, positions: {} });
       let rejected = false;
@@ -327,6 +339,15 @@ try {
   report.checks.push(
     "Reload restores the durable page/offset over a stale quota-blocked preference mirror",
   );
+  await page.evaluate(async()=>{const p=await import('/__archive-native.mjs');p.updatePullSettings({archiveWorkWindow:{version:1,enabled:true,startMinute:60,endMinute:120,timeZone:'America/New_York'}});const profile=await p.createLocalProfile('Archive isolation');sessionStorage.setItem('realhub.active-local-profile.v1',profile.id);});
+  await page.reload();
+  const isolated=await page.evaluate(async()=>{const p=await import('/__archive-native.mjs');await p.hydrateAdultArchiveCursors();const empty=!p.loadAdultArchiveCursors('all','latest').eporner,unrestricted=!p.getPullSettings().archiveWorkWindow.enabled;p.updatePullSettings({archiveWorkWindow:{version:1,enabled:true,startMinute:180,endMinute:240,timeZone:'UTC'}});await p.commitAdultArchiveWindow([],p.prepareAdultArchiveCheckpoint('all','latest','eporner',5));return {empty,unrestricted,page:p.loadAdultArchiveCursors('all','latest').eporner.page};});
+  assert.deepEqual(isolated,{empty:true,unrestricted:true,page:5});
+  await page.evaluate(()=>sessionStorage.setItem('realhub.active-local-profile.v1','default'));await page.reload();
+  assert.equal(await page.evaluate(async()=>{const p=await import('/__archive-native.mjs');await p.hydrateAdultArchiveCursors();return p.loadAdultArchiveCursors('all','latest').eporner.page;}),18);
+  assert.equal(await page.evaluate(async()=>{const p=await import('/__archive-native.mjs');return p.getPullSettings().archiveWorkWindow.timeZone;}),'America/New_York');
+  report.checks.push('A second saved profile starts with no foreign archive positions; its changes leave Default checkpoints intact');
+  report.checks.push('Automatic archive windows persist independently in saved profiles across actual selection reloads');
   assert.deepEqual(report.errors, []);
 } catch (error) {
   report.error = error.stack;

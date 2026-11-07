@@ -47,8 +47,8 @@ test("100 append-only milestones retain evidenced completions across 20 roadmap 
   assert.equal(new Set(NEXT_WAVE_MISSIONS.flatMap((m) => m.brief.steps)).size, 300);
   assert.equal(new Set(NEXT_WAVE_MISSIONS.flatMap((m) => m.brief.acceptance)).size, 200);
   assert.equal(NEXT_LEVEL_COMPLETED_IDS.length, 96);
-  assert.deepEqual(NEXT_WAVE_COMPLETED_IDS, ['next-101', 'next-105', 'next-106', 'next-108', 'next-111']);
-  assert.equal(ALL_NEXT_LEVEL_MISSIONS.filter((m) => m.done).length, 101);
+  assert.deepEqual(NEXT_WAVE_COMPLETED_IDS, ['next-101', 'next-105', 'next-106', 'next-108', 'next-111', 'next-112', 'next-113', 'next-116', 'next-117', 'next-121', 'next-122', 'next-123', 'next-124', 'next-125', 'next-126', 'next-127', 'next-128', 'next-131', 'next-132', 'next-133', 'next-134', 'next-135', 'next-137', 'next-138', 'next-139', 'next-141', 'next-142', 'next-143', 'next-151', 'next-153', 'next-154', 'next-155', 'next-158', 'next-160', 'next-171', 'next-176', 'next-180']);
+  assert.equal(ALL_NEXT_LEVEL_MISSIONS.filter((m) => m.done).length, 133);
 });
 
 test("every dependency exists, is distinct and precedes its dependent milestone", () => {
@@ -61,7 +61,7 @@ test("every dependency exists, is distinct and precedes its dependent milestone"
 });
 
 test("the new batch appends exactly once and preserves old manual decisions and custom notes", () => {
-  assert.equal(MISSION_PLAN_REVISION, 87);
+  assert.equal(MISSION_PLAN_REVISION, 101);
   const custom = {
     id: "custom-preserved",
     title: "My roadmap",
@@ -83,9 +83,49 @@ test("the new batch appends exactly once and preserves old manual decisions and 
   merged.find((m) => m.id === "next-101").done = false;
   merged.find((m) => m.id === "next-102").done = true;
   merged.find((m) => m.id === "next-102").status = "complete";
-  const reloaded = mergeMissionPlan(structuredClone(merged), ALL_NEXT_LEVEL_MISSIONS, 87);
+  const reloaded = mergeMissionPlan(structuredClone(merged), ALL_NEXT_LEVEL_MISSIONS, 93);
   assert.deepEqual(reloaded, merged);
   assert.equal(reloaded.find((m) => m.id === "next-010").status, "blocked");
+});
+
+test('revision 94 promotes only the desk/novelty pair and preserves earlier reopens',()=>{
+ const ids=['next-125','next-128','next-131','next-134'],saved=ALL_NEXT_LEVEL_MISSIONS.map(m=>ids.includes(m.id)?{...m,done:false,status:'blocked'}:structuredClone(m));
+ const result=structuredClone(mergeMissionPlan(saved,ALL_NEXT_LEVEL_MISSIONS,93));
+ for(const id of ['next-131','next-134'])assert.equal(result.find(m=>m.id===id).done,true);
+ for(const id of ['next-125','next-128'])assert.equal(result.find(m=>m.id===id).status,'blocked');
+ result.find(m=>m.id==='next-131').done=false;result.find(m=>m.id==='next-131').status='in-progress';
+ assert.equal(mergeMissionPlan(result,ALL_NEXT_LEVEL_MISSIONS,94).find(m=>m.id==='next-131').status,'in-progress');
+});
+test('revision 95 promotes isolation, provenance and diversity only and preserves previous reopens',()=>{
+ const saved=ALL_NEXT_LEVEL_MISSIONS.map(m=>['next-131','next-134','next-135','next-137','next-138','next-141','next-142','next-143','next-151','next-153','next-154','next-155','next-158','next-160'].includes(m.id)?{...m,done:false,status:'blocked'}:structuredClone(m));
+ const next=structuredClone(mergeMissionPlan(saved,ALL_NEXT_LEVEL_MISSIONS,94));
+ for(const id of ['next-135','next-137','next-138'])assert.equal(next.find(m=>m.id===id).done,true);
+ for(const id of ['next-131','next-134'])assert.equal(next.find(m=>m.id===id).status,'blocked');
+ next.find(m=>m.id==='next-137').done=false;next.find(m=>m.id==='next-137').status='in-progress';
+ assert.equal(mergeMissionPlan(next,ALL_NEXT_LEVEL_MISSIONS,95).find(m=>m.id==='next-137').status,'in-progress');
+});
+test('revision 96 promotes the personal-desks trio once and preserves earlier reopens',()=>{
+ const ids=['next-135','next-137','next-138','next-153','next-158','next-160'],saved=ALL_NEXT_LEVEL_MISSIONS.map(m=>ids.includes(m.id)?{...m,done:false,status:'blocked'}:structuredClone(m));
+ const merged=structuredClone(mergeMissionPlan(saved,ALL_NEXT_LEVEL_MISSIONS,95));for(const id of ['next-153','next-158','next-160'])assert.equal(merged.find(m=>m.id===id).done,true);for(const id of ['next-135','next-137','next-138'])assert.equal(merged.find(m=>m.id===id).status,'blocked');merged.find(m=>m.id==='next-160').status='in-progress';merged.find(m=>m.id==='next-160').done=false;assert.equal(mergeMissionPlan(merged,ALL_NEXT_LEVEL_MISSIONS,96).find(m=>m.id==='next-160').status,'in-progress');
+});
+
+test('revision 97 promotes only arrival, transitions and guest drafts once and preserves earlier reopens',()=>{
+ const ids=['next-141','next-142','next-143'];
+ const saved=ALL_NEXT_LEVEL_MISSIONS.map(m=>ids.includes(m.id)||['next-153','next-158','next-160'].includes(m.id)?{...m,done:false,status:'blocked'}:m);
+ const merged=structuredClone(mergeMissionPlan(saved,ALL_NEXT_LEVEL_MISSIONS,96));
+ for(const id of ids)assert.equal(merged.find(m=>m.id===id).done,true);
+ for(const id of ['next-153','next-158','next-160'])assert.equal(merged.find(m=>m.id===id).status,'blocked');
+ const reopened=merged.find(m=>m.id==='next-142');reopened.done=false;reopened.status='in-progress';
+ assert.equal(mergeMissionPlan(merged,ALL_NEXT_LEVEL_MISSIONS,97).find(m=>m.id==='next-142').status,'in-progress');
+});
+test('revision 98 promotes only film evidence, series tracking and collections once while retaining earlier reopens',()=>{
+ const ids=['next-151','next-154','next-155'];
+ const saved=ALL_NEXT_LEVEL_MISSIONS.map(m=>ids.includes(m.id)||['next-141','next-142','next-143'].includes(m.id)?{...m,done:false,status:'blocked'}:m);
+ const merged=structuredClone(mergeMissionPlan(saved,ALL_NEXT_LEVEL_MISSIONS,97));
+ for(const id of ids)assert.equal(merged.find(m=>m.id===id).done,true);
+ for(const id of ['next-141','next-142','next-143'])assert.equal(merged.find(m=>m.id===id).status,'blocked');
+ const reopened=merged.find(m=>m.id==='next-154');reopened.done=false;reopened.status='in-progress';
+ assert.equal(mergeMissionPlan(merged,ALL_NEXT_LEVEL_MISSIONS,98).find(m=>m.id==='next-154').status,'in-progress');
 });
 
 test("new-batch filters use exact membership and preserve the historical first batch", () => {

@@ -8,6 +8,12 @@ const input = (videos: LibraryVideo[]): SearchRankingInput => ({ videos, ids: ne
   sourceId: 'home', folders: [], hidden: {}, unavailable: {}, tags: {}, favorites: {}, likes: {}, viewCounts: {},
   ratingOf: () => 0, ratingPreference: n => n === 1 ? -3 : n >= 3 ? n - 2 : 0 });
 
+test('filter-only queries rank without words; explicit source overrides an implicit provider desk while privacy stays enforced',async()=>{
+ const rows=[{...video('youtube'),remote:{kind:'youtube' as const}},{...video('twitch'),remote:{kind:'twitch' as const}},{...video('private'),privateRetention:true as const,remote:{kind:'twitch' as const}}];
+ const found=await rankSearchResults({...input(rows),query:'source:twitch',sourceId:'youtube'},undefined,async()=>{});
+ assert.deepEqual(found.ranked.map(row=>row.id),['twitch']);
+});
+
 test('a recovered private title stays outside public ranking without its source folder',async()=>{
  const row={...video('retained-private'),privateRetention:true as const};
  assert.deepEqual((await rankSearchResults(input([row]),undefined,async()=>{})).ranked,[]);

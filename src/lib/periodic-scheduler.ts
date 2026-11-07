@@ -8,6 +8,9 @@ export type PeriodicTask = {
    * Room synchronization uses always so background playback remains accurate. */
   mode?: PeriodicMode;
   enabled?: () => boolean;
+  /** Earliest dispatch time, evaluated again at wake/dispatch. Uses this owner's
+   * existing timer; a closed work window does not create recurring checks. */
+  notBefore?: () => number;
   background?: boolean;
   work: (signal: AbortSignal) => unknown;
   onError?: (error: unknown) => void;
@@ -33,7 +36,7 @@ export function createPeriodicScheduler(runtime: PeriodicRuntime) {
   const enabled = (job: Job) => (runtime.available?.() ?? true)
     && (job.mode === 'always' || runtime.phase() === 'active' || (job.mode === 'visible' && runtime.phase() === 'idle'))
     && (job.enabled?.() ?? true);
-  const dueAt = (job: Job, now: number) => Math.max(job.nextAt,
+  const dueAt = (job: Job, now: number) => Math.max(job.nextAt, job.notBefore?.() ?? 0,
     job.background === false ? now : now + runtime.inputDelay());
   const schedule = () => {
     const now = runtime.now();

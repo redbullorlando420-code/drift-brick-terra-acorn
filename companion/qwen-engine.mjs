@@ -1,16 +1,17 @@
+import {studioParameterContract} from './studio-parameter-contract.mjs';
 import { existsSync, openSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { randomInt, randomUUID } from 'node:crypto';
 
 export function qwenGraph(body, model, seed) {
-  return {
+  const parameters=studioParameterContract('comfy');return {
     '1':{class_type:'UNETLoader',inputs:{unet_name:model,weight_dtype:'default'}},
     '2':{class_type:'CLIPLoader',inputs:{clip_name:'qwen3vl_8b_w4a8.safetensors',type:'qwen_image',device:'default'}},
     '3':{class_type:'VAELoader',inputs:{vae_name:'qwen_image_2.1_vae_bf16.safetensors'}},
     '4':{class_type:'TextEncodeQwenImage21',inputs:{clip:['2',0],prompt:body.prompt,negative_prompt:body.negative_prompt,resolution:body.width}},
     '5':{class_type:'EmptyLatentImage',inputs:{width:body.width,height:body.height,batch_size:1}},
-    '6':{class_type:'KSampler',inputs:{model:['1',0],positive:['4',0],negative:['4',1],latent_image:['5',0],seed,steps:body.steps,cfg:model.includes('turbo')?1:4,sampler_name:'euler',scheduler:'simple',denoise:1}},
+    '6':{class_type:'KSampler',inputs:{model:['1',0],positive:['4',0],negative:['4',1],latent_image:['5',0],seed,steps:body.steps,cfg:model.includes('turbo')?parameters.turboGuidance:parameters.guidance,sampler_name:parameters.sampler,scheduler:parameters.scheduler,denoise:parameters.denoise}},
     '7':{class_type:'VAEDecode',inputs:{samples:['6',0],vae:['3',0]}},
     '8':{class_type:'PreviewImage',inputs:{images:['7',0]}},
   };
@@ -25,7 +26,7 @@ export function createQwenEngine({dir,models,validate,spawnProcess=spawn,fetchLo
     if(!route.startsWith('/studio/qwen/'))return null;
     if(route==='/studio/qwen/status'&&method==='GET'){
       const names=await available(),components=['text_encoders/qwen3vl_8b_w4a8.safetensors','vae/qwen_image_2.1_vae_bf16.safetensors'].every(f=>existsSync(join(source,'models',f)));let connected=false;try{await api('/system_stats');connected=true;}catch{}
-      return {ok:true,connected,ready:connected&&components&&names.length>0,modelPreflight:typeof models.preflight==='function',models:names,busy:!!generation,canStart:canStart(),ownedEngine:!!engine,note:!canStart()?'Run Install-Qwen.cmd to prepare the isolated ComfyUI runtime.':!components||!names.length?'Install the Qwen 2.1 bundle below; it includes the matching encoder and VAE.':connected?'Qwen-Image 2.1 · local ComfyUI · one image at a time.':'Start the Qwen engine, then check again after it finishes loading.'};
+      return {ok:true,parameterContract:studioParameterContract('comfy'),connected,ready:connected&&components&&names.length>0,modelPreflight:typeof models.preflight==='function',models:names,busy:!!generation,canStart:canStart(),ownedEngine:!!engine,note:!canStart()?'Run Install-Qwen.cmd to prepare the isolated ComfyUI runtime.':!components||!names.length?'Install the Qwen 2.1 bundle below; it includes the matching encoder and VAE.':connected?'Qwen-Image 2.1 · local ComfyUI · one image at a time.':'Start the Qwen engine, then check again after it finishes loading.'};
     }
     if(route==='/studio/qwen/start'&&method==='POST'){
       if(!canStart())throw Error('Finish Install-Qwen.cmd first.');if(engine)return {ok:true,note:'Qwen engine is already starting or running.'};

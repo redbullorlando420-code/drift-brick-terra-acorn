@@ -1,11 +1,11 @@
-✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (185.9529ms)
-✔ removed cached Reddit images and confirmed unavailable photos leave Adult shelves without deleting saves (1.7563ms)
-✔ Adult pulls rotate at full capacity across providers, retain protected entries and stop at the whole-pull budget (1016.2403ms)
-✔ automatic Adult pulls stop at the archived-video goal while manual pulls can use the larger source cap (314.0087ms)
-✔ photos and room cards do not prematurely fill the automatic video goal; accepted refreshes retain manual tags (423.2778ms)
-✔ Adult multi-window pulls save accepted rows before a later failure and retain the latest resume page (296.209ms)
-✔ a live check during an Adult pull preserves that pull owner and newer state wins a delayed reply (110.5993ms)
-✔ explicitly saved live rooms persist one descriptor with Adult isolation, without copying unrelated saved records (75.4178ms)
+✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (128.5236ms)
+✔ removed cached Reddit images and confirmed unavailable photos leave Adult shelves without deleting saves (1.4959ms)
+✔ Adult pulls rotate at full capacity across providers, retain protected entries and stop at the whole-pull budget (617.5378ms)
+✔ automatic Adult pulls stop at the archived-video goal while manual pulls can use the larger source cap (196.125ms)
+✔ photos and room cards do not prematurely fill the automatic video goal; accepted refreshes retain manual tags (250.4646ms)
+✔ Adult multi-window pulls save accepted rows before a later failure and retain the latest resume page (200.8038ms)
+✔ a live check during an Adult pull preserves that pull owner and newer state wins a delayed reply (82.4312ms)
+✔ explicitly saved live rooms persist one descriptor with Adult isolation, without copying unrelated saved records (65.2486ms)
 ℹ tests 8
 ℹ suites 0
 ℹ pass 8
@@ -13,4 +13,4 @@
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 2999.6799
+ℹ duration_ms 2059.8238

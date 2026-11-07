@@ -1,0 +1,324 @@
+npm notice run dev
+npm notice run node scripts/with-app-env.mjs vite dev --host 0.0.0.0 --port 8080
+
+  VITE v8.2.2  ready in 4287 ms
+
+  ➜  Local:   http://localhost:8080/
+  ➜  Network: http://192.168.1.68:8080/  Ethernet 2
+11:10:27 PM [vite] (ssr) connected.
+11:12:02 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/desk-taste-control.tsx, /src/components/library/ai-guide.tsx, /src/components/library/recommendation-report.tsx, /src/components/library/guide-diversity-control.tsx
+11:12:02 PM [vite] (ssr) page reload src/lib/videos/guide-diversity.ts
+11:12:02 PM [vite] (ssr) program reload
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+AbortError: This operation was aborted
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    ... 8 lines matching cause stack trace ...
+    at TCP.<anonymous> (node:net:362:12) {
+  cause: DOMException [AbortError]: This operation was aborted
+      at new DOMException (node:internal/per_context/domexception:76:18)
+      at AbortController.abort (node:internal/abort_controller:579:18)
+      at abort (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:316:51)
+      at ServerResponse.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:320:35)
+      at ServerResponse.wrapper (node:events:639:12)
+      at ServerResponse.emit (node:events:514:28)
+      at emitCloseNT (node:_http_server:1156:10)
+      at Socket.onServerResponseClose (node:_http_server:292:5)
+      at Socket.emit (node:events:526:24)
+      at TCP.<anonymous> (node:net:362:12),
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}
+11:18:40 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/desk-taste-control.tsx, /src/components/library/ai-guide.tsx, /src/components/library/guide-experiment.tsx
+11:18:40 PM [vite] (ssr) page reload src/lib/videos/guide-provenance.ts
+11:18:40 PM [vite] (ssr) program reload
+11:18:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+11:18:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/desk-taste-control.tsx, /src/components/library/ai-guide.tsx, /src/components/library/guide-experiment.tsx
+11:18:41 PM [vite] (ssr) page reload src/lib/videos/guide-picks.ts
+11:18:41 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/desk-taste-control.tsx, /src/components/library/ai-guide.tsx, /src/components/library/guide-experiment.tsx
+11:18:41 PM [vite] (ssr) page reload src/lib/videos/guide-provenance.ts
+11:24:59 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+11:31:42 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/viewport-chart.tsx
+11:31:42 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/stats-section.tsx
+11:31:42 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/library-app.tsx
+11:31:42 PM [vite] (ssr) page reload src/components/library/library-app.tsx
+11:31:42 PM [vite] (ssr) program reload
+11:33:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/anime-section.tsx
+11:37:19 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/desk-layout-panel.tsx, /src/components/library/anime-release-watchlist.tsx
+11:37:19 PM [vite] (ssr) page reload src/lib/reviewed-preferences.ts
+11:37:19 PM [vite] (ssr) program reload
+11:37:19 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/desk-layout-panel.tsx
+11:37:19 PM [vite] (ssr) page reload src/lib/desk-layouts.ts
+11:37:19 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/anime-release-watchlist.tsx
+11:37:19 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/chart-data-table.tsx
+11:37:19 PM [vite] (client) hmr update /src/styles.css?direct
+11:37:19 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/desk-layout-panel.tsx
+11:37:19 PM [vite] (ssr) page reload src/components/library/desk-layout-panel.tsx
+11:37:19 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/chart-data-table.tsx
+11:37:20 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/anime-release-watchlist.tsx
+11:37:35 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/anime-release-watchlist.tsx
+11:37:36 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/anime-release-watchlist.tsx
+11:38:08 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+11:35:45 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:38:44 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-queue-panel.tsx
+11:38:44 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-video-search.tsx
+11:38:44 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:42:08 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:42:08 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-video-search.tsx
+11:45:50 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-guest-arrival.tsx
+11:45:51 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:45:51 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-guest-arrival.tsx
+11:45:51 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-guest-drafts.tsx
+11:45:51 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-guest-drafts.tsx
+11:46:52 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-guest-drafts.tsx
+11:49:17 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-queue-panel.tsx
+11:49:18 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:49:18 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+11:50:05 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:50:07 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:50:07 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-guest-drafts.tsx
+11:50:07 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:51:48 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+11:51:48 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/room-guest-arrival.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+11:58:32 AM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+12:01:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+12:01:48 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+AbortError: This operation was aborted
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    ... 8 lines matching cause stack trace ...
+    at TCP.<anonymous> (node:net:362:12) {
+  cause: DOMException [AbortError]: This operation was aborted
+      at new DOMException (node:internal/per_context/domexception:76:18)
+      at AbortController.abort (node:internal/abort_controller:579:18)
+      at abort (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:316:51)
+      at ServerResponse.<anonymous> (file:///E:/codex/drift-brick-terra-acorn/node_modules/srvx/dist/adapters/node.mjs:320:35)
+      at ServerResponse.wrapper (node:events:639:12)
+      at ServerResponse.emit (node:events:514:28)
+      at emitCloseNT (node:_http_server:1156:10)
+      at Socket.onServerResponseClose (node:_http_server:292:5)
+      at Socket.emit (node:events:526:24)
+      at TCP.<anonymous> (node:net:362:12),
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}
+12:04:08 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/watch-room-section.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+12:54:57 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/restore-boundary.tsx, /src/components/library/catalog-writer-status.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/desk-taste-control.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/follow-manager.tsx, /src/components/library/video-card.tsx and 83 more
+12:54:57 PM [vite] (ssr) page reload src/lib/videos/film-review.ts
+12:54:57 PM [vite] (ssr) program reload
+12:54:57 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/restore-boundary.tsx, /src/components/library/library-app.tsx, /src/components/library/film-review.tsx, /src/components/library/library-pack-transfer.tsx
+12:54:57 PM [vite] (ssr) page reload src/lib/film-review-store.ts
+12:59:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-desk.tsx
+12:59:14 PM [vite] (ssr) page reload src/lib/videos/movie-selection.ts
+12:59:14 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-desk.tsx
+12:59:14 PM [vite] (ssr) page reload src/components/library/movie-desk.tsx
+12:59:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/anime-review.tsx
+1:00:31 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/restore-boundary.tsx, /src/components/library/library-app.tsx, /src/components/library/film-review.tsx, /src/components/library/library-pack-transfer.tsx
+1:00:31 PM [vite] (ssr) page reload src/lib/film-review-store.ts
+1:01:43 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/restore-boundary.tsx, /src/components/library/catalog-writer-status.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/desk-taste-control.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/follow-manager.tsx, /src/components/library/video-card.tsx and 83 more
+1:01:43 PM [vite] (ssr) page reload src/lib/videos/film-review.ts
+1:09:18 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:09:18 PM [vite] (ssr) page reload src/components/library/movie-import-desk.tsx
+1:09:18 PM [vite] (ssr) program reload
+1:09:18 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-desk.tsx
+1:09:18 PM [vite] (ssr) page reload src/components/library/movie-desk.tsx
+1:12:22 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:12:22 PM [vite] (ssr) page reload src/lib/videos/movie-import.ts
+1:12:22 PM [vite] (ssr) program reload
+1:12:22 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-desk.tsx, /src/components/library/movie-import-desk.tsx
+1:12:22 PM [vite] (ssr) page reload src/lib/movie-collections.ts
+1:12:22 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:12:22 PM [vite] (ssr) page reload src/components/library/movie-import-desk.tsx
+1:12:22 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/restore-boundary.tsx, /src/components/library/library-app.tsx, /src/components/library/film-review.tsx, /src/components/library/movie-import-desk.tsx, /src/components/library/library-pack-transfer.tsx
+1:12:22 PM [vite] (ssr) page reload src/lib/film-review-store.ts
+1:13:21 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:13:21 PM [vite] (ssr) page reload src/lib/videos/movie-import.ts
+1:13:21 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-desk.tsx, /src/components/library/movie-import-desk.tsx
+1:13:21 PM [vite] (ssr) page reload src/lib/movie-collections.ts
+1:13:21 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:13:21 PM [vite] (ssr) page reload src/components/library/movie-import-desk.tsx
+1:15:24 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/restore-boundary.tsx, /src/components/library/catalog-writer-status.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/desk-taste-control.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/follow-manager.tsx, /src/components/library/video-card.tsx and 86 more
+1:15:24 PM [vite] (ssr) page reload src/lib/videos/film-review.ts
+1:15:24 PM [vite] (ssr) program reload
+1:18:57 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:18:57 PM [vite] (ssr) page reload src/components/library/movie-import-desk.tsx
+1:18:57 PM [vite] (ssr) program reload
+1:20:21 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/mission-plan-section.tsx
+1:20:47 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:20:47 PM [vite] (ssr) page reload src/components/library/movie-import-desk.tsx
+1:20:47 PM [vite] (ssr) program reload
+1:22:07 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:22:07 PM [vite] (ssr) page reload src/components/library/movie-import-desk.tsx
+1:22:07 PM [vite] (ssr) program reload
+1:23:04 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/restore-boundary.tsx, /src/components/library/catalog-writer-status.tsx, /src/components/library/youtube-offline-audit.tsx, /src/components/library/library-app.tsx, /src/components/library/favorite-collections.tsx, /src/components/library/provider-recent-section.tsx, /src/components/library/desk-taste-control.tsx, /src/components/library/landing-shelves.tsx, /src/components/library/follow-manager.tsx, /src/components/library/video-card.tsx and 86 more
+1:23:04 PM [vite] (ssr) page reload src/lib/videos/library-restore-repository.ts
+1:23:05 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:23:05 PM [vite] (ssr) page reload src/components/library/movie-import-desk.tsx
+1:23:08 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:23:08 PM [vite] (ssr) page reload src/components/library/movie-import-desk.tsx
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+1:29:22 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/series-progress-panel.tsx
+1:29:23 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/anime-review.tsx
+1:30:58 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:30:58 PM [vite] (ssr) page reload src/lib/videos/movie-import.ts
+1:30:58 PM [vite] (ssr) program reload
+TanStack Start server functions are not protected by the CSRF middleware.
+
+Server functions are same-origin RPC endpoints and should be protected from cross-site requests.
+
+Add the CSRF middleware in src/start.ts:
+
+  const csrfMiddleware = createCsrfMiddleware({
+    filter: (ctx) => ctx.handlerType === 'serverFn',
+  })
+
+  export const startInstance = createStart(() => ({
+    requestMiddleware: [csrfMiddleware],
+  }))
+
+If you intentionally handle CSRF another way, disable this warning:
+
+  tanstackStart({
+    serverFns: {
+      disableCsrfMiddlewareWarning: true,
+    },
+  })
+1:35:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/series-progress-panel.tsx
+1:35:44 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:35:44 PM [vite] (ssr) page reload src/components/library/movie-import-desk.tsx
+1:35:44 PM [vite] (ssr) program reload
+1:38:59 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:38:59 PM [vite] (ssr) page reload src/lib/videos/movie-import.ts
+1:38:59 PM [vite] (ssr) program reload
+1:39:00 PM [vite] (client) hmr update /src/styles.css?direct, /src/components/library/movie-import-desk.tsx
+1:39:00 PM [vite] (ssr) page reload src/components/library/movie-import-desk.tsx

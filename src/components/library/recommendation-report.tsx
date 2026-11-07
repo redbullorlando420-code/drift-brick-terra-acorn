@@ -1,3 +1,4 @@
+import {GuideDiversitySummary} from './guide-diversity-control';
 import {useEffect,useState,useSyncExternalStore} from 'react';
 import {Button} from '@/components/ui/button';
 import {distributionExport,summarizeDistribution,type Distribution} from '@/lib/videos/recommendation-report';
@@ -13,7 +14,7 @@ export function GuideOutputReport({distribution,shelf}:{distribution:Distributio
  const entries=useReports();
  useEffect(()=>publishRecommendationReport(shelf,distribution),[shelf,distribution]);
  const entry=entries.find(row=>row.shelf===shelf&&row.distribution===distribution);
- return entry?<OutputReport entry={entry}/>:null;
+ return entry?<><GuideDiversitySummary report={distribution.diversity}/><OutputReport entry={entry}/></>:null;
 }
 
 export function RecommendationReports(){
@@ -34,6 +35,7 @@ function OutputReport({entry}:{entry:ReportEntry}){
   <div data-report-metrics className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">{[
    ['Unique titles',summary.uniqueTitles+' / '+n],['Repeated in output',String(summary.repeatedWithin)],['No recorded history or recent exposure',summary.novel+' / '+n],['Repeated from previous '+entry.shelf,summary.repeatedFromPrevious===null?'No previous output':summary.repeatedFromPrevious+' / '+summary.uniqueTitles],
   ].map(([title,value])=><div key={title} className="min-w-0 rounded-lg bg-bg p-3"><p className="text-xs leading-5 text-muted">{title}</p><p className="mt-1 text-lg font-medium tabular-nums">{value}</p></div>)}</div>
+  {data.publicationAge&&<p data-report-age className="mt-3 text-xs leading-5 text-muted">Selected publication age: {data.publicationAge.older} at least 365 days old · {data.publicationAge.recent} recent · {data.publicationAge.unknown} unknown or uncertain. Publication evidence never falls back to a local download clock.</p>}
   <p className="mt-3 text-xs leading-5 text-muted">{summary.recorded} slots have recorded history · {summary.recentlyExposed} have valid exposure in the last 30 days, including protected favorites. “No recorded history or recent exposure” is evidence-limited novelty, not proof you have never seen a title. Repeats compare canonical media IDs, not similar titles. Previous output means the prior generated shelf of this kind, even if its filters differed.</p>
   <div className="mt-4 grid gap-4 lg:grid-cols-2"><div><h3 className="text-sm font-medium">Provider share</h3><div className="mt-2 space-y-3">{data.sources.filter(row=>row.available||row.shown).map(row=><div key={row.source} data-report-provider={row.source}><div className="flex flex-wrap justify-between gap-2 text-xs"><span>{label(row.source)}</span><span className="text-muted">{row.shown} / {n} · {percent(row.shown,n)} · {row.available.toLocaleString()} available rows</span></div><meter className="mt-1 h-3 w-full accent-accent" min={0} max={Math.max(1,n)} value={row.shown} aria-label={label(row.source)+' output share'}/></div>)}</div></div>
   <div><h3 className="text-sm font-medium">Creator share · anonymous groups</h3><p className="mt-1 text-xs leading-5 text-muted">Grouped by provider-scoped creator ID, falling back to a normalized creator name. Names and title samples are omitted. Local folder names are not creator credits.</p><div className="mt-2 space-y-2">{data.creators.map(row=><p data-report-creator key={row.bucket} className="text-xs leading-5">Creator {row.bucket} · {label(row.source)} · {row.shown} / {n} ({percent(row.shown,n)}) · {row.available===null?'unknown availability':row.available+' available rows'}</p>)}<p className="text-xs text-muted">{data.unknownCreators} / {n} slots and {data.unknownCandidateCreators} eligible rows lack creator credits; unknown alternatives cannot prove creator diversity.</p></div></div></div>

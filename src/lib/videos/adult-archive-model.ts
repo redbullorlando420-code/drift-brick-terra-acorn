@@ -1,4 +1,5 @@
 import { ADULT_PULL_PROVIDERS, type AdultPullProvider } from "./adult-providers.ts";
+import {validArchiveYield,type ArchiveYield} from './archive-yield.ts';
 export const ARCHIVE_LEDGER_KEY = "adult-archive-cursors:v1";
 export const ARCHIVE_POSITION_LIMIT = 512;
 export const ADULT_ARCHIVE_ORDERS = [
@@ -9,6 +10,7 @@ export const ADULT_ARCHIVE_ORDERS = [
   "top-weekly",
 ] as const;
 export type AdultArchiveCursor = {
+  yield?: ArchiveYield;
   page: number;
   query: string;
   order: string;
@@ -31,6 +33,7 @@ export type ArchivePosition = {
 };
 export type ArchiveLedger = { version: 1; positions: Record<string, ArchivePosition> };
 export type ArchiveCheckpoint = {
+  observeYield?: boolean;
   version: 1;
   provider: AdultPullProvider;
   query: string;
@@ -68,9 +71,11 @@ export function validArchiveCursor(value: unknown): value is AdultArchiveCursor 
           "received",
           "rewound",
           "checkpointId",
+          "yield",
         ].includes(key),
     ) ||
     (row.rewound !== undefined && typeof row.rewound !== "boolean")
+    || (row.yield!==undefined && !validArchiveYield(row.yield))
   )
     return false;
   return (
@@ -125,6 +130,7 @@ export function validArchiveCheckpoint(value: unknown): value is ArchiveCheckpoi
   return (
     !!row &&
     row.version === 1 &&
+    (row.observeYield===undefined||typeof row.observeYield==='boolean') &&
     (ADULT_PULL_PROVIDERS as readonly string[]).includes(row.provider) &&
     typeof row.query === "string" &&
     row.query === archiveQuery(row.query) &&

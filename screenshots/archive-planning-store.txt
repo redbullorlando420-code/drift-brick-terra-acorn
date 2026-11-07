@@ -1,0 +1,18 @@
+✔ Adult pulls apply a lowered in-flight cap before tags and append transactions (190.9497ms)
+✔ removed cached Reddit images and confirmed unavailable photos leave Adult shelves without deleting saves (2.0078ms)
+✔ Adult pulls rotate at full capacity across providers, retain protected entries and stop at the whole-pull budget (1009.7891ms)
+✔ automatic Adult pulls stop at the archived-video goal while manual pulls can use the larger source cap (345.2787ms)
+✔ photos and room cards do not prematurely fill the automatic video goal; accepted refreshes retain manual tags (401.0384ms)
+✔ Adult multi-window pulls save accepted rows before a later failure and retain the latest resume page (279.5004ms)
+✔ a live check during an Adult pull preserves that pull owner and newer state wins a delayed reply (94.8411ms)
+✔ explicitly saved live rooms persist one descriptor with Adult isolation, without copying unrelated saved records (92.1007ms)
+✔ Adult automatic window closure preserves accepted pages without manufacturing provider failures (1303.7946ms)
+✔ saved archive hours hold scheduled YouTube and Twitch turns before source preparation (2.5451ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4268.6567

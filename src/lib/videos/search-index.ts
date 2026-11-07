@@ -1,36 +1,10 @@
 import { aliasLabel,aliasSearchTerms,getTopicAliases,reviewedTopic } from './topic-aliases.ts';
 import type { LibraryVideo } from "./types";
-import { topicsForVideo } from './topics';
+import { topicsForVideo } from './topics.ts';
 import { forEachCatalogSlice, yieldCatalogTask } from '../catalog-work.ts';
 
-/** Tokenize for indexed search: lowercase alphanumerics, keep path-ish separators as splits. */
-export function tokenize(text: string): string[] {
-  const out: string[] = [];
-  const lower = text.toLowerCase();
-  let start = -1;
-  for (let i = 0; i <= lower.length; i++) {
-    const ch = lower.charCodeAt(i);
-    const isWord =
-      i < lower.length &&
-      ((ch >= 48 && ch <= 57) || (ch >= 97 && ch <= 122) || ch === 95 || ch === 45);
-    if (isWord) {
-      if (start < 0) start = i;
-    } else if (start >= 0) {
-      if (i - start >= 1) {
-        const token = lower.slice(start, i);
-        out.push(token);
-        // Also emit hyphen/underscore segments so "fetish-amateur" matches either form.
-        if (token.includes("-") || token.includes("_")) {
-          for (const part of token.split(/[-_]+/)) {
-            if (part.length >= 1) out.push(part);
-          }
-        }
-      }
-      start = -1;
-    }
-  }
-  return out;
-}
+import { searchText, searchTokens } from "./search-text.ts";
+export const tokenize = searchTokens;
 
 function haystackFor(
   video: LibraryVideo,
@@ -59,7 +33,7 @@ function haystackFor(
  * full inverted index (and its per-document token arrays) on the UI thread. */
 export async function searchCatalog(videos: readonly LibraryVideo[], tags: Record<string, string[]>,
   categories: Record<string, string>, query: string, signal?: AbortSignal, reviewed = true) {
-  const needle = query.trim().toLowerCase().replace(/^#/, '');
+  const needle = searchText(query.trim()).replace(/^#/, '');
   const ledger = reviewed ? getTopicAliases() : undefined;
   const wanted = ledger?.entries.some(row=>row.alias===aliasLabel(needle)) ? [aliasLabel(needle)] : tokenize(needle), matches = new Set<string>(), exact = new Set<string>();
   const compound = (needle.includes('-') || /^(?:fetish|genre|meta|creator|sub|source)-/.test(needle)) && !aliasSearchTerms(needle,ledger??{version:1,updatedAt:0,entries:[]}).length;
@@ -68,9 +42,9 @@ export async function searchCatalog(videos: readonly LibraryVideo[], tags: Recor
   if (!wanted.length || signal?.aborted) return matches;
   await forEachCatalogSlice(videos, video => {
     if (signal?.aborted) return;
-    if (compound && (tags[video.id] ?? []).some(tag => shortcuts.has(tag.toLowerCase()))) exact.add(video.id);
+    if (compound && (tags[video.id] ?? []).some(tag => shortcuts.has(searchText(tag)))) exact.add(video.id);
     const words = tokenize(haystackFor(video, tags, categories, reviewed));
-    if (wanted.every(word => words.some(token => token === word || token.startsWith(word) || word.length >= 4 && token.includes(word)) || ledger && aliasSearchTerms(word,ledger).some(term=>(tags[video.id]??[]).some(tag=>tag.toLowerCase()===term) || topicsForVideo(video,tags[video.id]).includes(term)))) matches.add(video.id);
+    if (wanted.every(word => words.some(token => token === word || token.startsWith(word) || word.length >= 4 && token.includes(word)) || ledger && aliasSearchTerms(word,ledger).some(term=>(tags[video.id]??[]).some(tag=>searchText(tag)===term) || topicsForVideo(video,tags[video.id]).includes(term)))) matches.add(video.id);
   }, async () => {
     if (signal?.aborted) throw signal.reason;
     await yieldCatalogTask();
@@ -110,7 +84,7 @@ export class VideoSearchIndex {
       if (!set.size) this.byToken.delete(token);
     }
     this.docTokens.delete(id);
-    for (const tag of new Set((this.tagsRef?.[id] ?? []).map((entry) => entry.toLowerCase()))) {
+    for (const tag of new Set((this.tagsRef?.[id] ?? []).map((entry) => searchText(entry)))) {
       const ids = this.idsByTag.get(tag);
       ids?.delete(id);
       if (!ids?.size) this.idsByTag.delete(tag);
@@ -131,7 +105,7 @@ export class VideoSearchIndex {
   }
 
   private linkTags(id: string, tags: string[]) {
-    const normalized = [...new Set(tags.map((tag) => tag.toLowerCase()))];
+    const normalized = [...new Set(tags.map((tag) => searchText(tag)))];
     for (const tag of normalized) {
       let ids = this.idsByTag.get(tag);
       if (!ids) { ids = new Set(); this.idsByTag.set(tag, ids); }
@@ -213,7 +187,7 @@ export class VideoSearchIndex {
 
   /** Matching video ids, or null when query is empty (caller keeps full list). */
   search(query: string): Set<string> | null {
-    const needle = query.trim().toLowerCase().replace(/^#/, "");
+    const needle = searchText(query.trim()).replace(/^#/, "");
     if (!needle) return null;
     // Exact tag / compound shortcut: a clicked chip like "fetish-amateur" must
     // hit even when the catalog only has that one title.

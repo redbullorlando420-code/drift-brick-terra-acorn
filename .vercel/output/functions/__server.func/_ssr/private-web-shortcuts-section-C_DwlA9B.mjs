@@ -5,7 +5,7 @@ import { t as Button } from "./button-BBe1bZ7q.mjs";
 import { c as profileLocalStorage } from "./local-profile-storage-YmNvgtyc.mjs";
 import { t as createLocalId } from "./local-id-CsDq4efR.mjs";
 import { I as Rocket } from "../_libs/lucide-react.mjs";
-import { _t as Input } from "./library-app-CdyqOeNr.mjs";
+import { pn as Input } from "./library-app-3PBwf-4D.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/private-web-shortcuts-section-C_DwlA9B.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();

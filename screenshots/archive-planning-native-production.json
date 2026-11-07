@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "report": {
+    "checks": [
+      "Legacy sort positions migrate and accepted rows advance in IndexedDB despite a full preference mirror",
+      "Interruption at stage preserves the accepted prefix and exact old cursor; recovery/replay retains manual metadata",
+      "Interruption at prepared preserves the accepted prefix and exact old cursor; recovery/replay retains manual metadata",
+      "Interruption at row preserves the accepted prefix and exact old cursor; recovery/replay retains manual metadata",
+      "Interruption at checkpoint preserves the accepted prefix and exact old cursor; recovery/replay retains manual metadata",
+      "Interruption at commit preserves the accepted prefix and exact old cursor; recovery/replay retains manual metadata",
+      "A stale checkpoint cannot replace a newer committed position or poison journal recovery",
+      "Durable yield observations roll back with failed checkpoints and replaying the same token cannot count them twice",
+      "Retention-blocked windows keep provider scores unchanged; the next accepted window starts the yield observation",
+      "Future ledger versions fail closed while catalog rows and the unsupported document are preserved",
+      "Reload restores the durable page/offset over a stale quota-blocked preference mirror",
+      "A second saved profile starts with no foreign archive positions; its changes leave Default checkpoints intact",
+      "Automatic archive windows persist independently in saved profiles across actual selection reloads"
+    ],
+    "errors": []
+  }
+}

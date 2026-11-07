@@ -84,7 +84,8 @@ test("exports canonicalize YouTube variants and Twitch VOD, clip and live routes
     live: true,
     duration: 500,
   };
-  assert.deepEqual(publicSessionItem(live), {
+  assert.equal(publicSessionItem(live), undefined);
+  assert.deepEqual(publicSessionItem({...live,watchUrl:"https://www.twitch.tv/NotYoda?token=SECRET"}), {
     provider: "twitch",
     url: "https://www.twitch.tv/notyoda",
     title: "Public Twitch",

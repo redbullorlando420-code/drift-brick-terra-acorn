@@ -1,0 +1,16 @@
+✔ 100 append-only milestones retain evidenced completions across 20 roadmap tracks (55.8916ms)
+✔ every dependency exists, is distinct and precedes its dependent milestone (0.3384ms)
+✔ the new batch appends exactly once and preserves old manual decisions and custom notes (5.9455ms)
+✔ revision 94 promotes only the desk/novelty pair and preserves earlier reopens (2.7238ms)
+✔ revision 95 promotes isolation, provenance and diversity only and preserves previous reopens (1.8698ms)
+✔ new-batch filters use exact membership and preserve the historical first batch (0.2219ms)
+✔ new-batch exports resolve old dependencies and retain current status and external requirements (1.8548ms)
+✔ checked-in new and combined roadmaps reproduce from the executable definitions (5.5138ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 210.7154

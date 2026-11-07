@@ -1,0 +1,1 @@
+{"ok":true,"output":"E:\\codex\\drift-brick-terra-acorn\\screenshots\\desk-taste-production.json"}

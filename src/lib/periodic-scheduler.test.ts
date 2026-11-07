@@ -117,3 +117,12 @@ test('invalid intervals fail before registering a timer', () => {
   for (const everyMs of [0, -1, NaN, Infinity]) assert.throws(() => h.scheduler.register({ name: 'invalid', everyMs, work() {} }));
   assert.equal(h.scheduler.snapshot().tasks, 0); assert.equal(h.timers.size, 0);
 });
+
+test('scheduled work windows share one timer and missed intervals never form a catch-up queue',()=>{
+ const h=harness();let opens=100000,calls=0;
+ const task=h.scheduler.register({name:'archive window',everyMs:15000,firstMs:0,notBefore:()=>opens,work:()=>calls++});
+ h.advance(99999);assert.equal(calls,0);assert.equal(h.timers.size,1);
+ h.advance(1);assert.equal(calls,1);
+ h.suspend(true);h.advance(86400000*3);opens=0;h.suspend(false);h.advance(0);assert.equal(calls,2);
+ task.cancel();assert.equal(h.timers.size,0);
+});

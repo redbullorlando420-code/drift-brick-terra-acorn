@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Default ranking remains intact until explicit Apply; creator/source/publication floors change real picks and exclude private content",
+        "Exact-field owner/provider/conflict/missing provenance; no stale excerpts after new questions; constrained queries report infeasibility; aggregate download omits identities",
+        "Session/reset/reload and alternate profile verified; adversarial Alpha private tastes and released held ranking leave Beta Home/topics/room/Guide projections, reasons, weights and aggregate report unchanged"
+      ],
+      "errors": []
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Default ranking remains intact until explicit Apply; creator/source/publication floors change real picks and exclude private content",
+        "Exact-field owner/provider/conflict/missing provenance; no stale excerpts after new questions; constrained queries report infeasibility; aggregate download omits identities",
+        "Session/reset/reload and alternate profile verified; adversarial Alpha private tastes and released held ranking leave Beta Home/topics/room/Guide projections, reasons, weights and aggregate report unchanged"
+      ],
+      "errors": []
+    }
+  ],
+  "limitation": "Disposable profiles and saved metadata; real provider playback and physical-phone timing are outside this fixture."
+}

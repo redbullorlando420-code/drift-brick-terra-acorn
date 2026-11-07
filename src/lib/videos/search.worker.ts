@@ -12,33 +12,10 @@ const documentIds: string[] = [];
 let activeAliases=EMPTY_TOPIC_ALIASES;
 const tokenQuery = createSearchTokenQuery(byToken, () => documentIds.length, 2*1024*1024,24,(token,visit)=>{for(const key of aliasSearchTerms(token,activeAliases)){idsByTag.forEach(key,visit);if(key===activeAliases.entries.find(row=>row.alias===aliasLabel(token))?.topic)byToken.forEach(key,visit);}});
 
-function tokens(text: string) {
-  const out: string[] = [];
-  const lower = text.toLowerCase();
-  let start = -1;
-  for (let i = 0; i <= lower.length; i++) {
-    const ch = lower.charCodeAt(i);
-    const isWord =
-      i < lower.length &&
-      ((ch >= 48 && ch <= 57) || (ch >= 97 && ch <= 122) || ch === 95 || ch === 45);
-    if (isWord) {
-      if (start < 0) start = i;
-    } else if (start >= 0) {
-      if (i - start >= 1) {
-        const token = lower.slice(start, i);
-        out.push(token);
-        if (token.includes("-") || token.includes("_")) {
-          for (const part of token.split(/[-_]+/)) if (part) out.push(part);
-        }
-      }
-      start = -1;
-    }
-  }
-  return out;
-}
+import { searchText, searchTokens as tokens } from "./search-text.ts";
 
 function search(query: string) {
-  const needle = query.trim().toLowerCase().replace(/^#/, "");
+  const needle = searchText(query.trim()).replace(/^#/, "");
   if (!needle) return [] as number[];
   if ((needle.includes("-") || /^(?:fetish|genre|meta|creator|sub|source)-/.test(needle)) && !aliasSearchTerms(needle,activeAliases).length) {
     const exact: number[] = [];
@@ -98,7 +75,7 @@ self.onmessage = ({
     for (const { video: v, tags, category } of data.batch) {
       const ordinal = documentIds.length;
       documentIds.push(v.id);
-      for (const tag of new Set(tags.map((entry) => entry.toLowerCase()))) {
+      for (const tag of new Set(tags.map((entry) => searchText(entry)))) {
         idsByTag.add(tag, ordinal);
       }
       const text = [

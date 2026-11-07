@@ -1,0 +1,43 @@
+✔ optional provider estimates stay separate from loaded cards and malformed totals remain unknown (2.4805ms)
+✔ room search pages beyond twenty results without mounting the whole catalog (4.1329ms)
+✔ a cancelled rare search stops before publishing stale results (7.8843ms)
+✔ watch history survives serialization, includes current title and deduplicates provider aliases (3.481ms)
+✔ history is bounded and rejects corrupt, oversized, future and unsafe media (5.5774ms)
+✔ public YouTube search reads only video results and the primary continuation (1.6551ms)
+✔ search continuation parses independently and malformed input cannot choose an upstream URL (0.6935ms)
+✔ publication evidence accepts exact dates and rejects relative, scheduled-era and calendar overflow values (3.3411ms)
+✔ RSS provenance prevents synthetic-description repair from erasing a real date and survives compact/disk details (0.639ms)
+✔ shallow refreshes retain RSS dates, formats and current live evidence; exact RSS corrections win (160.7371ms)
+✔ format and date-source repairs are published even when title and epoch stay equal (108.8359ms)
+✔ format evidence comes from provider fields, never video duration or title words (0.8309ms)
+✔ old and modern Shorts/lockup renderers retain format, live and upcoming evidence (2.1263ms)
+✔ cooperative groups isolate live/upcoming cards, share stable records, preserve order and cancel cleanly (14.4016ms)
+✔ unknown publication dates sort last and never become creator freshness or cached-upload coverage (5.6664ms)
+✔ RSS/archive success preserves live state; a successful live check records a durable completed stream (210.0025ms)
+✔ actual RSS and archive paths retain publication provenance and format evidence with no fake current dates (42.2325ms)
+✔ actual live checks supply a separate observation signal and no publication timestamp (82.3233ms)
+✔ direct oEmbed imports keep publication unknown and explicit Shorts URLs retain their format (2.0092ms)
+✔ listing relative labels are bounded evidence, never inferred epochs; live and upcoming fields do not supply publication (3.5722ms)
+✔ exact day and timestamp precision remain distinct and UTC anchored; malformed instants are rejected (2.8879ms)
+✔ relative, unknown, scheduled and weaker day-only repairs cannot overwrite a known precise publication (0.9855ms)
+✔ selected watch repairs require matching canonical identity and can upgrade a day or relative label (0.6939ms)
+✔ HTML-only dates require the matching official canonical page, never a recommended watch link or blocked player (3.2993ms)
+✔ compact/disk/JSON export retain precision, source and label evidence, and sparse refreshes preserve approximate evidence (119.0911ms)
+✔ overlapping days and unknown labels have stable identity ties across JSON reload and later clocks (1.3608ms)
+✔ day precision and stable ordering use identical epochs under opposite device time zones (263.4274ms)
+✔ completed snapshot, pending index, loaded page and provider estimate carry different evidence (33.3558ms)
+✔ unknown, malformed and future evidence never fabricates zero or a complete total (0.3231ms)
+✔ date range round-trips without changing legacy version 1 query fields (10.464ms)
+✔ a local video added today and an old provider publication use separate clocks (0.4462ms)
+✔ unknown, relative, scheduled and unproven clocks remain selectable without fabricated dates (0.2118ms)
+✔ day and instant precision respect UTC boundaries regardless of viewer timezone (0.1971ms)
+✔ partial years/months overlap ranges, may be excluded, and survive weaker refreshes without becoming exact (0.766ms)
+✔ sparse structured date matching reads only candidate rows and keeps source identity (1.5343ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1166.5919
