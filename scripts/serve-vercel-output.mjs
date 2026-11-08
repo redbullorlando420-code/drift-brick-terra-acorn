@@ -36,7 +36,7 @@ function staticFileFor(pathname) {
   return existsSync(candidate) && statSync(candidate).isFile() ? candidate : null;
 }
 
-const server = createServer(async (req, res) => {
+export const server = createServer(async (req, res) => {
   const origin = `http://${req.headers.host ?? `127.0.0.1:${port}`}`;
   const url = new URL(req.url ?? "/", origin);
   const staticFile = staticFileFor(url.pathname);
@@ -57,9 +57,12 @@ const server = createServer(async (req, res) => {
     // receive after a real proxy hop.
     headers.set("x-forwarded-host", req.headers.host ?? `127.0.0.1:${port}`);
     const method = req.method ?? "GET";
+    const controller = new AbortController();
+    res.once("close", () => { if (!res.writableFinished) controller.abort(); });
     const request = new Request(url, {
       method,
       headers,
+      signal: controller.signal,
       ...(method === "GET" || method === "HEAD" ? {} : { body: req, duplex: "half" }),
     });
     const response = await handler.fetch(request, { waitUntil: () => undefined });

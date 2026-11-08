@@ -1,5 +1,6 @@
 import { describeRoomMedia, resolveRoomMedia, roomMediaKey, type RoomMediaDescriptor } from './room-media.ts';
 import { ROOM_QUEUE_LIMIT } from './room-queue.ts';
+import { isRoomRepeat } from './room-duplicates.ts';
 
 export const ROOM_QUEUE_DRAFT_KEY = 'reelcase.watch-room.queue.v1';
 export type RoomQueueDraft = { version: 1; savedAt: number; media: RoomMediaDescriptor[] };
@@ -11,12 +12,12 @@ export function roomRecentMedia(values: readonly unknown[]): RoomMediaDescriptor
 }
 /** Recovery contains public provider links only, never local names, paths,
  * fingerprints, file bytes, peer identities or transient stream addresses. */
-export function roomQueueDraft(values: readonly unknown[], savedAt = Date.now()): RoomQueueDraft {
+export function roomQueueDraft(values: readonly unknown[], savedAt = Date.now(), keepReviewedRepeats = false): RoomQueueDraft {
   const media: RoomMediaDescriptor[] = [], seen = new Set<string>();
   for (const value of values.slice(0, ROOM_QUEUE_LIMIT)) {
     const resolved = resolveRoomMedia(value);
     if (!resolved?.video?.remote) continue;
-    const key = roomMediaKey(resolved.video);
+    const key = keepReviewedRepeats && isRoomRepeat(resolved.video.id) ? "slot:"+resolved.video.id : roomMediaKey(resolved.video);
     if (seen.has(key)) continue;
     seen.add(key);
     const clean = describeRoomMedia(resolved.video)!;
@@ -31,7 +32,7 @@ export function readRoomQueueDraft(value: string | null): RoomQueueDraft | undef
   try {
     const data = JSON.parse(value);
     if (data?.version !== 1 || !Array.isArray(data.media) || typeof data.savedAt !== 'number' || !Number.isFinite(data.savedAt) || data.savedAt <= 0) return;
-    const draft = roomQueueDraft(data.media, data.savedAt);
+    const draft = roomQueueDraft(data.media, data.savedAt, true);
     return draft.media.length ? draft : undefined;
   } catch { return; }
 }

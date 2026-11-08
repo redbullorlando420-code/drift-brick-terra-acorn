@@ -1,11 +1,14 @@
 import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
 import {SetupChecklist} from './setup-checklist';
 import { ArrowRight, Box, ChevronDown, Clapperboard, Heart, LayoutDashboard, Lock, MonitorPlay, Radio, Settings2, Sparkles, Users } from 'lucide-react';
-import { useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useLibrary } from '@/lib/videos/store';
 import { markHomeReady } from '@/lib/first-shelf-trace';
 import type { SourceId } from '@/lib/videos/types';
+import { currentProfileId } from '@/lib/local-profile-storage';
+import { takeProfileArrival } from '@/lib/profile-arrival';
+import { useLocalProfiles } from './use-local-profiles';
 
 const GROUPS = [
   { id: 'watch', title: 'Watch & discover', detail: 'Channels, films, and something new.', icon: Clapperboard, open: false, links: [
@@ -34,6 +37,9 @@ const QUICK = [['continue', 'Continue watching', MonitorPlay], ['live', 'Live no
 export function LightHome({onAddFolder}:{onAddFolder?:()=>void}) {
   const setSource = useLibrary(s => s.setSource);
   const [ready, setReady] = useState(false);
+  const [arrived,setArrived]=useState(false),heading=useRef<HTMLHeadingElement>(null);
+  const active=currentProfileId(),registry=useLocalProfiles();
+  const profile=registry.profiles.find(row=>row.id===active);
   const [groups, setGroups] = useState<Record<string, boolean>>(() => Object.fromEntries(GROUPS.map(group => [group.id, 'open' in group && group.open])));
   useLayoutEffect(() => {
     try {
@@ -41,12 +47,19 @@ export function LightHome({onAddFolder}:{onAddFolder?:()=>void}) {
       if (saved && typeof saved === 'object') setGroups(current => Object.fromEntries(GROUPS.map(group => [group.id, typeof saved[group.id] === 'boolean' ? saved[group.id] : current[group.id]])));
     } catch { /* Default navigation works without storage. */ }
     markHomeReady(); setReady(true);
+    try{
+      if(takeProfileArrival(window.sessionStorage,active)){
+        heading.current?.focus();
+        setArrived(true);
+      }
+    }catch{/* Home stays usable when session storage is blocked. */}
   }, []);
   const go = (id: string) => { setSource(id as SourceId); window.scrollTo({ top: 0, behavior: 'instant' }); };
   return <section aria-label="Quick Home" data-home-ready={ready} className="mx-auto max-w-6xl py-6 sm:py-10">
     <div className="rounded-2xl border border-border bg-surface p-5 sm:p-8">
       <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-accent"><Box className="size-4" aria-hidden="true" /> Realhub · Your workspace</div>
-      <h1 className="mt-4 font-display text-4xl text-fg sm:text-5xl">Make yourself at Home.</h1>
+      <h1 ref={heading} tabIndex={-1} className="mt-4 scroll-mt-4 rounded-sm font-display text-4xl text-fg outline-none focus:ring-2 focus:ring-accent sm:text-5xl">Make yourself at Home.</h1>
+      <p role="status" aria-atomic="true" data-profile-arrival className="sr-only">{arrived&&profile?`Active profile: ${profile.name}. Home is ready.`:arrived&&registry.status==="error"?"Your local profile is open. Home is ready.":""}</p>
       <p className="mt-3 max-w-xl text-sm leading-6 text-muted">Pick up a video, find a live stream, or open a workspace. Everything has a place below.</p>
       <div aria-label="Home shortcuts" className="mt-6 flex flex-wrap gap-2">
         {QUICK.map(([id, title, Icon], index) => <Button key={id} variant={index === 0 ? 'default' : 'secondary'} className="min-h-11" onClick={() => go(id)}><Icon className="size-4" aria-hidden="true" />{title}</Button>)}

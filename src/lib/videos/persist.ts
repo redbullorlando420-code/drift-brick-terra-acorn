@@ -115,6 +115,8 @@ const catalogMutations=createCatalogMutations(openDb,catalogWriter);
 export function recoverCatalogMutations(){return catalogMutations.recover();}
 export function saveCatalogMetadataEdit(row:Parameters<typeof catalogMutations.edit>[0]){return catalogMutations.edit(row);}
 export function restoreCatalogMetadata(base:Parameters<typeof catalogMutations.restore>[0]){return catalogMutations.restore(base);}
+export const readBulkTagUndo = catalogMutations.readBulkTags;
+export const commitBulkTags = catalogMutations.bulkTags;
 const storageRecovery=createStorageRecovery(openDb);
 export const previewStorageCleanup=storageRecovery.preview;
 export const cancelStorageCleanup=storageRecovery.cancel;
@@ -986,6 +988,8 @@ export type StoredDir = {
   name: string;
   handle: FileSystemDirectoryHandle;
 };
+export type ForgottenDir = {id:string;name:string;forgotten:true};
+export type DirectoryGrantRecord = StoredDir|ForgottenDir;
 
 /** Small, durable source summary. This is intentionally metadata only: no raw file paths or blobs. */
 export type StoredSourceHealth = Pick<Folder, "id" | "health" | "lastCheckedAt" | "videoCount">;
@@ -1105,16 +1109,48 @@ async function saveDirHandleOwned(entry: StoredDir): Promise<void> {
 }
 
 export async function loadDirHandles(): Promise<StoredDir[]> {
+  const rows=await loadDirectoryGrantRecords();
+  const hidden=new Set((await loadHiddenSources()).hidden.map(row=>row.id));
+  return rows.filter((row):row is StoredDir=>"handle" in row&&!hidden.has(row.id));
+}
+export async function loadDirectoryGrantRecords(): Promise<DirectoryGrantRecord[]> {
   const db = await openDb();
-  const rows = await new Promise<StoredDir[]>((resolve, reject) => {
+  try {return await new Promise<DirectoryGrantRecord[]>((resolve, reject) => {
     const tx = db.transaction(STORE, "readonly");
     const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => resolve((req.result as StoredDir[]) ?? []);
+    req.onsuccess = () => resolve(((req.result as DirectoryGrantRecord[])??[]).filter(row=>
+      row&&typeof row.id==="string"&&typeof row.name==="string"&&("handle" in row&&row.handle?.kind==="directory"||"forgotten" in row&&row.forgotten===true)));
     req.onerror = () => reject(req.error);
+  });} finally {db.close();}
+}
+export async function readDirectoryGrant(id:string):Promise<DirectoryGrantRecord|undefined>{
+  const db=await openDb();
+  try{return await new Promise((resolve,reject)=>{
+    const request=db.transaction(STORE,"readonly").objectStore(STORE).get(id);
+    request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
+  });}finally{db.close();}
+}
+/** Remove just the granted handle. Source identity, catalog rows, marks and files are retained. */
+export function forgetSavedDirectoryGrant(id:string){
+  return catalogWriter.run(async()=>{
+    const db=await openDb();
+    try{await new Promise<void>((resolve,reject)=>{
+      const tx=catalogTransaction(db,[STORE,SOURCE_HEALTH_STORE],"readwrite"),
+        dirs=tx.objectStore(STORE),health=tx.objectStore(SOURCE_HEALTH_STORE),request=dirs.get(id);
+      let problem:Error|undefined;
+      request.onsuccess=()=>{
+        const row=request.result as DirectoryGrantRecord|undefined;
+        if(!row||!("handle" in row)||row.handle?.kind!=="directory"){
+          problem=Error("That saved directory grant changed. Refresh the permission inventory.");tx.abort();return;
+        }
+        dirs.put({id,name:row.name,forgotten:true} satisfies ForgottenDir);
+        const snapshot=health.get(id);
+        snapshot.onsuccess=()=>{if(snapshot.result)health.put({...snapshot.result,health:"permission-needed",lastCheckedAt:Date.now()});};
+      };
+      tx.oncomplete=()=>resolve();
+      tx.onabort=()=>reject(problem??tx.error??Error("The directory grant was not forgotten."));
+    });}finally{db.close();}
   });
-  db.close();
-  const hidden=new Set((await loadHiddenSources()).hidden.map(row=>row.id));
-  return rows.filter(row=>!hidden.has(row.id));
 }
 
 export function deleteDirHandle(...args:Parameters<typeof deleteDirHandleOwned>){return catalogWriter.run(()=>deleteDirHandleOwned(...args));}

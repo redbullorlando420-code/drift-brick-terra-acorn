@@ -20,6 +20,8 @@ export function TwitchArchiveDiagnostics({ channel }: { channel: Pick<FollowedCh
     <p className="font-medium text-fg">Last deep pull · {sample.resumed ? 'resumed' : 'from newest'}{sample.stage ? ` · ${sample.stage.toLowerCase()}` : ''}</p>
     <p className="mt-1">{sample.pages} accepted page{sample.pages === 1 ? '' : 's'} · {sample.accepted.toLocaleString()} distinct VODs · {sample.duplicates.toLocaleString()} repeats</p>
     <p className="mt-1">{stopLabels[sample.stopReason]}</p>
+    {sample.headObserved !== undefined && <p className="mt-1">Newest window: {sample.headObserved} rows rechecked separately from the saved position.</p>}
+    {sample.headUnavailable && <p className="mt-1">The newest window could not be verified. The saved archive position was checked separately.</p>}
     {sample.error && <p className="mt-1 break-words text-accent">{sample.error}</p>}
     <p className="mt-1 text-[11px] text-subtle">{new Date(sample.at).toLocaleString()} · {sample.received.toLocaleString()} rows returned</p>
     {channel.twitchArchiveLastVideoId && <p className="mt-1 break-all text-[11px]">Last accepted VOD: {channel.twitchArchiveLastVideoId}</p>}

@@ -1,4 +1,5 @@
 import { PERFORMANCE_MODE_KEY } from "./performance-profile.ts";
+import { stageProfileArrival } from "./profile-arrival.ts";
 import {
   currentProfileId,
   PROFILE_SELECTION_KEY,
@@ -314,11 +315,15 @@ export async function validateProfileTarget(id: string) {
 }
 export function chooseDefaultProfile() {
   globalThis.sessionStorage.setItem(PROFILE_SELECTION_KEY, "default");
+  stageProfileArrival(globalThis.sessionStorage,"default");
   location.reload();
 }
-export async function activateLocalProfile(id: string) {
+export async function activateLocalProfile(id: string, check?:()=>void, release?:()=>void) {
   await validateProfileTarget(id);
+  check?.();
   globalThis.sessionStorage.setItem(PROFILE_SELECTION_KEY, id);
+  stageProfileArrival(globalThis.sessionStorage,id);
+  release?.();
   location.reload();
 }
 export type ProfilePreview = {

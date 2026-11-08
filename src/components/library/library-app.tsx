@@ -143,6 +143,7 @@ import { structuredSearch } from "@/lib/videos/structured-search";
 import { SearchQueryChips } from './search-workspaces';
 import { SearchSpelling } from './search-spelling';
 import { SearchCountStatus } from './search-count-status';
+import { BulkTagReview } from './bulk-tag-review';
 import { searchWorkerIndex } from "@/lib/videos/search-worker-index";
 import { useSearchRanking } from "./use-search-ranking";
 import { isExcludedDemoVideo } from '@/lib/videos/youtube-browse';
@@ -1707,6 +1708,7 @@ export function LibraryApp() {
                   </div>
                   {query && <SearchQueryChips raw={query}/>}
                   {query && <SearchCountStatus pending={searchPending} count={searchInsights.ranked.length} query={query}/>}
+                  {searchDeskActive && sourceId !== "adults" && sourceId !== "adult-fetishes" && <BulkTagReview results={searchInsights.ranked} revision={searchRankingRevision} query={query} ready={!searchPending&&!searchRankingError}/>}
                   {searchDeskActive && !searchPending && !searchRankingError && searchInsights.ranked.length === 0 && <SearchSpelling/>}
                   {query && <section className="mb-5 rounded-lg border border-border bg-surface p-4 shadow-border" aria-label="Search ranking and matching tags">
                     <div className="flex flex-wrap items-baseline justify-between gap-3">

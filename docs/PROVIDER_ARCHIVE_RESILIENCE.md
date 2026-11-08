@@ -1,0 +1,7 @@
+# Archive cancellation and overlap
+
+**Settings → Cancel current pull queue** stops browser work immediately. For YouTube archive and gap repair requests and Twitch VOD pulls, the server forwards the HTTP request's cancellation signal to provider reads, response bodies and archive pacing. A later timeout returns earlier complete pages and retains the exact next position. Cancelling an HTTP response cannot deliver pages that were still inside that response; any earlier batches already saved by Realhub remain available. If a hosting proxy does not propagate disconnects, server-side deadlines still limit the remaining work. Live status checks keep their own queue.
+
+A resumed Twitch broadcast archive can recheck its newest window after a successful historical batch, at most once per 15 minutes per saved creator checkpoint. This uses up to 24 rows within the existing pull budget and is skipped on an unreadable historical page. It merges distinct verified VODs, cannot move the historical cursor, and does not claim that the public listing is immutable or complete. Twitch's **Archive coverage** shows how many rows were observed in the newest window. A new upload outside that window is not guaranteed to be recovered there; the recent pull remains independent.
+
+See the [provider fixture registry](../fixtures/provider-contracts/README.md) for deterministic fixtures and the optional public check.

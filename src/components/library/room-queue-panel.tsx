@@ -16,6 +16,10 @@ import type { RoomMediaDescriptor } from '@/lib/multiplayer/room-media';
 import { RoomVideoSummary } from './room-video-summary';
 import { RoomVideoSearch } from './room-video-search';
 import type { RoomHostCatalog } from '@/lib/multiplayer/room-host-catalog';
+import { RoomDuplicateReview } from './room-duplicate-review';
+import type { DuplicateGroups } from '@/lib/multiplayer/room-duplicates';
+import type { RoomSearchEvidence } from '@/lib/multiplayer/room-search-evidence';
+const NO_DUPLICATES:DuplicateGroups = {};
 export const RoomQueuePanel = memo(function RoomQueuePanel({
   candidates,
   roomId="",
@@ -38,6 +42,8 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
   onLink,
   catalogPending = false,
   writable = true,
+  moderation = false,
+  duplicateGroups = NO_DUPLICATES, onKeepDuplicate, onConsolidateDuplicate,
   suggesting = false,
   reviewMode = false,
   onReviewMode,
@@ -64,8 +70,8 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
   pending?: number;
   autoAdvance: boolean;
   onAutoAdvance: (value: boolean) => void;
-  onSelect: (video: LibraryVideo) => void;
-  onAdd: (video: LibraryVideo) => void;
+  onSelect: (video: LibraryVideo, evidence?:RoomSearchEvidence) => void;
+  onAdd: (video: LibraryVideo, evidence?:RoomSearchEvidence) => void;
   onChange: (action: RoomQueueAction) => void;
   onEdit: (edit: RoomQueueEdit) => boolean;
   onClear: () => void;
@@ -74,6 +80,10 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
   onLink: (value: string) => boolean;
   catalogPending?: boolean;
   writable?: boolean;
+  moderation?:boolean;
+  duplicateGroups?:DuplicateGroups;
+  onKeepDuplicate?:(key:string,id:string)=>void;
+  onConsolidateDuplicate?:(key:string)=>void;
   suggesting?: boolean;
   reviewMode?: boolean;
   onReviewMode?: (value: boolean) => void;
@@ -84,7 +94,7 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
   onRestore?: () => void;
   savedCount?: number;
   currentTitle?: string;
-  onLoadList: (media: RoomMediaDescriptor[]) => boolean;
+  onLoadList: (media: RoomMediaDescriptor[], evidence?:RoomSearchEvidence[]) => boolean;
   hostCatalog?:RoomHostCatalog;
   preferHost?:boolean;
   currentMedia?:RoomMediaDescriptor|null;
@@ -97,6 +107,7 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
   const [link, setLink] = useState("");
   const suggestMode = guest && reviewMode;
   const canAdd = writable || suggesting;
+  const canEditOrder = writable || moderation;
   const [queueSearch, setQueueSearch] = useState('');
   const [selecting, setSelecting] = useState(false);
   const [selection, setSelection] = useState<string[]>([]);
@@ -148,18 +159,18 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
       <p role="status" aria-live="polite" aria-atomic="true" className="sr-only" data-room-queue-summary>{queue.length} titles queued. {currentTitle ? `On stage: ${currentTitle}.` : 'No video selected.'} {queue[0]?.video?.name ? `Up next: ${queue[0].video.name}.` : 'No upcoming title.'}</p>
       <div className="mt-3 rounded-md border border-border bg-bg/50 p-3" aria-label="Room current video"><p className="text-xs text-muted">On the stage</p><p className="mt-1 break-words text-sm font-medium text-fg">{currentTitle || 'Choose a video to start watching'}</p>{queue[0] && <p className="mt-2 break-words text-xs text-accent">Next: {queue[0].video?.name ?? 'Waiting for title details…'}</p>}</div>
       <p className="mt-2 text-xs leading-5 text-muted">{queue.length ? `${Math.ceil(knownSeconds / 60)} min of known runtime${unknownDuration ? ` · ${unknownDuration} live or unknown-length title${unknownDuration === 1 ? '' : 's'}` : ''}` : 'Your queue is ready for links or library videos.'}</p>
-      {guest && !writable && <p role="status" className="mt-2 text-xs leading-5 text-accent">{suggesting ? 'Review mode: suggest public videos below. The host approves additions; live queue edits and video selection are host-controlled.' : guestEditing ? 'Waiting for the host connection. The last confirmed queue stays visible.' : 'The host has locked queue edits and video selection. Chat and playback timing still work.'}</p>}
+      {guest && !writable && <p role="status" className="mt-2 text-xs leading-5 text-accent">{moderation ? 'Temporary moderation: reorder or remove upcoming titles. Only the host can start a title.' : suggesting ? 'Review mode: suggest available videos below. The host approves additions; live queue edits and video selection are host-controlled.' : guestEditing ? 'Waiting for the host connection. The last confirmed queue stays visible.' : 'The host has locked queue edits and video selection. Chat and playback timing still work.'}</p>}
       <div className="mt-4 border-t border-border pt-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-medium text-fg">
             Up next · {guest ? "host confirms changes" : "shared order"}
           </p>
           <div className="flex flex-wrap gap-1">
-            <Button size="sm" variant="ghost" className="min-h-11" disabled={!selecting && (!writable || !queue.length)} aria-pressed={selecting} onClick={() => { setSelecting(!selecting); setSelection([]); setMoving(undefined); }}><ListChecks className="size-3" />{selecting ? 'Done selecting' : 'Select titles'}</Button>
+            <Button size="sm" variant="ghost" className="min-h-11" disabled={!selecting && (!canEditOrder || !queue.length)} aria-pressed={selecting} onClick={() => { setSelecting(!selecting); setSelection([]); setMoving(undefined); }}><ListChecks className="size-3" />{selecting ? 'Done selecting' : 'Select titles'}</Button>
             <Button size="sm" variant="secondary" className="min-h-11" disabled={!writable || !queue.length || guest && pending > 0} onClick={onNext}>
               <Play className="size-3" />{guest ? "Request next" : "Play next"}
             </Button>
-            <Button size="sm" variant="ghost" className="min-h-11" disabled={!writable || queue.length < 2} onClick={onShuffle} aria-label={guest ? "Request queue shuffle" : "Shuffle queue"}>
+            <Button size="sm" variant="ghost" className="min-h-11" disabled={!canEditOrder || queue.length < 2} onClick={onShuffle} aria-label={guest ? "Request queue shuffle" : "Shuffle queue"}>
               <Shuffle className="size-3" />Shuffle
             </Button>
           {!guest && queue.length > 0 && (
@@ -182,11 +193,11 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
         {selecting && <div className="mt-3 rounded-md border border-accent/35 bg-accent/5 p-3" aria-label="Selected queue controls">
           <p role="status" className="text-sm font-medium text-fg">{selected.length} selected{selected.some(id => !visibleIds.includes(id)) ? ' · includes filtered titles' : ''}</p>
           <div className="mt-2 flex flex-wrap gap-1">
-            <Button size="sm" variant="ghost" className="min-h-11" disabled={!writable || !visibleIds.length} onClick={() => setSelection([...new Set([...selected, ...visibleIds])])}>Select visible titles</Button>
+            <Button size="sm" variant="ghost" className="min-h-11" disabled={!canEditOrder || !visibleIds.length} onClick={() => setSelection([...new Set([...selected, ...visibleIds])])}>Select visible titles</Button>
             <Button size="sm" variant="ghost" className="min-h-11" disabled={!selected.length} onClick={() => setSelection([])}>Clear selection</Button>
-            <Button size="sm" variant="secondary" className="min-h-11" disabled={!writable || !selected.length || guest && pending > 0} onClick={() => applySelection('next')}>Queue selected next</Button>
-            <Button size="sm" variant="ghost" className="min-h-11" disabled={!writable || !selected.length || guest && pending > 0} onClick={() => applySelection('end')}>Move selected to end</Button>
-            <Button size="sm" variant="ghost" className="min-h-11" disabled={!writable || !selected.length || guest && pending > 0} onClick={() => applySelection('remove')}>Remove selected</Button>
+            <Button size="sm" variant="secondary" className="min-h-11" disabled={!canEditOrder || !selected.length || guest && pending > 0} onClick={() => applySelection('next')}>Queue selected next</Button>
+            <Button size="sm" variant="ghost" className="min-h-11" disabled={!canEditOrder || !selected.length || guest && pending > 0} onClick={() => applySelection('end')}>Move selected to end</Button>
+            <Button size="sm" variant="ghost" className="min-h-11" disabled={!canEditOrder || !selected.length || guest && pending > 0} onClick={() => applySelection('remove')}>Remove selected</Button>
           </div>
           <p className="mt-2 text-xs leading-5 text-muted">Moves preserve the host’s latest order within your selection. Playing videos stay on stage. {guest ? 'The host confirms each batch.' : 'Undo restores the whole batch.'}</p>
         </div>}
@@ -194,7 +205,7 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
           {queue.map(({ id, video }, index) => (
             <li key={id} data-room-queue-id={id} hidden={!matches(video)} className={`rounded-md border p-3 ${index === 0 ? 'border-accent/35 bg-accent/5' : 'border-transparent bg-bg/45'}`}>
               <div className="flex min-w-0 items-center gap-2">
-                {selecting && <label className="flex min-h-11 min-w-11 items-center justify-center"><input type="checkbox" aria-label={`Select ${video?.name ?? id} for queue changes`} checked={selected.includes(id)} disabled={!writable} onChange={event => setSelection(event.target.checked ? [...selected, id] : selected.filter(value => value !== id))} /></label>}
+                {selecting && <label className="flex min-h-11 min-w-11 items-center justify-center"><input type="checkbox" aria-label={`Select ${video?.name ?? id} for queue changes`} checked={selected.includes(id)} disabled={!canEditOrder} onChange={event => setSelection(event.target.checked ? [...selected, id] : selected.filter(value => value !== id))} /></label>}
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-medium text-accent" aria-label={`Position ${index+1}`}>{index + 1}</span>
                 <div className="min-w-0 flex-1">{video ? <RoomVideoSummary video={video}/> : <p className="text-sm text-muted">Waiting for title details…</p>}</div>
               </div>
@@ -211,15 +222,15 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
                   <Play className="size-3" />
                   {guest ? "Request play" : "Play"}
                 </Button>
-                <Button size="sm" variant="ghost" className="min-h-11" disabled={!writable || index===0} aria-label={`Queue ${video?.name??id} next`} onClick={()=>onChange({kind:"next",id})}>
+                <Button size="sm" variant="ghost" className="min-h-11" disabled={!canEditOrder || index===0} aria-label={`Queue ${video?.name??id} next`} onClick={()=>onChange({kind:"next",id})}>
                   Next
                 </Button>
-                <Button size="sm" variant="ghost" className="min-h-11" disabled={!writable || queue.length < 2} aria-expanded={moving?.id === id} data-room-focus-action="move" aria-label={`Change position of ${video?.name ?? id}`} onClick={() => setMoving(moving?.id === id ? undefined : { id, before: queue[index + 1]?.id ?? '' })}>Move to…</Button>
+                <Button size="sm" variant="ghost" className="min-h-11" disabled={!canEditOrder || queue.length < 2} aria-expanded={moving?.id === id} data-room-focus-action="move" aria-label={`Change position of ${video?.name ?? id}`} onClick={() => setMoving(moving?.id === id ? undefined : { id, before: queue[index + 1]?.id ?? '' })}>Move to…</Button>
                 <Button
                   size="icon"
                   variant="ghost"
                   className="min-h-11 min-w-11"
-                  disabled={!writable || index === 0}
+                  disabled={!canEditOrder || index === 0}
                   aria-label={`Move ${video?.name ?? id} up`}
                   onClick={() => onChange({ kind: "up", id })}
                 >
@@ -229,7 +240,7 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
                   size="icon"
                   variant="ghost"
                   className="min-h-11 min-w-11"
-                  disabled={!writable || index === queue.length - 1}
+                  disabled={!canEditOrder || index === queue.length - 1}
                   aria-label={`Move ${video?.name ?? id} down`}
                   onClick={() => onChange({ kind: "down", id })}
                 >
@@ -240,20 +251,20 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
                   variant="ghost"
                   className="min-h-11 min-w-11"
                   data-room-focus-action="remove" aria-label={`Remove ${video?.name ?? id} from queue`}
-                  disabled={!writable}
+                  disabled={!canEditOrder}
                   onClick={() => onChange({ kind: "remove", id })}
                 >
                   <X className="size-4" />
                 </Button>
               </div>
-              {moving?.id === id && <form className="mt-2 flex flex-wrap items-center gap-2" aria-label={`Move ${video?.name ?? id} to position`} onSubmit={event => { event.preventDefault(); if (writable) { onChange({ kind: 'move', id, before: moving.before || undefined }); setMoving(undefined); event.currentTarget.closest('li')?.querySelector<HTMLElement>('[data-room-focus-action="move"]')?.focus(); } }}>
+              {moving?.id === id && <form className="mt-2 flex flex-wrap items-center gap-2" aria-label={`Move ${video?.name ?? id} to position`} onSubmit={event => { event.preventDefault(); if (canEditOrder) { onChange({ kind: 'move', id, before: moving.before || undefined }); setMoving(undefined); event.currentTarget.closest('li')?.querySelector<HTMLElement>('[data-room-focus-action="move"]')?.focus(); } }}>
                 <label className="flex min-h-11 items-center gap-2 text-xs text-muted">Position
-                  <select aria-label={`New position for ${video?.name ?? id}`} className="min-h-11 max-w-48 rounded-sm border border-border bg-surface px-2 text-sm text-fg" disabled={!writable} value={queue.some(row => row.id === moving.before) ? moving.before : ''} onChange={event => setMoving({ id, before: event.target.value })}>
+                  <select aria-label={`New position for ${video?.name ?? id}`} className="min-h-11 max-w-48 rounded-sm border border-border bg-surface px-2 text-sm text-fg" disabled={!canEditOrder} value={queue.some(row => row.id === moving.before) ? moving.before : ''} onChange={event => setMoving({ id, before: event.target.value })}>
                     {queue.filter(row => row.id !== id).map((row, target) => <option key={row.id} value={row.id}>{target + 1} · before {row.video?.name ?? 'waiting title'}</option>)}
                     <option value="">{queue.length} · end of queue</option>
                   </select>
                 </label>
-                <Button type="submit" size="sm" variant="secondary" className="min-h-11" disabled={!writable || guest && pending > 0}>Apply position</Button>
+                <Button type="submit" size="sm" variant="secondary" className="min-h-11" disabled={!canEditOrder || guest && pending > 0}>Apply position</Button>
                 <Button type="button" size="sm" variant="ghost" className="min-h-11" onClick={event => {setMoving(undefined);event.currentTarget.closest('li')?.querySelector<HTMLElement>('[data-room-focus-action="move"]')?.focus();}}>Cancel move</Button>
               </form>}
             </li>
@@ -280,6 +291,7 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
         )}
         {!guest && onGuestEditing && <label className="mt-1 flex min-h-11 items-center gap-2 text-xs text-muted"><input type="checkbox" checked={guestEditing} onChange={event => onGuestEditing(event.target.checked)} aria-label="Allow guests to edit queue and select videos" />Allow guests to edit the queue and select videos</label>}
         {!guest && onReviewMode && <div className="mt-1"><label className="flex min-h-11 items-center gap-2 text-xs text-muted"><input type="checkbox" checked={reviewMode} onChange={event => onReviewMode(event.target.checked)} aria-label="Review guest additions before queuing" />Review guest additions before queuing</label><p className="text-xs leading-5 text-muted">When guest access is enabled, review mode permits public video suggestions instead of direct queue edits or video selection. Existing requests remain until approved or dismissed.</p></div>}
+      <RoomDuplicateReview queue={queue} held={duplicateGroups} guest={guest} full={queue.length>=ROOM_QUEUE_LIMIT} onKeep={onKeepDuplicate} onConsolidate={onConsolidateDuplicate}/>
       <RoomSessionFilePanel current={currentMedia} played={playedMedia} queue={sessionMedia} guest={guest} writable={writable} onImport={onImportSession}/>
       <RoomPlaylistsPanel media={publicMedia} omitted={queue.length - publicCount} canAdd={canAdd} suggesting={suggestMode} pending={guest && pending > 0} full={queue.length >= ROOM_QUEUE_LIMIT} onLoad={onLoadList} />
       {!!queue.length && <details className="mt-4 border-t border-border pt-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-fg">Save or share queue links · {publicCount}</summary>
@@ -326,7 +338,7 @@ export const RoomQueuePanel = memo(function RoomQueuePanel({
         </p>
       </form>
         {guest&&roomId&&<RoomGuestDrafts ref={guestDraftRef} room={roomId} connected={hostConnected} catalogRevision={hostCatalog?.revision} canSubmit={canAdd} pending={pending>0} onSubmit={onLoadList}/>}
-      <RoomVideoSearch onDraft={guest?(video,origin,revision)=>guestDraftRef.current?.stage(video,origin,revision):undefined} candidates={candidates} catalogPending={catalogPending} writable={writable} canAdd={canAdd} suggestMode={suggestMode} pending={pending>0} full={queue.length>=ROOM_QUEUE_LIMIT} queuedKeys={queuedKeys} currentKey={currentMediaKey} onPlay={onSelect} onAdd={onAdd} hostCatalog={hostCatalog} preferHost={preferHost}/>
+      <RoomVideoSearch onDraft={guest?(video,evidence)=>guestDraftRef.current?.stage(video,evidence):undefined} candidates={candidates} catalogPending={catalogPending} writable={writable} canAdd={canAdd} suggestMode={suggestMode} pending={pending>0} full={queue.length>=ROOM_QUEUE_LIMIT} queuedKeys={queuedKeys} currentKey={currentMediaKey} onPlay={onSelect} onAdd={onAdd} hostCatalog={hostCatalog} preferHost={preferHost}/>
       </details>
     </section>
   );

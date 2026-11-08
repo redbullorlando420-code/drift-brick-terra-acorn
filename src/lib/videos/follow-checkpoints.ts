@@ -16,6 +16,9 @@ export function normalizeTwitchPullDiagnostics(raw: unknown): TwitchPullDiagnost
   if (typeof row.at !== 'number' || !Number.isFinite(row.at) || row.at <= 0 || !['pages', 'received', 'accepted', 'duplicates'].every(count) || !reasons.includes(row.stopReason as typeof reasons[number])) return;
   return { at: row.at, pages: row.pages as number, received: row.received as number, accepted: row.accepted as number, duplicates: row.duplicates as number,
     resumed: row.resumed === true, stopReason: row.stopReason as TwitchPullDiagnostics['stopReason'],
+    ...(typeof row.headCheckedAt === 'number' && Number.isSafeInteger(row.headCheckedAt) && row.headCheckedAt > 0 && row.headCheckedAt <= row.at ? { headCheckedAt: row.headCheckedAt } : {}),
+    ...(count('headObserved') && Number(row.headObserved) <= 24 ? { headObserved: row.headObserved as number } : {}),
+    ...(row.headUnavailable === true ? { headUnavailable: true } : {}),
     ...(['ARCHIVE', 'HIGHLIGHT', 'UPLOAD'].includes(row.stage as string) ? { stage: row.stage as TwitchPullDiagnostics['stage'] } : {}),
     ...(typeof row.lastVideoId === 'string' && row.lastVideoId.length <= 128 ? { lastVideoId: row.lastVideoId } : {}),
     ...(typeof row.error === 'string' ? { error: row.error.slice(0, 240) } : {}),

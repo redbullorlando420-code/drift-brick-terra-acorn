@@ -17,6 +17,8 @@ import { studioJobsDocument } from '@/lib/studio-documents';
 import { readModelPreflight, type ModelPreflight } from '@/lib/studio-model-notes';
 import { StudioModelRequirements } from './studio-model-requirements';
 import { StudioJobHistory } from './studio-job-history';
+import { useProfileCheckpoint } from "./use-profile-checkpoint";
+import { profileSwitchWork } from "@/lib/profile-switch-work";
 
 type EngineStatus = { parameterContract?:unknown; engine?: 'a1111' | 'comfy'; connected: boolean; ready: boolean; models: string[]; modelPreflight?:boolean; busy?: boolean; canStart?: boolean; ownedEngine?: boolean; note?: string; connectionIssue?: string };
 const getSession = createStudioSessions((path, body) => localTool<{ image?: string; info?: string;engineJobId?:string }>(path, body),studioJobsDocument);
@@ -50,17 +52,27 @@ function StudioWorkspace({ owner }: { owner: string }) {
   // One coalesced write after editing, with a final flush on navigation.
   const persist = (report: boolean) => {
     const value = JSON.stringify(latestSettings.current);
-    if (value === saved.current) return;
-    try { localStorage.setItem(settingsKey, value); saved.current = value; if (report) setSaveError(''); }
-    catch { if (report) setSaveError('Settings could not be saved in this browser. You can still download your image.'); }
+    if (value === saved.current) return true;
+    try { localStorage.setItem(settingsKey, value); saved.current = value; profileSwitchWork.notify(); if (report) setSaveError('');return true; }
+    catch { if (report) setSaveError('Settings could not be saved in this browser. You can still download your image.');return false; }
   };
+  useProfileCheckpoint(()=>saved.current!==JSON.stringify(latestSettings.current)
+    ? {label:"Image Studio settings",state:"save",detail:"Save the prompt and settings in this profile."}:undefined,
+    ()=>{if(!persist(mounted.current))throw Error("Image Studio settings could not be saved.");});
+  useEffect(()=>{
+    const slot=profileSwitchWork.register({read:()=>session.getSnapshot().busy
+      ? {label:"Image generation",state:"wait",detail:"Finish or interrupt the local job in Image Studio."}:undefined});
+    let attached=true;
+    const stop=session.subscribe(()=>{slot.notify();if(!attached&&!session.getSnapshot().busy)stop();});
+    return()=>{attached=false;slot.detach();if(!session.getSnapshot().busy)stop();};
+  },[session]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
     if (!work.image) { setImageUrl(''); return; }
     const url = URL.createObjectURL(work.image.blob); setImageUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [work.image]);
-  useEffect(() => { const timer = setTimeout(() => persist(true), 500); return () => clearTimeout(timer); }, [settings, settingsKey]);
+  useEffect(() => { if(saved.current!==JSON.stringify(settings))profileSwitchWork.notify();const timer = setTimeout(() => persist(true), 500); return () => clearTimeout(timer); }, [settings, settingsKey]);
   useEffect(() => { const save = () => persist(false); window.addEventListener('pagehide', save); return () => { save(); window.removeEventListener('pagehide', save); }; }, [settingsKey]);
   const update = <K extends keyof StudioSettings>(key: K, value: StudioSettings[K]) => setSettings(previous => ({ ...previous, [key]: value }));
   const inspectModel=async(model:string,engine=settings.engine??'a1111')=>{

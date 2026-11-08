@@ -16,6 +16,11 @@ import type { LibraryVideo, Folder, VideoMetadataProvenance } from "./types";
 import type { EnrichmentRow } from "./enrichment-batch";
 import {validArchiveCheckpoint,type ArchiveCheckpoint} from './adult-archive-model.ts';
 import {applyArchiveCheckpoint} from './adult-archive-transaction.ts';
+import { currentProfileId } from "../local-profile-storage.ts";
+import {
+  BULK_TAG_BATCH, BULK_TAG_KEY, changeBulkTags, readBulkTagReceipt, reverseBulkTag, sameTags, tagSnapshot,
+  validBulkScope, validBulkTarget, type BulkTagEntry, type BulkTagReceipt, type BulkTagScope, type BulkTagTarget,
+} from "./bulk-tags";
 
 export const CATALOG_OPERATION_PREFIX = "catalog-operation:";
 export const CATALOG_CONTROL_KEY = "catalog-operation-control";
@@ -645,9 +650,135 @@ export function createCatalogMutations(open: () => Promise<IDBDatabase>, writer?
     for (const row of readMirror()) admit(row);
     return result;
   }
+  async function readBulkTags() {
+    const db = await open();
+    try {
+      return await new Promise<BulkTagReceipt | undefined>((resolve, reject) => {
+        const request = db.transaction("activity").objectStore("activity").get(BULK_TAG_KEY);
+        request.onsuccess = () => {
+          try { resolve(readBulkTagReceipt(request.result, currentProfileId())); }
+          catch (error) { reject(error); }
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } finally { db.close(); }
+  }
+  type BulkRequest =
+    | { kind: "apply"; scope: BulkTagScope; revision: number; targets: BulkTagTarget[] }
+    | { kind: "undo" | "forget"; scope: BulkTagScope; revision: number };
+  type BulkLookup = (ids: string[]) => Map<string, {
+    identity: string; tags: string[]; provenance?: VideoMetadataProvenance; category?: string;
+  }>;
+  async function bulkTags(request: BulkRequest, lookup: BulkLookup, signal?: AbortSignal) {
+    assertRestoreWritable();
+    const scope = request.scope;
+    if (!validBulkScope(scope, currentProfileId())) throw Error("This review belongs to another profile.");
+    if (request.kind === "apply" && (!request.targets.length || request.targets.length > BULK_TAG_BATCH ||
+        !request.targets.every(validBulkTarget) || new Set(request.targets.map(row => row.id)).size !== request.targets.length))
+      throw Error("The reviewed batch is invalid.");
+    const run = async () => {
+      await recoverInternal();
+      signal?.throwIfAborted();
+      const db = await open();
+      try {
+        const result = await ownedTransaction<{ receipt?: BulkTagReceipt; skipped: number; edits: CatalogEdit[]; dirty: boolean }>(
+          db, ["activity", "remote-cache"], (tx, done, fail) => {
+            const activity = tx.objectStore("activity");
+            const stored = activity.get(BULK_TAG_KEY);
+            stored.onsuccess = () => {
+              try {
+                signal?.throwIfAborted();
+                assertRestoreWritable();
+                const old = readBulkTagReceipt(stored.result, currentProfileId());
+                if ((old?.revision ?? 0) !== request.revision || (old && old.id !== scope.id) ||
+                    (!old && request.kind !== "apply"))
+                  throw Error("Another tab changed this undo record. Reopen the review to continue.");
+                if (request.kind === "forget") {
+                  activity.delete(BULK_TAG_KEY);
+                  done({ skipped: 0, edits: [], dirty: true });
+                  return;
+                }
+                const rows = request.kind === "apply" ? request.targets : old!.entries.slice(-BULK_TAG_BATCH);
+                let skipped = 0;
+                const edits: CatalogEdit[] = [];
+                const entries = [...(old?.entries ?? [])];
+                const eligible = lookup(rows.map(row => row.id));
+                const scan = (index: number) => {
+                  if (index >= rows.length) {
+                    if (request.kind === "undo") entries.splice(-rows.length);
+                    const dirty = request.kind === "undo" || edits.length > 0;
+                    if (entries.length > scope.total) throw Error("The reviewed set changed. Reopen the review.");
+                    const receipt = entries.length
+                      ? { ...scope, version: 1 as const, entries, revision: request.revision + (dirty ? 1 : 0) }
+                      : undefined;
+                    if (dirty) {
+                      if (receipt) activity.put(receipt, BULK_TAG_KEY);
+                      else activity.delete(BULK_TAG_KEY);
+                    }
+                    done({ receipt, skipped, edits, dirty });
+                    return;
+                  }
+                  const target = rows[index]!;
+                  const undo = request.kind === "undo" ? target as BulkTagEntry : undefined;
+                  const expected = undo?.after ?? target.before;
+                  const journal = activity.get(CATALOG_EDIT_PREFIX + target.id);
+                  const enrichment = activity.get("metadata-enrichment:" + target.id);
+                  enrichment.onsuccess = () => {
+                    try {
+                      const current = eligible.get(target.id);
+                      const latest = journal.result as CatalogEdit | undefined;
+                      const automatic = enrichment.result as EnrichmentRow | undefined;
+                      const before = current && tagSnapshot(current.tags, current.provenance);
+                      const tagStamp = latest?.provenance.manualTagsAt ?? (latest?.field === "tags" ? latest.at : 0);
+                      const next = current && (undo ? reverseBulkTag(current.tags, undo.before.tags, scope.tag) : changeBulkTags(current.tags, scope.mode, scope.tag));
+                      if (!current || !before || !next || current.identity !== target.identity ||
+                          before.manualAt !== expected.manualAt ||
+                          (undo ? before.tags.includes(scope.tag) !== expected.tags.includes(scope.tag) : !sameTags(before.tags, expected.tags)) ||
+                          current.provenance?.lockedFields?.includes("tags") || latest?.provenance.lockedFields?.includes("tags") ||
+                          tagStamp > expected.manualAt ||
+                          ((automatic?.provenance.updatedAt ?? 0) > before.observedAt && !sameTags(automatic!.tags, before.tags)) ||
+                          (request.kind === "apply" && entries.some(entry => entry.id === target.id))) {
+                        skipped++;
+                        scan(index + 1);
+                        return;
+                      }
+                      const at = Math.max(Date.now(), before.observedAt + 1, before.manualAt + 1, (latest?.at ?? 0) + 1);
+                      const sources = { ...current.provenance?.tags };
+                      const source = Object.hasOwn(sources, scope.tag) ? sources[scope.tag] : undefined;
+                      if (next.includes(scope.tag) && (undo?.source ?? (!undo ? "manual" : undefined))) {
+                        Object.defineProperty(sources, scope.tag, { value: undo?.source ?? "manual", enumerable: true, configurable: true, writable: true });
+                      } else delete sources[scope.tag];
+                      const provenance: VideoMetadataProvenance = { ...current.provenance, tags: sources, manualTagsAt: at, updatedAt: at };
+                      if ((latest?.provenance.manualCategoryAt ?? 0) > (provenance.manualCategoryAt ?? 0)) {
+                        provenance.manualCategoryAt = latest?.provenance.manualCategoryAt;
+                        provenance.category = latest?.provenance.category;
+                        if (latest?.provenance.lockedFields?.includes("category"))
+                          provenance.lockedFields = [...new Set([...(provenance.lockedFields ?? []), "category" as const])];
+                      }
+                      const edit: CatalogEdit = { id: target.id, field: "tags", nonce: crypto.randomUUID(), at, tags: next, provenance,
+                        category: latest?.category ?? current.category };
+                      if (!validCatalogOperation({ version: 1, kind: "edit", edit }) || sized(edit) > 32 * 1024)
+                        throw Error("A title exceeded the tag save budget. The batch was kept unchanged.");
+                      activity.put(edit, CATALOG_EDIT_PREFIX + edit.id);
+                      edits.push(edit);
+                      if (!undo) entries.push({ ...target, before, after: tagSnapshot(next, provenance), source });
+                      scan(index + 1);
+                    } catch (error) { fail(error); }
+                  };
+                };
+                scan(0);
+              } catch (error) { fail(error); }
+            };
+          }, false);
+        if (result.dirty) writer?.markChanged();
+        return result;
+      } finally { db.close(); }
+    };
+    return writer ? writer.run(run, false) : run();
+  }
   const recover=()=>writer?writer.run(()=>recoverInternal(),false):recoverInternal();
   const write=(operation:CatalogOperation)=>writer?writer.run(()=>writeInternal(operation)):writeInternal(operation);
-  return { write, recover, edit, restore };
+  return { write, recover, edit, restore, readBulkTags, bulkTags };
 }
 // Inline-key catalog stores reject an explicit key; out-of-line cache stores require it.
 function keyPath(store: IDBObjectStore, key: string): IDBValidKey | undefined {

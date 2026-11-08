@@ -1,0 +1,20 @@
+[
+  {
+    "mobile": false,
+    "checks": [
+      "Exact and resized matches are separate, color alone is not a match, favorites stay visible, cancellation is safe and a saved hide can be undone after reload.",
+      "Review covers exact mixed local and YouTube targets, preserves existing tags, skips locked titles, and undoes only the saved batch after cancellation, reload or quota failure.",
+      "Keyboard switching focuses the new Home heading, continues in reading order, announces only the destination, and ignores ordinary reloads and obsolete media targets."
+    ],
+    "errors": []
+  },
+  {
+    "mobile": true,
+    "checks": [
+      "Exact and resized matches are separate, color alone is not a match, favorites stay visible, cancellation is safe and a saved hide can be undone after reload.",
+      "Review covers exact mixed local and YouTube targets, preserves existing tags, skips locked titles, and undoes only the saved batch after cancellation, reload or quota failure.",
+      "Keyboard switching focuses the new Home heading, continues in reading order, announces only the destination, and ignores ordinary reloads and obsolete media targets."
+    ],
+    "errors": []
+  }
+]

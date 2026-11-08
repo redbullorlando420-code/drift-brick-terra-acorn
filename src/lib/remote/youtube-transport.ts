@@ -1,6 +1,7 @@
 import { createDispatchTrace } from '../pull-dispatch-trace.ts';
 import { PROVIDER_BUDGETS, ProviderBudgetError } from '../provider-budgets.ts';
 import { readProviderBody } from './provider-body.ts';
+import { providerDelay } from './provider-delay.ts';
 
 export type YoutubeRequestScope = 'catalog' | 'page' | 'feed' | 'live' | 'details' | 'all';
 export type YoutubeManualRetry = { readonly revision: number };
@@ -28,7 +29,7 @@ export function createYoutubeTransport(options: {
 } = {}) {
   const trace = createDispatchTrace(options.now);
   const now = options.now ?? (() => Date.now());
-  const sleep = options.sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
+  const sleep = options.sleep ?? providerDelay;
   const cooldowns = new Map<YoutubeRequestScope, Cooldown>();
   let cooldownRevision = 0;
   let startTail: Promise<unknown> = Promise.resolve(), lastStarted = -Infinity, queued = 0;
@@ -111,11 +112,11 @@ export function createYoutubeTransport(options: {
         checkReady(); init?.signal?.throwIfAborted();
         const gap = scope === 'live' ? liveGap() : archiveGap();
         const delay = lane.lastStarted + gap - now();
-        if (delay > 0) await sleep(delay);
+        if (delay > 0) await sleep(delay, init?.signal ?? undefined);
         const sharedStart = startTail.then(async () => {
           checkReady(); init?.signal?.throwIfAborted();
           const delay = lastStarted + Math.min(archiveGap(), liveGap(), PROVIDER_BUDGETS.youtubeLiveRequestGapMs) - now();
-          if (delay > 0) await sleep(delay);
+          if (delay > 0) await sleep(delay, init?.signal ?? undefined);
           checkReady(); init?.signal?.throwIfAborted();
           lastStarted = lane.lastStarted = now();
           return cooldownRevision;

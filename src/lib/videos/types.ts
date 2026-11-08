@@ -232,6 +232,7 @@ export function hasFreshViewerCount(remote?: RemoteRef, now = Date.now()) {
 }
 
 export type TwitchPullDiagnostics = {
+  headCheckedAt?: number; headObserved?: number; headUnavailable?: boolean;
   at: number; pages: number; received: number; accepted: number; duplicates: number;
   resumed: boolean; stage?: 'ARCHIVE' | 'HIGHLIGHT' | 'UPLOAD'; lastVideoId?: string;
   stopReason: 'page-budget' | 'entry-budget' | 'exhausted' | 'stalled' | 'incomplete-page' | 'challenge' | 'provider-error' | 'entry-limit';

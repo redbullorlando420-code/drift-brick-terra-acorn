@@ -1,0 +1,25 @@
+{
+  "room": "RC1I0CJ",
+  "mode": "isolated browser contexts",
+  "host": "desktop",
+  "guest": "mobile",
+  "playDelayMs": 191,
+  "pauseDelayMs": 77,
+  "checks": [
+    "LAN invitation copied",
+    "WebRTC direct path connected",
+    "pulse ack",
+    "guest chat",
+    "host play",
+    "guest reload reconciles host time",
+    "host resync at current media time",
+    "guest seek to zero",
+    "host pause",
+    "local-file consent gate",
+    "local-file fingerprint match",
+    "local queue add and guest removal",
+    "guest leave",
+    "mobile no overflow"
+  ],
+  "errors": []
+}

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "scope": "Two fixed public channels; no account, cookies, titles or cursors recorded.",
+  "observations": [
+    {
+      "id": "twitch-archive",
+      "at": 1794162860253,
+      "status": "observed",
+      "firstRows": 12,
+      "secondRows": 12,
+      "changedOrder": false,
+      "newIdentities": 0
+    },
+    {
+      "id": "youtube-catalog",
+      "at": 1794162860818,
+      "status": "observed",
+      "rows": 100,
+      "continuationObserved": true
+    }
+  ]
+}

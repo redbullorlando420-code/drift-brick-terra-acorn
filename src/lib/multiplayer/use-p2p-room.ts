@@ -56,5 +56,6 @@ export function useP2PRoom(room: string, name: string, relay?: RoomRelayConfig) 
   const onMessage = useCallback((fn: (from: string, data: unknown, channel: "state" | "reliable") => void) => { listeners.current.add(fn); return () => { listeners.current.delete(fn); }; }, []);
   const retrySignaling=useCallback(()=>ref.current?.retrySignaling(),[]);
   const retryPeers=useCallback(()=>ref.current?.retryPeers(),[]);
-  return { transport, cancelCatalogResult, signaling, relayReceived, retrySignaling, retryPeers, selfId, peers, joined, events, send, onMessage, mediaStreams, setMediaStream, readyRevision };
+  const reliableConnection=useCallback((peer:string)=>ref.current?.reliableConnection(peer),[]);
+  return { transport, cancelCatalogResult, signaling, relayReceived, retrySignaling, retryPeers, reliableConnection, selfId, peers, joined, events, send, onMessage, mediaStreams, setMediaStream, readyRevision };
 }

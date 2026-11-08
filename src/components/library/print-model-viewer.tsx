@@ -12,6 +12,8 @@ import {
   X,
 } from "lucide-react";
 import { PrintSavePanel } from './print-save-panel';
+import { useProfileCheckpoint } from "./use-profile-checkpoint";
+import { profileSwitchWork } from "@/lib/profile-switch-work";
 import { ProfileIdentity } from './profile-identity';
 import { exportPrintCopy,isSavedPrintScene,printModelSignature,loadSavedPrintCopy,type PrintSaveReceipt } from '@/lib/print-save';
 import { Button } from "@/components/ui/button";
@@ -69,7 +71,17 @@ export function PrintModelViewer({ target, onClose }: Props) {
   editRef.current = baselinePreview??edit;
   const workingRef=useRef(edit);workingRef.current=edit;
   const savedWorkspaceToken=useRef<string|null>(initialWorkspace.token);
-  const saveWorking=()=>{if(savedWorkspaceToken.current===null)return false;const ok=savePrintEdit(editKey,workingRef.current,savedWorkspaceToken.current);if(ok)savedWorkspaceToken.current=printEditToken(editKey);return ok;};
+  const savedEdit=useRef(JSON.stringify(initialWorkspace.working));
+  const saveWorking=()=>{
+    const text=JSON.stringify(workingRef.current);
+    if(savedWorkspaceToken.current===null)return false;
+    const ok=savePrintEdit(editKey,workingRef.current,savedWorkspaceToken.current);
+    if(ok){savedWorkspaceToken.current=printEditToken(editKey);if(text!==savedEdit.current){savedEdit.current=text;profileSwitchWork.notify();}}
+    return ok;
+  };
+  useProfileCheckpoint(()=>savedEdit.current!==JSON.stringify(workingRef.current)
+    ? {label:"Print editor draft",state:"save",detail:"Save the current model edits in this profile."}:undefined,
+    ()=>{if(!saveWorking())throw Error("Print workspace could not be saved.");});
   const apiRef = useRef<{
     exportCopy:()=>Promise<Blob>;
     fit: (preset?: CameraPreset) => void;
@@ -79,6 +91,7 @@ export function PrintModelViewer({ target, onClose }: Props) {
   } | null>(null);
 
   useEffect(() => {
+    if(savedEdit.current!==JSON.stringify(workingRef.current))profileSwitchWork.notify();
     const timer=setTimeout(()=>setWorkspaceSaved(saveWorking()),180);
     return()=>clearTimeout(timer);
   }, [edit,editKey]);

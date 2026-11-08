@@ -10,32 +10,35 @@ import { fetchYoutubeResponse, YoutubeRequestError, type YoutubeManualRetry } fr
 export const YOUTUBE_WEB_VERSION = '2.20260623.01.00';
 export const youtubePlaylistBrowseId = (playlistId: string) => playlistId.startsWith('VL') ? playlistId : `VL${playlistId}`;
 
-export async function youtubePublicRequest(endpoint: string, target: object, manualRetry?: YoutubeManualRetry, live = false): Promise<any> {
+export async function youtubePublicRequest(endpoint: string, target: object, manualRetry?: YoutubeManualRetry, live = false, signal?: AbortSignal): Promise<any> {
   const response = await fetchYoutubeResponse(`https://www.youtube.com/youtubei/v1/${endpoint}?prettyPrint=false&alt=json`, {
     method: 'POST', headers: { 'content-type': 'application/json', 'x-youtube-client-name': '1', 'x-youtube-client-version': YOUTUBE_WEB_VERSION },
     body: JSON.stringify({ context: { client: { clientName: 'WEB', clientVersion: YOUTUBE_WEB_VERSION, hl: 'en', gl: 'US' } }, ...target }),
-    timeoutMs: live ? 8_000 : 15_000, manualRetry, ...(live ? { scope: 'live' as const } : {}),
+    timeoutMs: live ? 8_000 : 15_000, manualRetry, signal, ...(live ? { scope: 'live' as const } : {}),
   });
   return readProviderJson(response,'youtube');
 }
-export const browseYoutubeCatalog = (target: { browseId?: string; continuation?: string; params?: string }, manualRetry?: YoutubeManualRetry, live = false) => youtubePublicRequest('browse', target, manualRetry, live);
+export const browseYoutubeCatalog = (target: { browseId?: string; continuation?: string; params?: string }, manualRetry?: YoutubeManualRetry, live = false, signal?: AbortSignal) => youtubePublicRequest('browse', target, manualRetry, live, signal);
+type ArchiveOptions = {stopAtId?:string;maxPages?:number;signal?:AbortSignal};
 
 type Archive = { rows: YoutubeRenderer[]; cursor: string | null; completed: boolean; failure?: unknown; author?: string; title?: string };
 
 /** Read complete provider pages, retaining the unconsumed token on every
  * failure. Resumed pulls start with the saved token, without fetching HTML,
  * RSS or the first hundred uploads again. */
-export async function youtubeBrowseArchive(playlistId: string, limit: number, resumeCursor?: string, manualRetry?: YoutubeManualRetry, options?: {stopAtId?:string;maxPages?:number}): Promise<Archive | null> {
+export async function youtubeBrowseArchive(playlistId: string, limit: number, resumeCursor?: string, manualRetry?: YoutubeManualRetry, options?: ArchiveOptions): Promise<Archive | null> {
   const browseId = youtubePlaylistBrowseId(playlistId);
   const rows: YoutubeRenderer[] = [], seen = new Set<string>(), visited = new Set<string>();
   let cursor: string | null = resumeCursor ?? null, completed = false, reset = false, author: string | undefined, title: string | undefined;
   const deadline = Date.now() + (limit <= 100 ? 30_000 : 120_000);
   const budget = Math.min(options?.maxPages??Infinity, LIBRARY_LIMITS.youtubeArchivePagesPerPull, Math.max(2, Math.ceil(limit / 30) + 2));
   for (let page = 0; page < budget && rows.length < limit; page++) {
+    options?.signal?.throwIfAborted();
     if (Date.now() >= deadline || cursor && visited.has(cursor)) break;
     const requesting = cursor;
     try {
-      const root = await browseYoutubeCatalog(cursor ? { continuation: cursor } : { browseId }, manualRetry);
+      const root = await browseYoutubeCatalog(cursor ? { continuation: cursor } : { browseId }, manualRetry, false, options?.signal);
+      options?.signal?.throwIfAborted();
       title ??= (root as { metadata?: { playlistMetadataRenderer?: { title?: string } } })?.metadata?.playlistMetadataRenderer?.title;
       const items = youtubeCatalogItems(root);
       if (!items) {
@@ -58,6 +61,7 @@ export async function youtubeBrowseArchive(playlistId: string, limit: number, re
       completed = !next;
       if (completed || options?.stopAtId && seen.has(options.stopAtId)) break;
     } catch (error) {
+      options?.signal?.throwIfAborted();
       if (requesting === resumeCursor && !reset && error instanceof YoutubeRequestError && (error.status === 400 || error.status === 404)) {
         reset = true; cursor = null; continue;
       }
@@ -69,5 +73,5 @@ export async function youtubeBrowseArchive(playlistId: string, limit: number, re
   return { rows, cursor, completed, author, title };
 }
 
-export const youtubeUploadsArchive = (channelId: string, limit: number, resumeCursor?: string, manualRetry?: YoutubeManualRetry, options?: {stopAtId?:string;maxPages?:number}) =>
+export const youtubeUploadsArchive = (channelId: string, limit: number, resumeCursor?: string, manualRetry?: YoutubeManualRetry, options?: ArchiveOptions) =>
   youtubeBrowseArchive(`UU${channelId.slice(2)}`, limit, resumeCursor, manualRetry, options);

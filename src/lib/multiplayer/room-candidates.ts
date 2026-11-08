@@ -2,6 +2,7 @@ import { forEachCatalogSlice, sortCatalogRows, yieldCatalogTask } from "../catal
 import type { LibraryVideo } from "../videos/types.ts";
 import { publicVideoBoundary, type PublicFolder } from '../videos/public-visibility.ts';
 import { roomMediaKey } from "./room-media.ts";
+import { isRoomRepeat } from "./room-duplicates.ts";
 
 const DEMO_TITLE = /\b(blender|big buck bunny|cosmos laundromat|tears of steel|elephants dream|sintel|night rain|empty house|golden coast|tungsten reel)\b/i;
 
@@ -28,7 +29,7 @@ export async function prepareRoomCandidates(options: RoomCandidateOptions, turn 
     const ids = new Set<string>();
     await forEachCatalogSlice(options.videos, video => ids.add(video.id), turn);
     const sharedOnly: LibraryVideo[] = [];
-    await forEachCatalogSlice(Object.values(options.shared), video => { if (!ids.has(video.id)) sharedOnly.push(video); }, turn);
+    await forEachCatalogSlice(Object.values(options.shared), video => { if (!ids.has(video.id) && !isRoomRepeat(video.id)) sharedOnly.push(video); }, turn);
     catalog = sharedOnly.length ? options.videos.concat(sharedOnly) : options.videos;
   }
   const publicTitle = publicVideoBoundary(options.folders);
@@ -95,9 +96,9 @@ async function roomCatalogCandidatesAsync(
     const session = shared[video.id];
     if (!session) { append(video); return; }
     if (roomMediaKey(session) !== roomMediaKey(video)) append({ ...video, id: `room:${roomMediaKey(video)}` });
-    else append(session);
+    else append(video);
   }, turn);
   const sessions = Object.values(shared);
-  await forEachCatalogSlice(sessions, append, turn);
+  await forEachCatalogSlice(sessions, video => { if (!isRoomRepeat(video.id)) append(video); }, turn);
   return output;
 }

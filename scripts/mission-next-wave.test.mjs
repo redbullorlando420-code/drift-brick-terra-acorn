@@ -47,8 +47,8 @@ test("100 append-only milestones retain evidenced completions across 20 roadmap 
   assert.equal(new Set(NEXT_WAVE_MISSIONS.flatMap((m) => m.brief.steps)).size, 300);
   assert.equal(new Set(NEXT_WAVE_MISSIONS.flatMap((m) => m.brief.acceptance)).size, 200);
   assert.equal(NEXT_LEVEL_COMPLETED_IDS.length, 96);
-  assert.deepEqual(NEXT_WAVE_COMPLETED_IDS, ['next-101', 'next-105', 'next-106', 'next-108', 'next-111', 'next-112', 'next-113', 'next-116', 'next-117', 'next-121', 'next-122', 'next-123', 'next-124', 'next-125', 'next-126', 'next-127', 'next-128', 'next-131', 'next-132', 'next-133', 'next-134', 'next-135', 'next-137', 'next-138', 'next-139', 'next-141', 'next-142', 'next-143', 'next-151', 'next-153', 'next-154', 'next-155', 'next-158', 'next-160', 'next-171', 'next-176', 'next-180']);
-  assert.equal(ALL_NEXT_LEVEL_MISSIONS.filter((m) => m.done).length, 133);
+  assert.deepEqual(NEXT_WAVE_COMPLETED_IDS, ['next-101', 'next-103', 'next-104', 'next-105', 'next-106', 'next-108', 'next-110', 'next-111', 'next-112', 'next-113', 'next-114', 'next-115', 'next-116', 'next-117', 'next-121', 'next-122', 'next-123', 'next-124', 'next-125', 'next-126', 'next-127', 'next-128', 'next-131', 'next-132', 'next-133', 'next-134', 'next-135', 'next-137', 'next-138', 'next-139', 'next-141', 'next-142', 'next-143', 'next-144', 'next-145', 'next-146', 'next-151', 'next-153', 'next-154', 'next-155', 'next-156', 'next-157', 'next-158', 'next-159', 'next-160', 'next-171', 'next-176', 'next-180', 'next-192']);
+  assert.equal(ALL_NEXT_LEVEL_MISSIONS.filter((m) => m.done).length, 145);
 });
 
 test("every dependency exists, is distinct and precedes its dependent milestone", () => {
@@ -61,7 +61,7 @@ test("every dependency exists, is distinct and precedes its dependent milestone"
 });
 
 test("the new batch appends exactly once and preserves old manual decisions and custom notes", () => {
-  assert.equal(MISSION_PLAN_REVISION, 101);
+  assert.equal(MISSION_PLAN_REVISION, 105);
   const custom = {
     id: "custom-preserved",
     title: "My roadmap",

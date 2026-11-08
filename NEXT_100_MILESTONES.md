@@ -90,7 +90,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-103 — Per-profile storage budget dashboard
-Status: planned
+Status: complete
 Track: Profile lifecycle and portability
 Priority: P1
 
@@ -130,7 +130,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-104 — Pending-edit inventory before profile switch
-Status: planned
+Status: complete
 Track: Profile lifecycle and portability
 Priority: P0
 
@@ -353,7 +353,7 @@ Registry damage needs a reviewable recovery path beyond a generic Return to Defa
 
 ## Dependencies
 - next-101 — Profile rename lifecycle [complete]
-- next-103 — Per-profile storage budget dashboard [planned]
+- next-103 — Per-profile storage budget dashboard [complete]
 
 ## Start in
 - src/lib/local-profiles.ts
@@ -375,7 +375,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-110 — Profile permission inventory
-Status: planned
+Status: complete
 Track: Profile lifecycle and portability
 Priority: P1
 
@@ -539,7 +539,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-114 — Abort slow provider archive requests
-Status: planned
+Status: complete
 Track: Archive continuity and growth
 Priority: P0
 
@@ -580,7 +580,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-115 — Catalog churn recheck windows
-Status: planned
+Status: complete
 Track: Archive continuity and growth
 Priority: P1
 
@@ -766,7 +766,7 @@ Users need a bounded explanation of which pages actually became durable catalog 
 
 ## Dependencies
 - next-112 — Durable archive cursor repository [complete]
-- next-114 — Abort slow provider archive requests [planned]
+- next-114 — Abort slow provider archive requests [complete]
 
 ## Start in
 - src/lib/videos/store.ts
@@ -1754,7 +1754,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-144 — Expiring room host delegation
-Status: planned
+Status: complete
 Track: Shared viewing sessions
 Priority: P0
 
@@ -1794,7 +1794,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-145 — Queue duplicate review groups
-Status: planned
+Status: complete
 Track: Shared viewing sessions
 Priority: P1
 
@@ -1835,7 +1835,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-146 — Room search result provenance
-Status: planned
+Status: complete
 Track: Shared viewing sessions
 Priority: P1
 
@@ -1937,7 +1937,7 @@ A room should offer a deliberate recovery path when its host browser tab disappe
 
 ## Dependencies
 - next-047 — Session playlist handoff file [complete]
-- next-144 — Expiring room host delegation [planned]
+- next-144 — Expiring room host delegation [complete]
 
 ## Start in
 - src/components/library/watch-room-section.tsx
@@ -2254,7 +2254,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-156 — Photo duplicate review with confidence
-Status: planned
+Status: complete
 Track: Library curation and accessibility
 Priority: P2
 
@@ -2273,7 +2273,7 @@ Similar photos need an owner-reviewed duplicate workflow that does not confuse e
 ## Dependencies
 - next-009 — File identity migration ledger [complete]
 - next-094 — Destructive action recovery design [complete]
-- next-103 — Per-profile storage budget dashboard [planned]
+- next-103 — Per-profile storage budget dashboard [complete]
 
 ## Start in
 - src/lib/videos/film-review.ts
@@ -2296,7 +2296,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-157 — Focus return across profile switches
-Status: planned
+Status: complete
 Track: Library curation and accessibility
 Priority: P1
 
@@ -2315,7 +2315,7 @@ A profile switch should restore understandable keyboard focus without reusing a 
 ## Dependencies
 - next-010 — Portable profile boundaries [complete]
 - next-095 — Keyboard command coverage map [complete]
-- next-104 — Pending-edit inventory before profile switch [planned]
+- next-104 — Pending-edit inventory before profile switch [complete]
 - next-105 — Profile identity in application chrome [complete]
 
 ## Start in
@@ -2381,7 +2381,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-159 — Undoable bulk tag editing
-Status: planned
+Status: complete
 Track: Library curation and accessibility
 Priority: P1
 
@@ -3070,7 +3070,7 @@ Generated outputs need an explicit reviewed path into Photos without duplicating
 ## Dependencies
 - next-086 — Image output storage policy [complete]
 - next-009 — File identity migration ledger [complete]
-- next-156 — Photo duplicate review with confidence [planned]
+- next-156 — Photo duplicate review with confidence [complete]
 
 ## Start in
 - src/lib/studio-recipes.ts
@@ -3114,7 +3114,7 @@ Prompt experiments should retain compact revision history without leaking drafts
 ## Dependencies
 - next-085 — Reproducible generation recipes [complete]
 - next-087 — Stream Signal pack revisions [complete]
-- next-103 — Per-profile storage budget dashboard [planned]
+- next-103 — Per-profile storage budget dashboard [complete]
 - next-172 — Engine-specific model compatibility cards [planned]
 
 ## Start in
@@ -3653,7 +3653,7 @@ Large batch writes should notify interested views once per meaningful checkpoint
 ## Dependencies
 - next-001 — Crash-safe catalog mutations [complete]
 - next-014 — IndexedDB cursor backpressure [complete]
-- next-159 — Undoable bulk tag editing [planned]
+- next-159 — Undoable bulk tag editing [complete]
 
 ## Start in
 - src/lib/periodic-scheduler.ts
@@ -3696,7 +3696,7 @@ Profile validation must protect saved data while keeping the first useful screen
 
 ## Dependencies
 - next-010 — Portable profile boundaries [complete]
-- next-104 — Pending-edit inventory before profile switch [planned]
+- next-104 — Pending-edit inventory before profile switch [complete]
 - next-109 — Profile registry repair preview [planned]
 - next-135 — Cross-profile recommendation leak proof [complete]
 
@@ -3857,7 +3857,7 @@ Changed files; baseline/reproduction; validation commands and results; artifact 
 ---
 
 # next-192 — Provider fixture freshness registry
-Status: planned
+Status: complete
 Track: Quality gates and release practice
 Priority: P1
 
@@ -4146,7 +4146,7 @@ Models implementing future milestones need compact end-to-end fixtures showing t
 ## Dependencies
 - next-100 — Model-executable release handoff [planned]
 - next-191 — Evidence links in feature readiness registry [planned]
-- next-192 — Provider fixture freshness registry [planned]
+- next-192 — Provider fixture freshness registry [complete]
 - next-197 — Fault-injection release suite [planned]
 
 ## Start in

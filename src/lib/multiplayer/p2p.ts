@@ -40,6 +40,7 @@ export interface PeerInfo {
   connectionState: RTCPeerConnectionState;
   reliableReady?: boolean;
   reliableClosed?: boolean;
+  reliableGeneration?: number;
   iceState?: RTCIceConnectionState;
   /** Selected local ICE candidate type: host | srflx | prflx | relay. */
   candidateType: string | null;
@@ -111,6 +112,7 @@ export function defaultIceServers(): RTCIceServer[] {
   ];
 }
 
+let reliableGeneration = 0;
 export class P2PRoom {
   private readonly opts: P2PRoomOptions;
   private readonly peers = new Map<string, PeerSlot>();
@@ -265,6 +267,12 @@ export class P2PRoom {
 
   peerList(): PeerInfo[] {
     return [...this.peers.values()].map((s) => ({ ...s.info }));
+  }
+
+  reliableConnection(peer: string) {
+    const slot = this.peers.get(peer);
+    return slot?.pc.connectionState === "connected" && slot.reliable?.readyState === "open"
+      ? slot.info.reliableGeneration : undefined;
   }
 
   /** Replace the local-player stream for existing and subsequently joined peers. */
@@ -464,7 +472,7 @@ export class P2PRoom {
     channel.onopen = () => {
       slot.lastProgressAt = Date.now();
       this.debug(`Peer ${channel.label} channel open with ${slot.info.name || "guest"}`);
-      if (channel.label === "reliable") {this.clearOutbox(slot);slot.outbox=new RoomOutbox();channel.bufferedAmountLowThreshold=ROOM_OUTBOX_LIMITS.lowWaterBytes;channel.onbufferedamountlow=()=>this.flushOutbox(slot);slot.info.reliableReady=true;slot.info.reliableClosed=false;this.emitPeers();this.opts.onPeerReady?.(slot.info.id);}
+      if (channel.label === "reliable") {this.clearOutbox(slot);slot.outbox=new RoomOutbox();channel.bufferedAmountLowThreshold=ROOM_OUTBOX_LIMITS.lowWaterBytes;channel.onbufferedamountlow=()=>this.flushOutbox(slot);slot.info.reliableReady=true;slot.info.reliableClosed=false;slot.info.reliableGeneration=++reliableGeneration;this.emitPeers();this.opts.onPeerReady?.(slot.info.id);}
     };
     channel.onclose = () => {if(channel.label==="reliable"){this.clearOutbox(slot);this.reportTransport();slot.info.reliableReady=false;slot.info.reliableClosed=true;this.emitPeers();}};
     channel.onmessage = (e) => {
@@ -716,7 +724,7 @@ export class P2PRoom {
     // setters otherwise re-render consumers on every poll/ping.
     const list = this.peerList();
     const fingerprint = JSON.stringify(
-      list.map((p) => [p.id, p.name, p.connectionState, p.candidateType, p.rttMs, p.reliableReady, p.reliableClosed, p.iceState]),
+      list.map((p) => [p.id, p.name, p.connectionState, p.candidateType, p.rttMs, p.reliableReady, p.reliableClosed, p.iceState,p.reliableGeneration]),
     );
     if (fingerprint === this.lastPeersFingerprint) return;
     this.lastPeersFingerprint = fingerprint;

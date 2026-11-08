@@ -169,7 +169,8 @@ import {
   requestDirPermission,
   type ScanProgress,
 } from "./scan";
-import { forgetFolder, rememberDirHandle, getDirHandle } from "./sources";
+import { forgetFolder, rememberDirHandle, getDirHandle, blockDirectoryGrant } from "./sources";
+import { onDirectoryGrantForgotten, publishDirectoryGrantForgotten } from "../directory-grant-notice";
 import type {
   AppNotice,
   Folder,
@@ -2564,7 +2565,7 @@ export const useLibrary = create<LibraryState>((set, get) => ({
         if (retryAt > Date.now()) throw new Error("Clip retry available after " + new Date(retryAt).toLocaleString());
       }
       requested = true;
-      const fetched = await followRemote({ data: { query, kind, ...(opts?.freshTwitchClips ? {freshTwitchClips:true} : {}), ...(opts?.twitchClipMode ? { twitchClipMode: opts.twitchClipMode } : {}), ...(opts?.clipLimit !== undefined ? { clipLimit: opts.clipLimit } : {}), ...(opts?.twitchVodLimit ? { twitchVodLimit: opts.twitchVodLimit } : {}), ...(knownYoutube && !opts?.restartPlaylist ? { catalogCursor: knownYoutube.catalogCursor, playlistWalk: knownYoutube.playlistWalk } : {}), ...(knownTwitch?.twitchArchiveCursor ? { twitchArchiveCursor: knownTwitch.twitchArchiveCursor } : {}), ...(knownTwitch?.twitchClipCursor ? { twitchClipCursor: knownTwitch.twitchClipCursor } : {}) } });
+      const fetched = await followRemote({ data: { query, kind, ...(opts?.freshTwitchClips ? {freshTwitchClips:true} : {}), ...(opts?.twitchClipMode ? { twitchClipMode: opts.twitchClipMode } : {}), ...(opts?.clipLimit !== undefined ? { clipLimit: opts.clipLimit } : {}), ...(opts?.twitchVodLimit ? { twitchVodLimit: opts.twitchVodLimit } : {}), ...(knownYoutube && !opts?.restartPlaylist ? { catalogCursor: knownYoutube.catalogCursor, playlistWalk: knownYoutube.playlistWalk } : {}), ...(knownTwitch?.twitchArchiveCursor ? { twitchArchiveCursor: knownTwitch.twitchArchiveCursor, archiveHeadAt: knownTwitch.twitchArchiveDiagnostics?.headCheckedAt } : {}), ...(knownTwitch?.twitchClipCursor ? { twitchClipCursor: knownTwitch.twitchClipCursor } : {}) } });
       const result = correction ? bindYoutubeCorrection(fetched, correction, query) : fetched;
       if(result.channel.kind==='twitch'){
         if(knownTwitch){assertTwitchContinuity(knownTwitch,result.channel);if(!twitchObservationCurrent(get().follows.find(c=>c.id===knownTwitch.id)??knownTwitch,knownTwitch))throw Error('The Twitch identity changed while this pull was running. Retry.');result.channel={...result.channel,id:knownTwitch.id,twitchAliasRevision:knownTwitch.twitchAliasRevision,twitchAliases:knownTwitch.twitchAliases,twitchCreatorKey:knownTwitch.twitchCreatorKey};}
@@ -4238,10 +4239,10 @@ export async function rebaseSharedCatalog(){
 }
 
 /** Explicit restore boundary: finish current personal checkpoints before freezing a generation. */
-export async function checkpointLibraryForRestore(){
+export async function checkpointLibraryForRestore(allowOpenViews=false){
  if(restoreCompletion)await restoreCompletion;const s=useLibrary.getState();
  if(!s.hydrated||!preferencesRestored)throw Error('Wait for the saved library to finish loading.');
- if(s.remoteBusy||s.refreshing||s.scanning||s.activeId||s.previewId)throw Error('Finish the current pull, import or player before restoring.');
+ if(s.remoteBusy||s.refreshing||s.scanning||!allowOpenViews&&(s.activeId||s.previewId))throw Error('Finish the current pull, import or player before restoring.');
  const {flushFeedbackForRestore}=await import('../media-feedback');flushFeedbackForRestore();
  await recoverCatalogMutations();durableSliceWriter.reset();flushPersist(useLibrary.getState);persistNow(useLibrary.getState);
  await Promise.all([waitForDurableWrites(),waitForPrefsWrites(),waitForFollowsWrites()]);
@@ -4260,9 +4261,42 @@ export async function clearWatchHistoryWithRecovery(){
 export async function checkpointLibraryForProfileSwitch(){
  const current=useLibrary.getState();
  if(current.remoteBusy||current.refreshing||current.scanning)throw Error('Finish the active pull or source scan before switching profiles.');
- cancelCatalogHydration();current.closePlayer();current.closePreview();
+ cancelCatalogHydration();
  if(restoreCompletion)await restoreCompletion;
- await checkpointLibraryForRestore();
+ await checkpointLibraryForRestore(true);
  const {catalogWriter}=await import('./persist');
  if(catalogWriter.current())throw Error('A catalog write is still finishing. The current profile was kept; retry when it completes.');
+}
+export function releaseLibraryForProfileSwitch(){
+ const current=useLibrary.getState();
+ cancelCatalogHydration();current.closePlayer();current.closePreview();
+}
+
+function applyForgottenDirectoryGrant(id:string){
+ const state=useLibrary.getState();
+ blockDirectoryGrant(id);
+ // An already running player in another tab can finish. Its cached URL is
+ // not authorization for the next read; sources.ts fences those separately.
+ const unpinned=state.videos.filter(video=>video.folderId===id&&!sourceIsPinned(video.id)&&video.id!==state.activeId).map(video=>video.id);
+ forgetFolder(id,unpinned);
+ useLibrary.setState(s=>({folders:s.folders.map(row=>row.id===id?{...row,needsPermission:true,health:'permission-needed'}:row)}));
+}
+export async function forgetCurrentDirectoryGrant(id:string){
+ const state=useLibrary.getState();
+ if(state.scanning)throw Error("Finish the active source scan before forgetting folder access.");
+ if(state.videos.some(video=>video.folderId===id&&(video.id===state.activeId||video.id===state.previewId||sourceIsPinned(video.id))))
+   throw Error("Close the player, preview or Watch Room using this source first.");
+ const {forgetSavedDirectoryGrant}=await import("./persist");
+ await forgetSavedDirectoryGrant(id);
+ applyForgottenDirectoryGrant(id);
+ publishDirectoryGrantForgotten(id);
+}
+if(typeof window!=="undefined"){
+ const off=onDirectoryGrantForgotten(id=>{
+   void import("./persist").then(async({readDirectoryGrant})=>{
+     const row=await readDirectoryGrant(id);
+     if(row&&"forgotten" in row)applyForgottenDirectoryGrant(id);
+   }).catch(()=>{});
+ });
+ import.meta.hot?.dispose(off);
 }

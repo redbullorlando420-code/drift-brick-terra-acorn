@@ -2,6 +2,8 @@ import {profileLocalStorage as localStorage, profileSessionStorage as sessionSto
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listWorkspaceDocuments, signalRevisions } from "@/lib/videos/persist";
 import { createLocalId } from "@/lib/local-id";
+import { profileSwitchWork } from "@/lib/profile-switch-work";
+import { useProfileCheckpoint } from "./use-profile-checkpoint";
 import {
   SignalConflictError,
   rebaseSignalEdit,
@@ -47,6 +49,7 @@ export function useStreamSignal(owner: string) {
     [conflict, setConflict] = useState<Conflict | null>(null),
     [remoteChanged, setRemoteChanged] = useState(false);
   const pending = useRef(new Map<string, Pending>()),
+    parked = useRef(false),
     writing = useRef<Promise<void> | null>(null),
     timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined),
     alive = useRef(true),
@@ -65,7 +68,7 @@ export function useStreamSignal(owner: string) {
     try {
       if (!pending.current.size) {
         localStorage.removeItem(recoveryKey);
-        return;
+        return true;
       }
       const text = JSON.stringify({ version: 2, rows: [...pending.current.values()] });
       if (text.length > 1_000_000)
@@ -73,6 +76,7 @@ export function useStreamSignal(owner: string) {
           "Recovery mirror is full. Keep this tab open and save or export the current pack.",
         );
       localStorage.setItem(recoveryKey, text);
+      return localStorage.getItem(recoveryKey) === text;
     } catch (e) {
       if (alive.current)
         setError(
@@ -80,6 +84,7 @@ export function useStreamSignal(owner: string) {
             ? e.message
             : "Draft recovery mirror unavailable. Keep this tab open until Save succeeds.",
         );
+      return false;
     }
   }, [recoveryKey]);
   const publishSaved = useCallback(
@@ -151,6 +156,7 @@ export function useStreamSignal(owner: string) {
       }
     })();
     writing.current = job;
+    profileSwitchWork.notify();
     try {
       await job;
     } catch (e) {
@@ -170,6 +176,7 @@ export function useStreamSignal(owner: string) {
       throw e;
     } finally {
       writing.current = null;
+      profileSwitchWork.notify();
       if (alive.current) {
         setSaving(false);
         setDirty(pending.current.size > 0);
@@ -190,6 +197,8 @@ export function useStreamSignal(owner: string) {
         expected: prior?.expected ?? expected,
         nonce: createLocalId("edit:"),
       });
+      parked.current=false;
+      profileSwitchWork.notify();
       setDirty(true);
       clearTimeout(timer.current);
       timer.current = setTimeout(() => {
@@ -330,16 +339,26 @@ export function useStreamSignal(owner: string) {
       alive.current = false;
       ticket.current++;
       clearTimeout(timer.current);
-      mirror();
+      const mirrored=mirror();
       void flush()
-        .catch(() => {})
+        .catch(() => {
+          try { parked.current=mirrored&&sessionStorage.getItem(prefix+"recovery-pointer")===recoveryKey; }
+          catch { parked.current=false; }
+        })
         .finally(() => {
-          if (!alive.current || repositoryRef.current !== repository) repository.writer.close();
+          if ((!alive.current || repositoryRef.current !== repository) && (!pending.current.size||parked.current)) repository.writer.close();
+          profileSwitchWork.notify();
         });
       stop();
       window.removeEventListener("pagehide", hide);
     };
   }, [prefix, recoveryKey, repository, flush, mirror, loadPage, refresh]);
+  useProfileCheckpoint(()=>writing.current||pending.current.size&&!parked.current
+    ? {label:"Stream Signal drafts",state:"save",detail:"Save pending announcement changes in this profile."}
+    : undefined,async()=>{
+      await flush();
+      if(!alive.current&&!pending.current.size)repository.writer.close();
+    });
   const updatePack = (next: SignalPack) => {
     const base = packRef.current?.id === next.id ? packRef.current : next;
     if (!queue(prefix + next.id, next, base ?? undefined, base?.revision ?? 0)) return;

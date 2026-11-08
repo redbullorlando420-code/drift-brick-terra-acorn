@@ -13,8 +13,9 @@ import {
   type RoomMediaDescriptor,
 } from "@/lib/multiplayer/room-media";
 import type { LibraryVideo } from "@/lib/videos/types";
+import type { RoomSearchEvidence } from "@/lib/multiplayer/room-search-evidence";
 export type GuestDraftAPI = {
-  stage: (video: LibraryVideo, origin: "host" | "public", revision?: number) => void;
+  stage: (video: LibraryVideo, evidence: RoomSearchEvidence) => void;
 };
 export const RoomGuestDrafts = forwardRef<
   GuestDraftAPI,
@@ -24,7 +25,7 @@ export const RoomGuestDrafts = forwardRef<
     catalogRevision?: number;
     canSubmit: boolean;
     pending: boolean;
-    onSubmit: (media: RoomMediaDescriptor[]) => boolean;
+    onSubmit: (media: RoomMediaDescriptor[], evidence?: RoomSearchEvidence[]) => boolean;
   }
 >(function RoomGuestDrafts(
   { room, connected, catalogRevision, canSubmit, pending, onSubmit },
@@ -50,7 +51,7 @@ export const RoomGuestDrafts = forwardRef<
       setError(e instanceof Error ? e.message : "Draft could not be changed.");
     }
   };
-  const stage = (video: LibraryVideo, origin: "host" | "public", revision?: number) =>
+  const stage = (video: LibraryVideo, evidence: RoomSearchEvidence) =>
     attempt(() => {
       if (!video.remote)
         throw Error(
@@ -61,8 +62,8 @@ export const RoomGuestDrafts = forwardRef<
       save(
         stageGuestDraft(guestDrafts.get(), room, {
           media,
-          origin,
-          catalogRevision: origin === "host" ? revision : undefined,
+          origin: evidence.source,
+          catalogRevision: evidence.source === "host" ? evidence.revision : undefined,
           status: "draft",
         }),
       );
@@ -81,10 +82,9 @@ export const RoomGuestDrafts = forwardRef<
         const before = guestDrafts.get(),
           claimed = claimGuestDrafts(before, room, ids, catalogRevision, connected);
         save(claimed);
-        const media = claimed.rows
-          .filter((r) => ids.includes(draftIdentity(r)))
-          .map((r) => r.media);
-        const sent = onSubmit(media);
+        const rows = claimed.rows.filter((r) => ids.includes(draftIdentity(r)));
+        const sent = onSubmit(rows.map(r=>r.media), rows.map((r):RoomSearchEvidence=>r.origin==="host"
+          ? {source:"host",revision:r.catalogRevision!} : {source:r.origin}));
         if (!sent) {
           save(before);
           setNote("No delivery was queued. Your unsent drafts remain here.");
@@ -175,7 +175,7 @@ export const RoomGuestDrafts = forwardRef<
                   {row.origin === "host"
                     ? "Host-shared result · sharing revision " +
                       (row.catalogRevision ?? "unverified")
-                    : "Public provider link"}
+                    : row.origin === "library" ? "Saved in my library" : "Public provider link"}
                   {row.origin === "host" && row.catalogRevision !== catalogRevision
                     ? " · revalidation needed"
                     : ""}

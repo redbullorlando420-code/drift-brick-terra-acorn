@@ -295,9 +295,9 @@ try {
           })
           .click();
         await page.getByRole("dialog").waitFor({ state: "hidden" });
-        await panel(page).waitFor();
+        await page.getByRole("region", { name: "Accounts", exact: true }).waitFor();
       } else await open(page);
-      await panel(page).scrollIntoViewIfNeeded();
+      await (mobile ? page.getByRole("region", { name: "Accounts", exact: true }) : panel(page)).scrollIntoViewIfNeeded();
       await page.screenshot({
         path: output.replace(".json", mobile ? "-mobile.png" : "-desktop.png"),
       });

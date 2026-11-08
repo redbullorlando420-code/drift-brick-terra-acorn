@@ -10,15 +10,16 @@ import type { LibraryVideo } from '@/lib/videos/types';
 import { RoomVideoSummary } from './room-video-summary';
 import type { RoomHostCatalog } from '@/lib/multiplayer/room-host-catalog';
 import {describeSearchCount} from '@/lib/videos/search-count-evidence';
+import { roomSearchAvailability, type RoomSearchEvidence } from '@/lib/multiplayer/room-search-evidence';
 type Page={videos:LibraryVideo[];cursor?:string;estimatedTotal?:number};
 export const RoomVideoSearch=memo(function RoomVideoSearch({candidates,catalogPending,writable,canAdd,suggestMode,pending,full,queuedKeys,currentKey,onPlay,onAdd,onDraft,hostCatalog,preferHost=false}:{
   candidates:LibraryVideo[];catalogPending:boolean;writable:boolean;canAdd:boolean;suggestMode:boolean;pending:boolean;full:boolean;queuedKeys:Set<string>;currentKey?:string;
-  onDraft?:(video:LibraryVideo,origin:'host'|'public',revision?:number)=>void;
-  onPlay:(video:LibraryVideo)=>void;onAdd:(video:LibraryVideo)=>void;
+  onDraft?:(video:LibraryVideo,evidence:RoomSearchEvidence)=>void;
+  onPlay:(video:LibraryVideo,evidence:RoomSearchEvidence)=>void;onAdd:(video:LibraryVideo,evidence:RoomSearchEvidence)=>void;
   hostCatalog?:RoomHostCatalog;preferHost?:boolean;
 }){
   const [query,setQuery]=useState(''),[source,setSource]=useState<'library'|'youtube'|'host'>(preferHost?'host':'library');
-  const [offset,setOffset]=useState(0),[local,setLocal]=useState<{videos:LibraryVideo[];hasMore:boolean;nextOffset?:number;catalogRevision?:number}>({videos:[],hasMore:false});
+  const [offset,setOffset]=useState(0),[local,setLocal]=useState<{videos:LibraryVideo[];hasMore:boolean;nextOffset?:number;catalogRevision?:number;source?:'host'|'library';query?:string;offset?:number}>({videos:[],hasMore:false});
   const [hostOffsets,setHostOffsets]=useState([0]);
   const [searching,setSearching]=useState(false),[online,setOnline]=useState<Page>(),[error,setError]=useState('');
   const [cursors,setCursors]=useState<Array<string|undefined>>([undefined]),[page,setPage]=useState(0);
@@ -31,15 +32,16 @@ export const RoomVideoSearch=memo(function RoomVideoSearch({candidates,catalogPe
     setLocal({videos:[],hasMore:false});
     if(!hostCatalog?.connected){setSearching(false);setError('Host browsing is unavailable. Wait for the host to connect or enable library browsing.');return;}
     const controller=new AbortController();request.current?.abort();request.current=controller;setSearching(true);setError('');
-    const timer=window.setTimeout(()=>{void hostCatalog.search(query,offset,controller.signal).then(page=>{if(!controller.signal.aborted)setLocal(page);}).catch(cause=>{if(!controller.signal.aborted)setError(cause instanceof Error?cause.message:'Host search failed.');}).finally(()=>{if(!controller.signal.aborted)setSearching(false);});},300);
+    const timer=window.setTimeout(()=>{void hostCatalog.search(query,offset,controller.signal).then(page=>{if(!controller.signal.aborted)setLocal({...page,source:'host',query,offset});}).catch(cause=>{if(!controller.signal.aborted)setError(cause instanceof Error?cause.message:'Host search failed.');}).finally(()=>{if(!controller.signal.aborted)setSearching(false);});},300);
     return()=>{window.clearTimeout(timer);controller.abort();};
   },[source,hostCatalog,query,offset,hostRetry]);
   useEffect(()=>{
     if(source!=='library'||catalogPending)return;
     const controller=new AbortController();setSearching(true);
-    const timer=window.setTimeout(()=>{void roomSearchPage(candidates,query,offset,catalogTurn(controller.signal)).then(result=>{if(!controller.signal.aborted){setLocal(result);setSearching(false);}}).catch(()=>{if(!controller.signal.aborted){setError('Library search could not finish. Try a shorter search.');setSearching(false);}});},160);
+    const timer=window.setTimeout(()=>{void roomSearchPage(candidates,query,offset,catalogTurn(controller.signal),
+      hostCatalog ? video=>!video.folderId.startsWith('room:') : undefined).then(result=>{if(!controller.signal.aborted){setLocal({...result,source:'library',query,offset});setSearching(false);}}).catch(()=>{if(!controller.signal.aborted){setError('Library search could not finish. Try a shorter search.');setSearching(false);}});},160);
     return()=>{window.clearTimeout(timer);controller.abort();};
-  },[source,candidates,catalogPending,query,offset]);
+  },[source,candidates,catalogPending,query,offset,Boolean(hostCatalog)]);
   const reset=(value:string)=>{request.current?.abort();setQuery(value);setOffset(0);setHostOffsets([0]);setOnline(undefined);setCursors([undefined]);setPage(0);setError('');setSearching(source!=='youtube');};
   const runOnline=async(cursor?:string,nextPage=0)=>{
     request.current?.abort();const controller=new AbortController();request.current=controller;setSearching(true);setError('');
@@ -50,7 +52,13 @@ export const RoomVideoSearch=memo(function RoomVideoSearch({candidates,catalogPe
     }catch(cause){if(!controller.signal.aborted)setError(cause instanceof Error?cause.message:'YouTube search is unavailable. Try again or paste a video link.');}
     finally{if(!controller.signal.aborted)setSearching(false);}
   };
-  const videos=source==='host'?(hostCatalog?.connected&&local.catalogRevision===hostCatalog.revision?local.videos:[]):source==='library'?local.videos:online?.videos??[];
+  const localCurrent=local.source===source&&local.query===query&&local.offset===offset;
+  const hostCurrent=source==='host'&&localCurrent&&hostCatalog?.connected&&local.catalogRevision===hostCatalog.revision;
+  const videos=source==='host'?(hostCurrent?local.videos:[]):source==='library'?(localCurrent?local.videos:[]):online?.videos??[];
+  const evidence:RoomSearchEvidence=hostCurrent&&local.catalogRevision!==undefined
+    ? {source:'host',revision:local.catalogRevision}
+    : {source:source==='youtube'?'public':'library'};
+  const provenance=evidence.source==='host'?'Host-shared library':evidence.source==='public'?'Public YouTube search':'Saved in my library';
   const busy=searching||source==='library'&&catalogPending;
   const countEvidence=describeSearchCount({version:1,kind:busy?'pending':'page',value:busy?undefined:videos.length,scope:source==='youtube'?'YouTube':source==='host'?'host library':'saved catalog',hasMore:source==='youtube'?Boolean(online?.cursor):local.hasMore});
   const estimate=source==='youtube'&&!busy&&online?.estimatedTotal!==undefined?describeSearchCount({version:1,kind:'estimate',value:online.estimatedTotal,scope:'YouTube'}):undefined;
@@ -72,8 +80,16 @@ export const RoomVideoSearch=memo(function RoomVideoSearch({candidates,catalogPe
     {source==='host'&&error&&<Button size="sm" variant="secondary" className="mt-2 min-h-11" disabled={!hostCatalog?.connected||busy} onClick={()=>setHostRetry(value=>value+1)}>Retry host search</Button>}
     {source==='youtube'&&!!query.trim()&&<a className="mt-2 inline-flex min-h-11 items-center gap-1 text-xs text-accent" href={`https://www.youtube.com/results?search_query=${encodeURIComponent(query.trim())}`} target="_blank" rel="noreferrer"><ExternalLink className="size-3"/>Open this search on YouTube</a>}
     <ul aria-label="Room video search results" aria-busy={busy} className="mt-3 max-h-128 space-y-3 overflow-y-auto">
-      {videos.map(video=>{const key=roomMediaKey(video),queued=queuedKeys.has(key),current=currentKey===key;return <li key={key} data-room-result-id={video.id} className="rounded-md bg-bg/50 p-3">
-        <RoomVideoSummary video={video} description><div className="flex min-w-0 flex-wrap items-start gap-2"><button type="button" className="min-h-11 min-w-0 basis-full sm:basis-0 flex-1 text-left text-sm font-medium text-fg hover:text-accent disabled:opacity-60" aria-label={video.name} title={video.name} onClick={()=>onPlay(video)} disabled={!writable||busy||pending}><span className="line-clamp-3 break-words"><Play aria-hidden="true" className="mr-1 inline size-3"/>{video.name}</span></button><Button size="sm" variant="secondary" className="min-h-11 shrink-0" aria-label={suggestMode?`Suggest ${video.name}`:undefined} disabled={!canAdd||busy||pending||suggestMode&&!video.remote||queued||current||!suggestMode&&full} onClick={()=>onAdd(video)}>{suggestMode?'Suggest':'Queue'}</Button>{onDraft&&<Button size="sm" variant="secondary" className="min-h-11" disabled={busy||!video.remote} aria-label={'Draft '+video.name} onClick={()=>onDraft(video,source==='host'?'host':'public',source==='host'?hostCatalog?.revision:undefined)}>Add to draft</Button>}</div></RoomVideoSummary>
+    {videos.map(video=>{const key=roomMediaKey(video),queued=queuedKeys.has(key),current=currentKey===key,available=!hostCatalog||!!video.remote||evidence.source==='host';return <li key={video.id} data-room-result-id={video.id} data-room-result-source={evidence.source} className="rounded-md bg-bg/50 p-3">
+        <RoomVideoSummary video={video} description>
+          <div className="flex min-w-0 flex-wrap items-start gap-2">
+            <button type="button" className="min-h-11 min-w-0 basis-full sm:basis-0 flex-1 text-left text-sm font-medium text-fg hover:text-accent disabled:opacity-60" aria-label={video.name} title={video.name} onClick={()=>onPlay(video,evidence)} disabled={!writable||!available||busy||pending}><span className="line-clamp-3 break-words"><Play aria-hidden="true" className="mr-1 inline size-3"/>{video.name}</span></button>
+            <Button size="sm" variant="secondary" className="min-h-11 shrink-0" aria-label={suggestMode?`Suggest ${video.name}`:undefined} disabled={!canAdd||!available||busy||pending||queued||current||!suggestMode&&full} onClick={()=>onAdd(video,evidence)}>{suggestMode?'Suggest':'Queue'}</Button>
+            {onDraft&&<Button size="sm" variant="secondary" className="min-h-11" disabled={busy||!video.remote} aria-label={'Draft '+video.name} onClick={()=>onDraft(video,evidence)}>Add to draft</Button>}
+          </div>
+          <p className="mt-1 text-xs font-medium text-accent">{provenance}</p>
+          <p className="mt-1 text-xs leading-5 text-muted">{roomSearchAvailability(video,evidence.source,Boolean(hostCatalog))}</p>
+        </RoomVideoSummary>
         {(queued||current)&&<p className="mt-2 text-xs text-accent">{current?'Playing now':'Already in the queue'}</p>}
       </li>;})}
     </ul>

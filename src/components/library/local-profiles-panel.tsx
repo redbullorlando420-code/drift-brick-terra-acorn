@@ -3,6 +3,7 @@ import { ProfileSettingsPackPanel } from './profile-settings-pack-panel';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConsequenceAction } from "./consequence-action";
+import { ProfileSwitchInventory } from "./profile-switch-inventory";
 import { currentProfileId } from "@/lib/local-profile-storage";
 import {
   createLocalProfile,
@@ -269,10 +270,7 @@ export function LocalProfilesPanel({ onSwitch }: { onSwitch: (target: string) =>
           title="Switch local profile?"
           confirm="Save and switch profile"
           disabled={!target || busy}
-          onConfirm={async () => {
-            await review();
-            await onSwitch(target);
-          }}
+          onConfirm={() => onSwitch(target)}
         >
           <p>
             This tab will open{" "}
@@ -285,6 +283,7 @@ export function LocalProfilesPanel({ onSwitch }: { onSwitch: (target: string) =>
             accepted disk records remain intact. This action does not copy accounts, native media or
             browser directory grants between profiles.
           </p>
+          <ProfileSwitchInventory/>
         </ConsequenceAction>
       </div>
     </section>

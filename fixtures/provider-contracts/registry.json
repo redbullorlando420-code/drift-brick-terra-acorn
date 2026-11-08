@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "owner": "Realhub provider integration maintainer",
+  "entries": [
+    {"id":"youtube-feed","provider":"youtube","shape":"RSS uploads feed","fixture":"fixtures/provider-contracts/youtube.json","runner":"scripts/provider-contract-milestones.test.mjs","reviewedAt":"2026-10-24","reviewDays":45,"provenance":"Synthetic redacted RSS shapes","canary":false},
+    {"id":"youtube-catalog","provider":"youtube","shape":"Browse first page and continuation","fixture":"fixtures/provider-contracts/youtube.json","runner":"scripts/provider-contract-milestones.test.mjs","reviewedAt":"2026-10-24","reviewDays":30,"provenance":"Synthetic redacted browse shapes","canary":true},
+    {"id":"youtube-live","provider":"youtube","shape":"Live shelf and incomplete listing","fixture":"fixtures/provider-contracts/youtube.json","runner":"scripts/youtube-negative-evidence.test.mjs","reviewedAt":"2026-10-24","reviewDays":30,"provenance":"Synthetic redacted renderer shapes","canary":false},
+    {"id":"twitch-live","provider":"twitch","shape":"Aliased GraphQL stream observations","fixture":"scripts/provider-contract-milestones.test.mjs","runner":"scripts/provider-contract-milestones.test.mjs","reviewedAt":"2026-10-24","reviewDays":30,"provenance":"Synthetic stream records and field failures","canary":false},
+    {"id":"twitch-archive","provider":"twitch","shape":"GraphQL VOD page, head overlap and interrupted body","fixture":"scripts/provider-archive-resilience.test.mjs","runner":"scripts/provider-archive-resilience.test.mjs","reviewedAt":"2026-11-08","reviewDays":30,"provenance":"Synthetic VOD identities, cursor tokens and body streams","canary":true},
+    {"id":"adult-public","provider":"adult","shape":"Public archive, live-directory and recovery response shapes","fixture":"scripts/fixtures/adult-contracts.json","runner":"scripts/provider-capability-batch.test.mjs","reviewedAt":"2026-10-24","reviewDays":30,"provenance":"Synthetic provider contract responses","canary":false}
+  ]
+}

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rememberFile, resolvePlayUrl, trimObjectUrls, pinPlayUrl, getSourceMemorySnapshot, forgetFolder } from "./sources.ts";
+import { rememberFile, resolvePlayUrl, resolveLocalFile, blockDirectoryGrant, trimObjectUrls, pinPlayUrl, getSourceMemorySnapshot, forgetFolder } from "./sources.ts";
 
 test("idle cleanup revokes temporary blobs while keeping the current player and file access", async () => {
   rememberFile("playing", new File(["playing"], "playing.mp4"));
@@ -25,4 +25,15 @@ test("watch room source stays playable across idle trimming until it is released
   trimObjectUrls();
   await assert.rejects(fetch(url));
   forgetFolder("test", ["room-playing"]);
+});
+
+test("forgetting a folder blocks new playback even with a cached file and URL", async () => {
+  const video = { id: "cached-folder-video", folderId: "forgotten-folder", path: "cached.mp4" };
+  rememberFile(video.id, new File(["cached"], "cached.mp4"));
+  const alreadyOpen = await resolvePlayUrl(video);
+  blockDirectoryGrant(video.folderId);
+  await assert.rejects(resolvePlayUrl(video), /forgot the saved folder access/);
+  await assert.rejects(resolveLocalFile(video), /forgot the saved folder access/);
+  assert.equal(await (await fetch(alreadyOpen)).text(), "cached");
+  forgetFolder(video.folderId, [video.id]);
 });

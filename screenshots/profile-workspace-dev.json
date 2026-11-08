@@ -1,0 +1,25 @@
+{
+  "ok": true,
+  "reports": [
+    {
+      "mobile": false,
+      "checks": [
+        "Storage compares exact profile namespaces, never opens missing databases or displays private values, and labels missing quota evidence.",
+        "Denial is read-only, cancel leaves the grant, explicit forget removes only the active profile's handle, and optional browser consent remains profile scoped.",
+        "A held print save and unsaved announcement are named; failed checks keep Default, retry does not resubmit the print, and the announcement, prompt and recipe-name draft remain after switching back."
+      ],
+      "errors": [],
+      "ok": true
+    },
+    {
+      "mobile": true,
+      "checks": [
+        "Storage compares exact profile namespaces, never opens missing databases or displays private values, and labels missing quota evidence.",
+        "Denial is read-only, cancel leaves the grant, explicit forget removes only the active profile's handle, and optional browser consent remains profile scoped.",
+        "A held print save and unsaved announcement are named; failed checks keep Default, retry does not resubmit the print, and the announcement, prompt and recipe-name draft remain after switching back."
+      ],
+      "errors": [],
+      "ok": true
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+✔ idle cleanup revokes temporary blobs while keeping the current player and file access (34.8669ms)
+✔ watch room source stays playable across idle trimming until it is released (6.3172ms)
+✔ forgetting a folder blocks new playback even with a cached file and URL (4.1739ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 305.8033

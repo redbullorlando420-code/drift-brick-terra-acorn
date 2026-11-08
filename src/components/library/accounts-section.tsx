@@ -3,8 +3,8 @@ import { Check, Settings2, UserPlus, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { currentProfileId } from "@/lib/local-profile-storage";
-import { checkpointAccountSwitch } from "@/lib/account-switch";
-import { activateLocalProfile, createLocalProfile, renameLocalProfile } from "@/lib/local-profiles";
+import { switchProfileSafely } from "@/lib/profile-switch";
+import { createLocalProfile, renameLocalProfile } from "@/lib/local-profiles";
 import {
   getPerformanceMode,
   setPerformanceMode,
@@ -22,20 +22,14 @@ import {
 import { ConsequenceAction } from "./consequence-action";
 import { DeskDisclosure } from "./desk-disclosure";
 import { ProfileSettingsPackPanel } from "./profile-settings-pack-panel";
+import { ProfileStoragePanel } from "./profile-storage-panel";
+import { ProfilePermissionsPanel } from "./profile-permissions-panel";
+import { ProfileSwitchInventory } from "./profile-switch-inventory";
 
 const serverMode = () => "adaptive" as const;
 const control =
   "min-h-11 w-full min-w-0 rounded-md border border-border bg-bg px-3 text-sm text-fg";
 const action = "h-auto min-h-11 max-w-full whitespace-normal py-2";
-
-async function switchAccount(id: string) {
-  const { checkpointLibraryForProfileSwitch } = await import("@/lib/videos/store");
-  await checkpointAccountSwitch(
-    checkpointLibraryForProfileSwitch,
-    async () => (await import("@/lib/videos/persist")).catalogWriter,
-    () => activateLocalProfile(id),
-  );
-}
 
 export function AccountsSection() {
   const registry = useLocalProfiles(),
@@ -169,7 +163,7 @@ export function AccountsSection() {
                       title={"Switch to " + profile.name + "?"}
                       confirm="Save and switch account"
                       disabled={busy || registry.status !== "ready"}
-                      onConfirm={() => switchAccount(profile.id)}
+                      onConfirm={() => switchProfileSafely(profile.id)}
                     >
                       <p>
                         This tab will save its current work and open {profile.name}. Other tabs keep
@@ -179,6 +173,7 @@ export function AccountsSection() {
                         Active pulls or source scans must finish before switching. Native files,
                         directory grants and connected device services are not transferred.
                       </p>
+                      <ProfileSwitchInventory/>
                     </ConsequenceAction>
                   </div>
                 )}
@@ -358,6 +353,12 @@ export function AccountsSection() {
               )}
             </div>
           </section>
+          <DeskDisclosure title="Storage by profile" description="Compare protected data, print files and disposable artwork.">
+            <ProfileStoragePanel profiles={registry.profiles} active={active}/>
+          </DeskDisclosure>
+          <DeskDisclosure title="Profile permissions" description="Review saved browser folder access and optional app permissions.">
+            <ProfilePermissionsPanel/>
+          </DeskDisclosure>
           <DeskDisclosure
             title="Portable settings"
             description="Copy selected preferences into a new empty account."

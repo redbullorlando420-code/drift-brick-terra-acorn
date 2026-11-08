@@ -1,0 +1,18 @@
+✔ review does not create a model; exclusive atomic commit verifies bytes, hash and reload status (77.2344ms)
+✔ existing source or destination is never overwritten, including a concurrent destination race (32.778ms)
+✔ short, oversized, corrupt or mismatched uploads fail without a visible model (160.0791ms)
+✔ write/link failure retains original and leaves the save unconfirmed (38.1027ms)
+✔ root revocation interrupts a held stream and late bytes cannot commit it (40.3057ms)
+✔ a post-link receipt failure can be verified and recovered without uploading or replacing the file again (37.4967ms)
+✔ interrupted review never replays, explicit cancel releases it and corruption does not erase history (14.8153ms)
+✔ filename, size, path and pending budgets are enforced before output writes (98.1633ms)
+✔ history keeps forty receipts while retaining an in-flight reviewed save (24.7516ms)
+✔ preexisting temporary collisions are preserved (18.8473ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 676.1131

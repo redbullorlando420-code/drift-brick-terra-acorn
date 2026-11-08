@@ -1,0 +1,16 @@
+[
+  {
+    "mobile": false,
+    "checks": [
+      "Resumed pull preserves historical cursor and newest-window evidence across reload."
+    ],
+    "errors": []
+  },
+  {
+    "mobile": true,
+    "checks": [
+      "Resumed pull preserves historical cursor and newest-window evidence across reload."
+    ],
+    "errors": []
+  }
+]

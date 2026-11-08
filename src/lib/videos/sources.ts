@@ -2,6 +2,7 @@ import {mediaReadBlocked} from './media-health.ts';
 const files = new Map<string, File>();
 const fileHandles = new Map<string, FileSystemFileHandle>();
 const dirHandles = new Map<string, FileSystemDirectoryHandle>();
+const forgottenDirectories=new Set<string>();
 const objectUrls = new Map<string, string>();
 const pinnedUrls = new Map<string, number>();
 const MAX_OBJECT_URLS = 48;
@@ -47,8 +48,9 @@ export function rememberFileHandle(id: string, handle: FileSystemFileHandle) {
 }
 
 export function rememberDirHandle(folderId: string, handle: FileSystemDirectoryHandle) {
-  dirHandles.set(folderId, handle);
+  if(!forgottenDirectories.has(folderId))dirHandles.set(folderId, handle);
 }
+export function blockDirectoryGrant(folderId:string){forgottenDirectories.add(folderId);dirHandles.delete(folderId);}
 
 export function getDirHandle(folderId: string) {
   return dirHandles.get(folderId);
@@ -91,6 +93,7 @@ export async function resolvePlayUrl(video: {
   folderId?: string;
   path?: string;
 },signal?:AbortSignal): Promise<string> {
+  assertDirectoryGrant(video.folderId);
   if(mediaReadBlocked(video.id))throw Error('This location contains different contents. Review its verified identity or check the corrected file before playback.');
   if(video.localIdentity&&!validLocalIdentityRef(video.localIdentity))throw Error('Unsupported file identity. Existing mapping was kept; review this title before playing.');
   if (video.src) return video.src;
@@ -102,6 +105,7 @@ export async function resolvePlayUrl(video: {
     return cached;
   }
   const file=await resolveLocalFile(video);
+  assertDirectoryGrant(video.folderId);
   if(video.size!==undefined&&file.size!==video.size)throw Object.assign(Error('The file size changed. Review its identity before playback; your saved marks were kept.'),{sourceCode:'ContentMismatch'});
   const expected=video.localIdentity?.proof??localIdentitySnapshot().fingerprints[video.id]?.proof;
   if(expected){const proof=await fingerprintFile(file,signal??new AbortController().signal);if(!sameFileFingerprint(proof,expected))throw Error('This location contains a different file. Your saved marks were kept. Review the file identity before playing.');rememberVerifiedIdentityFile(video.id,file);}
@@ -110,8 +114,12 @@ export async function resolvePlayUrl(video: {
   return url;
 }
 
+function assertDirectoryGrant(folder?:string){
+  if(folder&&forgottenDirectories.has(folder))throw Object.assign(Error("This profile forgot the saved folder access. Reconnect the file through an approved source."),{sourceCode:"NotAllowedError"});
+}
 /** Reads only an already selected file or a previously granted source handle. */
 export async function resolveLocalFile(video:{id:string;folderId?:string;path?:string}):Promise<File>{
+  assertDirectoryGrant(video.folderId);
   let file = files.get(video.id);let sourceCode:string|undefined;
   if (!file) {
     const handle = fileHandles.get(video.id);
@@ -143,5 +151,6 @@ export async function resolveLocalFile(video:{id:string;folderId?:string;path?:s
   if (!file) {
     throw Object.assign(new Error("This file is no longer available. Reconnect its source or review its verified identity."),{sourceCode});
   }
+  assertDirectoryGrant(video.folderId);
   return file;
 }

@@ -1,0 +1,9 @@
+# Collection review and profile focus
+
+**Photos → Review photo duplicates** compares selected photos, or the first 48 visible photos. It groups identical bytes separately from optional visual matches. Visual comparison looks for similar composition and proportions and skips very large images or images without known dimensions. The scan uses available local files, up to 16 MiB each and 96 MiB in total. It does not fetch missing files.
+
+The review shows the source, album, size and dimensions. Hiding is an explicit gallery decision. Favorites remain visible, at least one photo in each reviewed group stays visible, and nothing writes to the source file. Use **Undo last duplicate hide** or **Manage hidden photos → Restore**. The profile remembers hide decisions when the same source is reopened. Photos picked directly from the device may need to be attached again after reopening the app.
+
+**Accounts → Use account → Save and switch account** opens the selected profile and puts keyboard focus on its Home heading. The next Tab reaches the Home shortcuts. The short-lived switch receipt records a destination profile and Home target only. It is consumed once, and ordinary reloads do not take focus.
+
+**Search → Bulk edit video tags** lets you choose up to 48 saved titles and review the exact set that needs an add or remove. Each save changes up to six titles. Cancel stops before another batch starts. Saved batches and their undo record are written together to the active profile, so a failed batch does not count as saved. Open the tool again from Search after reloading to undo. Undo changes the reviewed tag and skips newer individual tag edits or titles that are no longer available. There is one undo record per profile; **Keep changes** clears it after confirmation. A later provider refresh can add an inferred tag again on an unlocked title.

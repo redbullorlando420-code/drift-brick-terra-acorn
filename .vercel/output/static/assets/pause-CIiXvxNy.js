@@ -1,0 +1,1 @@
+import{L as e}from"./index-BGz7VkW8.js";var t=e(`pause`,[[`rect`,{x:`14`,y:`4`,width:`4`,height:`16`,rx:`1`,key:`zuxfzm`}],[`rect`,{x:`6`,y:`4`,width:`4`,height:`16`,rx:`1`,key:`1okwgv`}]]);export{t};

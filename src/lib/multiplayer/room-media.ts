@@ -173,17 +173,18 @@ export function parseRoomLinks(value: string) {
   const input = value.slice(0, 32768);
   const rows = input.split(/\r?\n/).map(row => row.trim()).filter(Boolean);
   const videos: LibraryVideo[] = [];
+  const repeated: LibraryVideo[] = [];
   const seen = new Set<string>();
   let invalid = 0, duplicates = 0;
   for (const row of rows.slice(0, 48)) {
     const video = roomVideoFromUrl(row);
     if (!video) { invalid++; continue; }
     const key = roomMediaKey(video);
-    if (seen.has(key)) { duplicates++; continue; }
+    if (seen.has(key)) { duplicates++; repeated.push(video); continue; }
     seen.add(key);
     videos.push(video);
   }
-  return {videos, invalid, duplicates, truncated: rows.length > 48 || input.length < value.length};
+  return {videos, repeated, invalid, duplicates, truncated: rows.length > 48 || input.length < value.length};
 }
 
 /** Small, provider-only metadata lets a guest play a title without its own follows/catalog. */

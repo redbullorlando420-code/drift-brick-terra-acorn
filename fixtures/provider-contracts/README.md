@@ -10,6 +10,14 @@ Twitch fixtures exercise alias isolation, malformed stream/viewer data, transpor
 
 Browser checks use isolated profiles and controlled upstream responses; they do not prove long-running provider availability. Public probes are read-only snapshots.
 
+## Fixture freshness and public samples
+
+The [registry](registry.json) names the provider, endpoint shape, sanitized fixture, review date, review interval and deterministic test runner. The Realhub provider integration maintainer owns the review. Recheck when the provider changes its schema, a previously healthy catalog is unexpectedly empty, or a parser starts relying on its fallback. Keep the old fixture as a regression case and add a minimal synthetic or redacted replacement; never save live payloads, tokens or cookies in this registry.
+
+Run `node scripts/provider-fixture-freshness.mjs` for the release report. A fixture past its review window stays runnable. Parser outcomes come from the listed test runners. Live evidence is independent: an old or missing observation is flagged, and a recent failed attempt is shown as unavailable.
+
+Run `node scripts/provider-archive-canary.mjs --public screenshots/provider-archive-canary.json` for an explicit read-only check of two fixed public targets, then pass the resulting JSON to the freshness script. It records only bounded counts, whether Twitch's two samples reordered, whether YouTube exposed a continuation, and a sanitized failure reason. It does not certify any other channel or surface. Twitch documents the [official public channel](https://help.twitch.tv/s/article/official-twitch-channel-chat-rules?language=en_US) used for the sample.
+
 ## Negative live evidence (next-024)
 
 A recognized empty Home shelf is unknown. A Streams page with unread continuation markers is incomplete; readable shape alone does not establish absence. Positive observations remain usable without ending other missing broadcasts. Complete creator-owned Streams results may establish absence. The fallback HTML path uses the same evidence rules.

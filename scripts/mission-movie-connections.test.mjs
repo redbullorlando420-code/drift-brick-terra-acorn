@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { MOVIE_CONNECTION_MISSIONS as missions } from "../src/lib/mission-movie-connections.ts";
 import { mergeMissionPlan, MISSION_PLAN_REVISION } from "../src/lib/mission-plan.ts";
 test("three explicit movie delivery briefs append without altering the fixed roadmap", () => {
-  assert.equal(MISSION_PLAN_REVISION, 101);
+  assert.equal(MISSION_PLAN_REVISION, 105);
   assert.equal(missions.length, 3);
   assert.equal(new Set(missions.map((m) => m.id)).size, 3);
   for (const m of missions) {

@@ -1,5 +1,59 @@
 # Milestone verification ledger
 
+## Revision 105 — Archive cancellation, Twitch overlap and fixture freshness
+
+Date: 2026-11-08. Completed **next-114**, **next-115** and **next-192**. Defaults: **350/409 complete**, including **145/200 next-level** and **49/100 new-batch milestones**. Revision 105 promotes this trio once and preserves older manual decisions.
+
+YouTube and Twitch archive reads forward HTTP cancellation to provider requests, pacing and body readers. Tests held both providers' response bodies and verified release without fetching another page. A later timeout returns the previously accepted page and its exact next cursor. Browser cancellation preserves previously saved batches; a disconnected request cannot deliver unsaved pages that were still in its response.
+
+Resumed Twitch VOD archives can recheck a small newest window alongside the older walk. The checkpoint paces the optional check and records its result separately from the historical continuation. Reordered fixtures admitted new identities without rewinding the cursor. A two-sample public Twitch check returned 12 readable rows each time with no observed reorder; a bounded YouTube public check returned 100 rows and a continuation. These samples do not establish general provider availability.
+
+The provider fixture registry and release report list covered shapes, sanitized provenance, review windows, owners and deterministic runners separately from optional public sample status. A stale fixture remains reproducible, and no recent authorized sample is reported explicitly.
+
+Verification: production build, typecheck, **73 focused tests**, Home baseline comparison and production Mission Plan migration passed. Desktop and mobile browser checks verified saved overlap evidence and cancellation through the local production HTTP adapter, including release of the stalled Twitch body and preservation of the last saved cursor. Managed hosting disconnect behavior was not verified. [Workflow details](docs/PROVIDER_ARCHIVE_RESILIENCE.md) · [Fixture registry](fixtures/provider-contracts/README.md).
+
+## Revision 104 — Photo duplicates, profile focus and bulk tag undo
+
+Date: 2026-11-08. Completed **next-156**, **next-157** and **next-159**. Defaults: **347/409 complete**, including **142/200 next-level** and **46/100 new-batch milestones**. Revision 104 promotes only this trio once, preserves saved statuses and earlier manual reopens, and refreshes both roadmap exports.
+
+Photos compares exact file identities separately from optional visual similarity in a bounded local scan. Review shows source, size and confidence, protects favorites, and requires an explicit hide decision. Hidden copies can be restored individually or by undo. Original files and source grants are untouched.
+
+Account switching focuses the destination Home heading and announces only the new profile. The tab consumes a short-lived route receipt once. Ordinary reloads and stale media destinations do not take focus.
+
+Bulk video tags previews an exact selection from saved search results and applies up to six edits per write. Each write includes its inverse in the same profile's catalog transaction. Cancellation and quota failures leave only completed work in the undo record. Undo waits for library restoration, changes only the operation's tag and respects newer manual edits.
+
+Verification: build, typecheck and **141 focused tests** passed. The new workflows passed in desktop and mobile browsers on development and production builds, using disposable profiles, original/resized photo fixtures and mixed local and YouTube titles. Browser coverage included photo cancellation and undo after reload, keyboard profile switches in both directions, profile isolation, a cancelled bulk batch sequence, quota rollback, and tag removal and undo. Production Mission Plan migration, Home rendering and all **66 navigation checks** passed; affected layouts were visually inspected. A separate older enrichment fixture still expects deleting a source to remove tag metadata, which conflicts with the current hide-and-preserve behavior.
+
+[Workflow details and limits](docs/COLLECTION_REVIEW_CHECKS.md). Browser evidence: `screenshots/collection-review-*`.
+
+## Revision 103 — Profile storage, switch checkpoints and folder access
+
+Date: 2026-11-08. Completed **next-103**, **next-104** and **next-110**. Defaults: **344/409 complete**, including **139/200 next-level** and **43/100 new-batch milestones**. Revision 103 promotes only this trio once, retains previous reopens, saved statuses and custom notes, and refreshes the static 100/200 exports.
+
+Accounts can measure a selected profile without opening it. The dashboard counts protected setting keys and local catalog, activity and source records without reading their contents, measures bounded print and artwork payloads, and keeps the site-wide estimate separate. Missing browser metrics stay unavailable. The dashboard does not create missing databases or change the selected account, and only offers reviewed artwork cleanup for the current profile.
+
+Both profile switch entry points show pending work before confirmation. Announcement edits, Image Studio settings and recipe drafts, and print transforms use their existing or tab-local draft persistence before switching. Submitted print saves can finish with the editor closed; unresolved receipts and active generation name the blocker. Rejected checks keep the original account, completed checkpoints are not repeated, and old views release only after the final switch checks.
+
+The profile permissions panel lists saved browser directory handles and optional app consents. It queries without prompting, renews read access only on explicit request, and confirms forgetting. Forgetting replaces only the selected handle with a profile-scoped marker; original files, saved catalog rows, personal marks and native Companion roots stay in place. Same-profile tabs invalidate new reads, while another profile with an equivalent source record keeps its grant.
+
+Verification: build, typecheck and **222 focused tests** passed; the native print transaction group was rerun successfully outside the sandbox after Windows hard-link restrictions interrupted two sandboxed fixtures. The new workflows passed on desktop/mobile in development and production using disposable profiles, IndexedDB and OPFS, including unavailable estimates, missing database protection, denied permission, cancel/forget, a held print response, failed announcement persistence, nonduplicating retry and draft round trips. A source test verified that a forgotten folder rejects new playback even when its file and object URL were already cached. Existing print export and save recovery passed. Production Mission Plan migration and all **66 navigation reports** passed; Home had clean desktop/mobile renders and no production baseline divergence. The new desktop and mobile layouts were visually inspected.
+
+[Behavior and limits](docs/PROFILE_WORKSPACE_CHECKS.md). Evidence: `screenshots/profile-workspace-*`. The cross-tab rename and profile recovery regression passed after updating its mobile check to follow the existing Accounts destination. Browser fixtures do not claim a real operating-system permission change or a live Companion write against the user's files.
+
+## Revision 102 — Watch Room moderation, repeat review and search sources
+
+Date: 2026-11-07. Completed **next-144**, **next-145** and **next-146**. Defaults: **341/409 complete**, including **136/200 next-level** and **40/100 new-batch milestones**. Revision 102 promotes only this trio once. It preserves saved statuses, prior reopens and custom notes. The static 100/200 brief exports are current.
+
+Hosts can give a connected guest 1, 5 or 15 minutes to reorder or remove upcoming titles. Each delegated edit checks the exact host, guest, reliable connection, scope, permission revision and expiry before mutation. Revoked or stale grants cannot apply a delayed edit or survive a rejoin. Existing playback, addition and catalog permissions stay separate.
+
+Equivalent provider URLs now enter a bounded duplicate review. Keeping a repeat creates a distinct slot that survives a guest rejoin; consolidating leaves the earliest upcoming match and current playback intact. Confirmed queue recovery retains approved slots. Pending reviews stay with the current host session; review outcomes do not rewrite delivery receipts.
+
+Room search identifies host-shared, locally saved and public provider results, with distinct availability text. Search actions carry the displayed evidence and its sharing revision through direct requests and guest drafts. The host revalidates evidence when receiving and approving a suggestion. Host local titles use opaque room IDs in search, suggestions, and approved guest-visible queue entries; the host opens the original file locally. Browse revocation removes stale actions and rejects delayed requests.
+
+Verification: **240 focused tests**, build and typecheck passed. Desktop-host/mobile-guest checks passed in development and production over real local WebRTC, including distinct repeat slots after rejoin, consolidation without a stage change, narrow moderation, delayed revoked and expired requests, sharing revocation, opaque local suggestions and playback of a bundled MP4. Existing chat, timeline, local-file consent/matching, rejoin and playback regressions passed. The production Mission Plan browser check and **66 navigation reports** passed. Home rendered on both viewports with clean consoles and no baseline divergence; the affected desktop and mobile layouts were visually inspected.
+
+[Behavior, storage and scope](docs/WATCH_ROOM_QUEUE_REVIEW.md). Evidence: `screenshots/room-moderation-*`. No real user library was changed by QA. Provider embeds in the new workflow check were fixtures; actual provider availability, physical phones and WAN behavior were not certified.
+
 ## Revision 101 — Recipe conversion, print comparison and conditional simulator plans
 
 Date: 2026-11-06. Completed **next-171**, **next-176** and **next-180** together. Defaults: **338/409 complete**, including **133/200 next-level** and **37/100 new-batch milestones**. Revision 101 promotes only this trio once and preserves earlier manual reopens, saved statuses and custom notes. The static 100/200 milestone exports were refreshed.

@@ -17,6 +17,8 @@ import { benchmarkVisionModelsLocally, classifyImagesLocally, VISION_MODELS, typ
 import { LOCAL_UPSCALER, upscaleImageLocally } from "@/lib/local-upscaler";
 import { bytes, HubShell } from './hub-shared';
 import { PhotoLabelInput } from './photo-label-input';
+import { PhotoDuplicateReview, usePhotoDuplicateDecisions } from './photo-duplicate-review';
+import { restoreReviewedPhoto } from '@/lib/photo-duplicates';
 
 type LocalPhoto = {
   id: string;
@@ -26,6 +28,7 @@ type LocalPhoto = {
   people: string[];
   tags: string[];
   album: string;
+  source: string;
   bridgeAuditEligible: boolean;
   favorite: boolean;
   hidden: boolean;
@@ -33,7 +36,7 @@ type LocalPhoto = {
   addedAt: number;
   width?: number;
   height?: number;
-  /** Retained only while the current browser session derives local dimensions. */
+  /** Session-only file handle for dimensions and explicitly requested comparisons. */
   file?: File;
   vision?: VisionLabel[];
   visionModel?: VisionModelId;
@@ -101,6 +104,8 @@ export function PhotosSection() {
     try { return localStorage.getItem("reelcase.photos.rating-queue") ?? ""; } catch { return ""; }
   });
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
+  const duplicateDecisions=usePhotoDuplicateDecisions();
+  const duplicateHidden=useMemo(()=>new Set(duplicateDecisions.state.hidden),[duplicateDecisions.state]);
   const [photoAuditAck,setPhotoAuditAck]=useState(false);
   useEffect(()=>{clearReviewedPhotos();},[]);
   const [showHiddenPhotos, setShowHiddenPhotos] = useState(false);
@@ -294,6 +299,7 @@ export function PhotosSection() {
         people: remembered[id]?.people ?? [],
         tags: remembered[id]?.tags ?? [],
         album: remembered[id]?.album ?? paths?.[index]?.split("/")[0] ?? folderName,
+        source: folderName,
         favorite: remembered[id]?.favorite ?? false,
         hidden: remembered[id]?.hidden ?? false,
         rating: remembered[id]?.rating ?? 0,
@@ -471,7 +477,7 @@ export function PhotosSection() {
     addPhotos(files, first);
   };
   useEffect(()=>setPhotoAuditAck(false),[photos,selectedPhotoIds]);
-  const auditPhotoSelection=photos.filter(photo=>selectedPhotoIds.has(photo.id)&&!photo.hidden&&photo.bridgeAuditEligible);
+  const auditPhotoSelection=photos.filter(photo=>selectedPhotoIds.has(photo.id)&&!photo.hidden&&!duplicateHidden.has(photo.id)&&photo.bridgeAuditEligible);
   const reviewPhotoTopics=()=>{if(!photoAuditAck||auditPhotoSelection.length!==selectedPhotoIds.size||auditPhotoSelection.length>48)return;flushPhotoMetadata();setReviewedPhotos(auditPhotoSelection.map((photo,index)=>({id:'reviewed-photo:'+index,name:photo.name,tags:photo.tags,reviewed:true,direct:true,hidden:false})));useLibrary.getState().setQuery('');useLibrary.getState().setSource('assistant');};
   const people = useMemo(() => [...new Set(photos.flatMap((photo) => photo.people))], [photos]);
   const albums = useMemo(() => [...new Set(photos.map((photo) => photo.album))], [photos]);
@@ -482,7 +488,7 @@ export function PhotosSection() {
   const visible = useMemo(() => photos
     .filter(
       (photo) =>
-        (showHiddenPhotos || !photo.hidden) &&
+        (showHiddenPhotos || !photo.hidden&&(!duplicateHidden.has(photo.id)||photo.favorite)) &&
         (selectedPerson === "All photos" || photo.people.includes(selectedPerson)) &&
         (selectedAlbum === "All albums" || photo.album === selectedAlbum) &&
         (selectedTag === "All tags" || photo.tags.includes(selectedTag)) &&
@@ -499,7 +505,7 @@ export function PhotosSection() {
       if (photoSort === "favorite") return Number(b.favorite) - Number(a.favorite) || b.addedAt - a.addedAt;
       if (photoSort === "auto-tags") return b.tags.length - a.tags.length || b.addedAt - a.addedAt;
       return b.addedAt - a.addedAt;
-    }), [discoveryFilter, favoritesOnly, photoSearch, photoSort, photos, ratingFilter, selectedAlbum, selectedPerson, selectedTag, showHiddenPhotos]);
+    }), [discoveryFilter, duplicateHidden, favoritesOnly, photoSearch, photoSort, photos, ratingFilter, selectedAlbum, selectedPerson, selectedTag, showHiddenPhotos]);
   const renderedPhotos = visible.slice(0, photoLimit);
   useEffect(() => setPhotoLimit(80), [photoSearch, selectedPerson, selectedAlbum, selectedTag, favoritesOnly, photoSort, discoveryFilter, ratingFilter]);
   useEffect(() => { if (!slideshow || !visible.length) return; return registerPeriodicTask({ name: 'Photo slideshow', mode: 'visible', background: false, everyMs: slideSeconds * 1000, work: () => setSlideIndex(index => (index + 1) % visible.length) }).cancel; }, [slideshow, slideSeconds, visible.length]);
@@ -689,7 +695,8 @@ export function PhotosSection() {
       copy="Add photos from this device, then group them by people yourself. Nothing uploads from this browser. Google Photos remains a separate, opt-in destination."
     >
       <div className="mt-6 flex flex-wrap items-center gap-2 rounded-lg border border-border p-4"><Star className="size-4 text-accent"/><span className="mr-2 text-sm font-medium">Rating quest</span>{[["all", "All ratings"], ["unrated", "Needs a rating"], ["3", "3+ stars"], ["4", "4+ stars"], ["5", "5 stars"]].map(([value, label]) => <Button key={value} size="sm" variant={ratingFilter === value ? "default" : "secondary"} onClick={() => setRatingFilter(value)}>{label}</Button>)}<Button size="sm" variant="secondary" disabled={!photos.some((photo) => !photo.rating)} onClick={() => { const choices = photos.filter((photo) => !photo.rating); const savedIndex = choices.findIndex((photo) => photo.id === ratingQueuePhotoId); const pick = choices[(savedIndex + 1 + choices.length) % choices.length]; if (pick) { setRatingQueuePhotoId(pick.id); setFocusedPhotoId(pick.id); } }}>{ratingQueuePhotoId ? "Continue rating queue" : "Rate a surprise photo"}</Button><span className="text-xs text-muted">{photos.filter((photo) => photo.rating > 0).length} of {photos.length} rated</span></div>
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted"><span>{photos.filter((photo) => photo.hidden).length} hidden photos</span><Button size="sm" variant="secondary" onClick={() => setShowHiddenPhotos((value) => !value)}>{showHiddenPhotos ? "Hide hidden photos" : "Manage hidden photos"}</Button><span>Hidden photos stay saved in their albums and can be restored here.</span></div>
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted"><span>{photos.filter((photo) => photo.hidden||duplicateHidden.has(photo.id)&&!photo.favorite).length} hidden photos</span><Button size="sm" variant="secondary" onClick={() => setShowHiddenPhotos((value) => !value)}>{showHiddenPhotos ? "Hide hidden photos" : "Manage hidden photos"}</Button><span>Hidden photos stay saved in their albums and can be restored here.</span></div>
+      <div className="mt-4"><PhotoDuplicateReview photos={photos} visible={visible} selected={selectedPhotoIds} decisions={duplicateDecisions}/></div>
       <div className="mt-6 flex flex-col gap-3 rounded-lg bg-elevated p-5 shadow-border sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium text-fg">Your local photo selection</p>
@@ -853,7 +860,14 @@ export function PhotosSection() {
                   <Button size="sm" variant="secondary" aria-label={`Download ${photo.name}`} onClick={() => downloadPhoto(photo)}>
                     <Download className="size-4" />
                   </Button>
-                  <Button size="sm" variant="secondary" aria-label={`${photo.hidden ? "Restore" : "Hide"} ${photo.name}`} onClick={() => setPhotos((items) => items.map((item) => item.id === photo.id ? { ...item, hidden: !item.hidden } : item))}><EyeOff className="size-4" /></Button>
+                  <Button size="sm" variant="secondary" aria-label={`${photo.hidden || duplicateHidden.has(photo.id)&&!photo.favorite ? "Restore" : "Hide"} ${photo.name}`} onClick={() => {
+                    if (duplicateHidden.has(photo.id) && (photo.hidden || !photo.favorite)) {
+                      try { duplicateDecisions.save(restoreReviewedPhoto(duplicateDecisions.state,photo.id)); }
+                      catch (error) { setHelperNote(error instanceof Error ? error.message : "Could not restore the reviewed photo."); return; }
+                      if (!photo.hidden) return;
+                    }
+                    setPhotos((items) => items.map((item) => item.id === photo.id ? { ...item, hidden: !item.hidden } : item));
+                  }}><EyeOff className="size-4" /></Button>
                 </div>
                 {showLocations && <p title={photo.path} className="mt-1 truncate text-xs text-muted">{photo.path}</p>}
                 <PhotoStars name={photo.name} rating={photo.rating} onChange={(rating) => setPhotos((items) => items.map((item) => item.id === photo.id ? { ...item, rating } : item))} />

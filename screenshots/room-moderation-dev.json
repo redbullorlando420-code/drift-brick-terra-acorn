@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "checks": [
+    "Equivalent URL aliases await a host decision, kept slots survive a guest rejoin, and consolidation preserves current playback and unrelated IDs.",
+    "A viewer can reorder only with a live per-connection grant; delayed revoked and expired edits are refused and guest reload has no grant.",
+    "An empty-library guest can identify and suggest an opaque host file; a delayed request after sharing revocation is rejected, and approval preserves the opaque ID."
+  ],
+  "errors": []
+}

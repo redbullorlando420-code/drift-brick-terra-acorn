@@ -7,7 +7,10 @@ export async function readProviderBody(response: Response, options: {
 } = {}): Promise<Uint8Array> {
   const maximum = Math.max(1, Math.floor(options.maxBytes ?? PROVIDER_BUDGETS.responseBytes));
   if (!Number.isFinite(maximum)) throw new Error('Invalid metadata byte budget');
-  options.signal?.throwIfAborted();
+  if (options.signal?.aborted) {
+    void response.body?.cancel(options.signal.reason).catch(() => undefined);
+    options.signal.throwIfAborted();
+  }
   if (!response.body) return new Uint8Array();
   const reader = response.body.getReader();
   // Consolidate small network chunks so a byte-bounded response cannot retain

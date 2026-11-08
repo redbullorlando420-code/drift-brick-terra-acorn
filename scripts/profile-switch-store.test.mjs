@@ -66,9 +66,9 @@ registerHooks({
     }
   },
 });
-const { useLibrary, checkpointLibraryForProfileSwitch } =
+const { useLibrary, checkpointLibraryForProfileSwitch, releaseLibraryForProfileSwitch } =
   await import("../src/lib/videos/store.ts");
-test("switch checkpoint cancels a held catalog read, closes active views and refuses busy source work", async () => {
+test("switch checkpoint cancels a held read, keeps views until activation, and refuses busy work", async () => {
   useLibrary.setState({
     hydrated: false,
     videos: [],
@@ -97,6 +97,9 @@ test("switch checkpoint cancels a held catalog read, closes active views and ref
   await checkpointLibraryForProfileSwitch();
   await restoring;
   assert.equal(fixture.aborted, true);
+  assert.equal(useLibrary.getState().activeId, "old-player");
+  assert.equal(useLibrary.getState().previewId, "old-preview");
+  releaseLibraryForProfileSwitch();
   assert.equal(useLibrary.getState().activeId, null);
   assert.equal(useLibrary.getState().previewId, null);
   fixture.release();

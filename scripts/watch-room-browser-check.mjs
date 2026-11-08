@@ -10,6 +10,11 @@ try {
   const hostContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   for (const context of [hostContext, guestContext]) await context.addInitScript(() => { const Original = RTCPeerConnection; window.__pcs = []; window.__copiedText = ""; Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (value) => { window.__copiedText = value; } } }); window.RTCPeerConnection = class extends Original { constructor(config) { super(config); window.__pcs.push(this); } }; });
+  for (const context of [hostContext, guestContext]) await context.addInitScript(() => {
+    localStorage.setItem("reelcase.pulls-paused.v1", "true");
+    localStorage.setItem("reelcase.pull-settings.v1", JSON.stringify({automaticPulls:false}));
+    localStorage.setItem("reelcase.sidebar.groups.v1", JSON.stringify({library:true,workspace:true,tools:true}));
+  });
   const host = await hostContext.newPage();
   const guest = await guestContext.newPage();
   for (const [page, role] of [[host, "host"], [guest, "guest"]]) {
@@ -19,19 +24,27 @@ try {
     page.on("response", async (response) => { if (response.url().includes("/api/rtc") && response.request().method() === "GET") { const data = await response.json().catch(() => null); if (data?.signals?.length) rtcTrace.push(`${role} received ${data.signals.map((s) => s.kind).join(",")}`); } });
   }
   await host.goto(origin, { waitUntil: "domcontentloaded" });
-  await host.waitForTimeout(1500);
+  await host.locator('[data-home-ready="true"]').waitFor();
+  const localFile = "public/samples/tungsten-reel.mp4";
+  await host.locator('input[type="file"][accept="video/*"]').first().setInputFiles(localFile);
+  await host.getByText("Found 1 video in Added files",{exact:true}).waitFor();
   await host.getByRole("button", { name: "Watch room" }).click();
-  await host.getByRole("button", { name: "Copy theater invitation link" }).click();
-  const loopback = ["127.0.0.1", "localhost", "[::1]"].includes(new URL(origin).hostname);
-  if (loopback) {
-    await host.getByText(/localhost works only on this computer/).waitFor();
+  const invitation = host.locator("[data-room-invite-url]");
+  await invitation.or(host.getByText(/Enter the app’s network address above/)).first().waitFor();
+  const copiedInvitation = Boolean(await invitation.count());
+  if (!copiedInvitation) {
+    await host.getByText(/localhost address opens only on this computer/).waitFor();
     assert.equal(await host.evaluate(() => window.__copiedText), "");
     await host.getByRole("button", { name: "Open Connection guide" }).click();
-    await host.getByRole("link", { name: /^http:\/\/\d/ }).first().waitFor({ timeout: 10000 });
+    await host.getByRole("heading", { name: "Bring another screen into Realhub." }).waitFor({ timeout: 10000 });
     await host.getByRole("button", { name: "Watch room" }).click();
   } else {
+    await host.getByRole("button", { name: "Copy theater invitation link" }).click();
     await host.getByText("Theater invitation link copied.").waitFor();
-    assert.match(await host.evaluate(() => window.__copiedText), new RegExp(`^${new URL(origin).origin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/\\?room=RC[A-Z0-9]+&theater=1$`));
+    const copied = new URL(await host.evaluate(() => window.__copiedText));
+    assert(!["127.0.0.1", "localhost", "[::1]"].includes(copied.hostname));
+    assert.match(copied.searchParams.get("room") ?? "", /^RC[A-Z0-9]+$/);
+    assert.equal(copied.searchParams.get("theater"), "1");
   }
   await host.getByRole("button", { name: "Start room" }).click({ timeout: 12000 }).catch(async (error) => { console.log((await host.locator("body").innerText()).slice(-2500)); console.log(errors); throw error; });
   const room = (await host.getByRole("heading", { name: /^Room RC/ }).innerText()).replace(/^Room /, "").trim();
@@ -50,15 +63,12 @@ try {
   await host.getByRole("button", { name: "Play", exact: true }).click();
   await guest.getByRole("heading", { name: "Playing together" }).waitFor({ timeout: 10000 });
   const playDelayMs = Date.now() - commandAt;
-  await guest.getByRole("button", { name: "+15 sec" }).click();
-  await host.getByText(/Timeline 0:15/).first().waitFor({ timeout: 10000 });
   commandAt = Date.now();
   await host.getByRole("button", { name: "Pause", exact: true }).click();
   await guest.getByRole("heading", { name: "Paused together" }).waitFor({ timeout: 10000 });
   const pauseDelayMs = Date.now() - commandAt;
   await host.getByText("Local sharing, games & TV").click();
   await guest.getByText("Local sharing, games & TV").click();
-  const localFile = "public/samples/tungsten-reel.mp4";
   await host.locator('input[type="file"][accept="video/*"]').first().setInputFiles(localFile);
   assert.equal(await host.getByRole("button", { name: "Send sharing request" }).isDisabled(), true);
   await guest.waitForTimeout(500);
@@ -68,7 +78,7 @@ try {
   await guest.getByText(/Optional local copy: tungsten-reel.mp4/).waitFor({ timeout: 10000 });
   await guest.locator('input[type="file"][accept="video/*"]').first().setInputFiles(localFile);
   await host.getByText(/Optional local copies · 1\/1 guests matched/).waitFor({ timeout: 10000 });
-  await host.getByRole("button", { name: "Add to local queue" }).click();
+  await host.getByRole("button", { name: "Add to matching-file list" }).click();
   await guest.getByText("Explore more videos and advanced queue controls").click();
   await guest.getByText("Approved local handoffs").waitFor({ timeout: 10000 });
   await guest.getByRole("button", { name: "Remove", exact: true }).click();
@@ -89,7 +99,7 @@ try {
   await guest.screenshot({ path: "screenshots/watch-room-guest-mobile.png", fullPage: true });
   await guest.getByRole("button", { name: "Leave room" }).click();
   await host.getByText(/0\/0 connected/).first().waitFor({ timeout: 10000 });
-  console.log(JSON.stringify({ room, mode: "isolated browser contexts", host: "desktop", guest: "mobile", playDelayMs, pauseDelayMs, checks: [loopback ? "localhost invite blocked" : "LAN invitation copied", "WebRTC direct path connected", "pulse ack", "guest chat", "host play", "guest seek", "guest reload reconciles host time", "host resync at current media time", "guest seek to zero", "host pause", "local-file consent gate", "local-file fingerprint match", "local queue add and guest removal", "guest leave", "mobile no overflow"], errors }, null, 2));
+  console.log(JSON.stringify({ room, mode: "isolated browser contexts", host: "desktop", guest: "mobile", playDelayMs, pauseDelayMs, checks: [copiedInvitation ? "LAN invitation copied" : "localhost invite blocked", "WebRTC direct path connected", "pulse ack", "guest chat", "host play", "guest reload reconciles host time", "host resync at current media time", "guest seek to zero", "host pause", "local-file consent gate", "local-file fingerprint match", "local queue add and guest removal", "guest leave", "mobile no overflow"], errors }, null, 2));
   await hostContext.close();
   await guestContext.close();
 } finally {

@@ -8,6 +8,10 @@ import { loadRoomCaptionPreference, youtubeCaptionParameters } from '@/lib/multi
 import { RoomConnectionPanel } from './room-connection-panel';
 import type { ConnectionInput } from '@/lib/multiplayer/room-connection-timeline';
 import { RoomRolePresets } from './room-role-presets';
+import { RoomQueueDelegation, useRoomQueueDelegation } from './room-queue-delegation';
+import { delegatedQueueOperation } from '@/lib/multiplayer/room-delegation';
+import { holdRoomDuplicate, isRoomRepeat, type DuplicateGroups } from '@/lib/multiplayer/room-duplicates';
+import { readRoomSearchEvidence, roomSearchEvidenceAllows, type RoomSearchEvidence } from '@/lib/multiplayer/room-search-evidence';
 import { roomIntentAccess, sameRoomPermissions, type RoomPermissions } from '@/lib/multiplayer/room-roles';
 import { previewRoomSessionImport, type RoomSessionFile } from '@/lib/multiplayer/room-session-file';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -36,7 +40,7 @@ import { RoomQueueDeliveryPanel } from './room-queue-delivery-panel';
 import type { QueuePacket, QueueReceipt, QueueOutcome } from '@/lib/multiplayer/room-delivery';
 import { useRoomCatalogAccess } from './use-room-catalog-access';
 import { RoomCatalogSharing } from './room-catalog-sharing';
-import { roomCatalogName, roomCatalogLocalId } from '@/lib/multiplayer/room-catalog-policy';
+import { roomCatalogName, roomCatalogLocalId, describeCatalogMedia } from '@/lib/multiplayer/room-catalog-policy';
 import { publicVideoBoundary } from '@/lib/videos/public-visibility';
 import { RoomWatchHistoryPanel } from './room-watch-history-panel';
 import { ROOM_HISTORY_KEY, readRoomHistory, rememberRoomVideo, type RoomWatchEntry } from '@/lib/multiplayer/room-watch-history';
@@ -211,6 +215,9 @@ export function WatchRoomSection() {
   const [queue, setQueue] = useState<string[]>([]);
   const queueRef = useRef<string[]>([]);
   const [queueNotice, setQueueNotice] = useState('');
+  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroups>({});
+  const duplicateRef = useRef<DuplicateGroups>({});
+  const catalogLocalSources = useRef(new Map<string, LibraryVideo>());
   const [reviewQueue, setReviewQueue] = useState(() => { try { return localStorage.getItem('reelcase.watch-room.review-queue') === 'true'; } catch { return false; } });
   const [suggestions, setSuggestions] = useState<RoomSuggestion[]>([]);
   const reviewRevision = useRef(0), acceptedReviewRevision = useRef(0);
@@ -316,14 +323,18 @@ export function WatchRoomSection() {
   const detectedLiveIdRef = useRef('');
   const markRoomLive = (id: string) => { detectedLiveIdRef.current = id; setDetectedLiveId(id); };
   const sharedVideo = useMemo(() => {
-    const video = joinedAsGuest ? sharedRoomVideos[sharedVideoId] ?? lookupVideo(videos,sharedVideoId) : lookupVideo(videos,sharedVideoId) ?? sharedRoomVideos[sharedVideoId];
+    const video = joinedAsGuest ? sharedRoomVideos[sharedVideoId] ?? lookupVideo(videos,sharedVideoId) : lookupVideo(videos,sharedVideoId) ?? catalogLocalVideo(sharedVideoId) ?? sharedRoomVideos[sharedVideoId];
     const normalized = video ? normalizeRoomVideo(video) : undefined;
     return normalized?.remote?.kind === 'youtube' && detectedLiveId === sharedVideoId
       ? {...normalized, remote:{...normalized.remote, live:true}} : normalized;
   },[videos,sharedRoomVideos,sharedVideoId,joinedAsGuest,detectedLiveId]);
   const youtubeSource = useMemo(() => sharedVideo?.remote?.kind === 'youtube' ? watchRoomEmbed(sharedVideo, loadRoomCaptionPreference()) : '', [sharedVideo?.id, playerReload]);
   const isRoomLive = (id = sharedVideoId) => Boolean(id && (detectedLiveIdRef.current === id || (id === sharedVideoId ? sharedVideo : roomVideoForId(id))?.remote?.live));
-  const roomVideoForId = (id: string) => joinedAsGuest ? sharedRoomVideosRef.current[id] ?? lookupVideo(videos,id) : lookupVideo(videos, id) ?? sharedRoomVideosRef.current[id];
+  function catalogLocalVideo(id: string): LibraryVideo | undefined {
+    const source = catalogLocalSources.current.get(id);
+    return source ? { ...source, id, name: roomCatalogName(source) } : undefined;
+  }
+  const roomVideoForId = (id: string) => joinedAsGuest ? sharedRoomVideosRef.current[id] ?? lookupVideo(videos,id) : lookupVideo(videos, id) ?? catalogLocalVideo(id) ?? sharedRoomVideosRef.current[id];
   useEffect(()=>{
     if(!activeRoom||!playback.playing||!sharedVideo?.remote)return;
     const media=describeRoomMedia(sharedVideo);if(!media)return;
@@ -345,6 +356,7 @@ export function WatchRoomSection() {
   useEffect(() => {
     const retained = new Set([sharedVideoId, ...queue, ...(undoQueue.current?.ids ?? [])]);
     for (const id of localFiles.current.keys()) if (!retained.has(id)) localFiles.current.delete(id);
+    for (const id of catalogLocalSources.current.keys()) if (!retained.has(id)) catalogLocalSources.current.delete(id);
   }, [sharedVideoId, queue, undoRevision]);
   const roomRating = useMemo(() => sharedVideoId ? getRating(sharedVideoId) : 0, [roomRatingRevision, sharedVideoId]);
   const twitchClip = sharedVideo?.remote?.kind === "twitch" && (sharedVideo.extension === "clip" || sharedVideo.remote.embedUrl?.includes("clips.twitch.tv"));
@@ -431,6 +443,7 @@ export function WatchRoomSection() {
   const room = activeRoom ?? "";
   const [relayConfig, setRelayConfig] = useState<RoomRelayConfig>();
   const p2p = useP2PRoom(room, name.trim() || "Guest", relayConfig);
+  const moderation = useRoomQueueDelegation(room, joinedAsGuest, mediaHostId, p2p);
   const catalogAccess=useRoomCatalogAccess(room,joinedAsGuest,videos,folders,hiddenVideos,unavailable);
   const hostCatalog=useRoomHostCatalog({transport:p2p,room,guest:joinedAsGuest,hostId:mediaHostId,candidates:roomCandidates,preparing:roomCandidatesPending,authority:catalogAccess.authority});
   const peersRef = useRef(p2p.peers); peersRef.current = p2p.peers;
@@ -446,8 +459,9 @@ export function WatchRoomSection() {
   useEffect(() => {
     if (joinedAsGuest || !sharedVideo || sharedVideo.remote || !room || sharedVideo.id.startsWith("local:")) return;
     let cancelled = false;
-    const release = pinPlayUrl(sharedVideo.id),sourceController=new AbortController();
-    void resolvePlayUrl(sharedVideo,sourceController.signal).then((url) => {
+    const source = catalogLocalSources.current.get(sharedVideo.id) ?? sharedVideo;
+    const release = pinPlayUrl(source.id),sourceController=new AbortController();
+    void resolvePlayUrl(source,sourceController.signal).then((url) => {
       if (!cancelled) setResolvedRoomSource({ id: sharedVideo.id, url });
     }).catch((error) => { if (!cancelled) setInviteNotice(error instanceof Error ? error.message : "The host could not open this local file."); });
     return () => { cancelled = true; sourceController.abort(); release(); };
@@ -463,7 +477,7 @@ export function WatchRoomSection() {
   const roomQueueMedia = useMemo(() => queue.map(id => {
     const file = localFiles.current.get(id);
     const share = file ? { name: file.name, fingerprint: localRoomFingerprint(file), size: file.size, modified: file.lastModified } : undefined;
-    return describeRoomMedia(lookupVideo(videos,id) ?? sharedRoomVideos[id], share);
+    return describeRoomMedia(roomVideoForId(id), share);
   }).filter(Boolean), [videos, queue, sharedRoomVideos]);
   const incomingStream = p2p.mediaStreams[mediaHostId];
   const guestLocalStream = joinedAsGuest && !matchingLocalSource && sharedLocalMedia?.id === sharedVideoId && sharedLocalMedia.streamId === incomingStream?.id ? incomingStream : undefined;
@@ -503,6 +517,7 @@ export function WatchRoomSection() {
     recentMediaRef.current = []; setRecentMedia([]); setSessionPlayedMedia([]); setPlayerNotice('');
     clockOffset.current=0;clockBestRtt.current=Infinity;clockPings.current.clear();setHostClockRunning(true);
     suggestionsRef.current = []; setSuggestions([]); setReviewNotice(''); reviewRevision.current = 0; acceptedReviewRevision.current = 0;
+    duplicateRef.current = {}; setDuplicateGroups(duplicateRef.current); catalogLocalSources.current.clear();
     try { setReviewQueue(!joinedAsGuest && localStorage.getItem('reelcase.watch-room.review-queue') === 'true'); } catch { setReviewQueue(false); }
     setSharedLocalMedia(null);
     setMediaHostId("");setHandshakePeer('');
@@ -698,6 +713,9 @@ export function WatchRoomSection() {
           selectionRevision?: number;
           permissionRevision?: number;
           catalogRevision?: number;
+          searchEvidence?: unknown;
+          searchEvidenceBatch?: unknown;
+          delegationId?: string;
           deliveryEpoch?:string;deliveryTime?:number;reconciled?:boolean;outcome?:QueueOutcome;
           guestQueueEnabled?: boolean;
           guestPlaybackEnabled?: boolean;
@@ -735,20 +753,18 @@ export function WatchRoomSection() {
           if (typeof data.selectionRevision === 'number') acceptedSelectionRevision.current = data.selectionRevision;
         }
         const access=!joinedAsGuest?roomIntentAccess(permissionRef.current.permissions,permissionRef.current.revision,data,isRoomLive()):undefined;
+        const delegated = !joinedAsGuest && data.delegationId !== undefined;
+        if (delegated && (!data.requestId || !access?.mutation || !access.queue)) return;
         if(access?.mutation){
           if(access.queue&&data.requestId&&replayQueueReceipt(from,data.requestId))return;
-          if(!access.allowed){
-            if(access.queue&&data.requestId)confirmQueueChange(from,data.requestId,access.reason,'rejected');
-            else p2p.send({type:access.queue?'queue-rejected':'playback-rejected',text:access.reason},from);
+          const allowed = delegated ? channel === 'reliable' && moderation.allows(from,data,permissionRef.current.revision,queueRef.current) : access.allowed;
+          if(!allowed){
+            const reason = delegated ? 'Temporary queue moderation expired, changed or does not cover this edit.' : !access.allowed ? access.reason : 'Room controls changed.';
+            if(access.queue&&data.requestId)confirmQueueChange(from,data.requestId,reason,'rejected');
+            else p2p.send({type:access.queue?'queue-rejected':'playback-rejected',text:reason},from);
             return;
           }
           if(access.queue&&data.requestId&&!guardQueueIntent(from,data as QueuePacket))return;
-        }
-        if (!joinedAsGuest && (!permissionRef.current.permissions.queue || permissionRef.current.permissions.review && data.type !== 'queue-suggest') && ['queue-suggest', 'queue-action', 'queue-edit', 'queue-batch', 'queue-shuffle', 'queue-request', 'next-request', 'video-request', 'local-queue-request', 'local-stage-request'].includes(data.type ?? '')) {
-          if (typeof data.requestId === 'string' && data.requestId.length <= 160) {
-            if (!replayQueueReceipt(from, data.requestId)) confirmQueueChange(from, data.requestId, guestQueueEnabled ? 'The host is reviewing suggestions. Suggest a public video instead of editing the live queue.' : 'The host has locked queue edits and video selection. Playback timing and chat are still available.');
-          } else p2p.send({ type: 'queue-rejected', text: 'The host has locked queue edits and video selection.' }, from);
-          return;
         }
         if (data.type === 'clock-request' && !joinedAsGuest && data.requestId) p2p.send({type:'clock-result',requestId:data.requestId,hostTime:Date.now()},from);
         if (data.type === 'clock-result' && joinedAsGuest && data.requestId) {
@@ -827,7 +843,7 @@ export function WatchRoomSection() {
         }
         if (data.type === "video-request" && data.videoId && !joinedAsGuest) {
           if (typeof data.requestId === 'string' && data.requestId.length <= 160 && replayQueueReceipt(from, data.requestId)) return;
-          const requested = resolveGuestRoomVideo(data.videoId,data.media,data.catalogRevision);
+          const requested = resolveGuestRoomVideo(data.videoId,data.media,data.catalogRevision,data.searchEvidence);
           if (requested) { noteRoom("request", "Accepted a guest video request."); chooseVideo(requested,data.action==='play'); }
           else p2p.send({type:"video-rejected",text:"The host cannot open that file. Ask the host to choose and queue it; public YouTube and Twitch links can be shared directly."},from);
           if (typeof data.requestId === 'string' && data.requestId.length <= 160) confirmQueueChange(from, data.requestId, requested ? 'Video selection confirmed by the host.' : 'That video is unavailable on the host; the current video was kept.', requested?'applied':'rejected');
@@ -848,8 +864,12 @@ export function WatchRoomSection() {
           let operation = parseRoomQueueAction(data.operation);
           if (!operation || typeof data.requestId !== 'string' || data.requestId.length>160) return;
           if (replayQueueReceipt(from, data.requestId)) return;
-          const addsTitle = operation.kind === 'add' || operation.kind === 'next';
-          const requested = addsTitle ? resolveGuestRoomVideo(operation.id,data.media,data.catalogRevision) : undefined;
+          const addsTitle = operation.kind === 'add' || operation.kind === 'next' && !queueRef.current.includes(operation.id);
+          if (addsTitle && data.media?.kind === 'local' && !queueRef.current.includes(operation.id) && queueRef.current.length >= ROOM_QUEUE_LIMIT) {
+            confirmQueueChange(from,data.requestId,'The queue is full. Remove a title before adding another.','rejected');
+            return;
+          }
+          const requested = addsTitle ? resolveGuestRoomVideo(operation.id,data.media,data.catalogRevision,data.searchEvidence) : undefined;
           if (addsTitle && !requested) {
             confirmQueueChange(from,data.requestId,'This title is unavailable on the host. YouTube and Twitch links can be shared; local files must be opened by the host.','rejected');
             return;
@@ -876,7 +896,9 @@ export function WatchRoomSection() {
         }
         if (data.type === "queue-batch" && !joinedAsGuest && Array.isArray(data.queueMedia) && typeof data.requestId === "string" && data.requestId.length <= 160) {
           if (replayQueueReceipt(from, data.requestId)) return;
-          const result=queueLinkBatch(data.queueMedia,data.catalogRevision,true);
+          const result=queueLinkBatch(data.queueMedia,data.catalogRevision,true,
+            index => batchSearchEvidence(data.searchEvidenceBatch,data.queueMedia!.length,index),
+            {peer:from,id:data.requestId,source:peersRef.current.find(peer=>peer.id===from)?.name || 'Guest link'});
           const skipped=result.invalid+Math.min(48,Math.max(0,Number(data.skipped)||0));
           const duplicates=result.duplicates+Math.min(48,Math.max(0,Number(data.duplicates)||0));
           confirmQueueChange(from,data.requestId,batchQueueNotice({...result,invalid:skipped,duplicates},Boolean(data.truncated)),result.added?'applied':result.invalid?'rejected':'superseded');
@@ -885,11 +907,26 @@ export function WatchRoomSection() {
           if (replayQueueReceipt(from, data.requestId)) return;
           if (!reviewQueue) { confirmQueueChange(from, data.requestId, 'Suggestion review is off. Use the normal queue controls.','rejected'); return; }
           const keys = [currentVideoIdRef.current, ...queueRef.current].flatMap(id => { const video = roomVideoForId(id); return video ? [roomMediaKey(video)] : []; });
-          const result = addRoomSuggestions(suggestionsRef.current, data.queueMedia.slice(0,48).filter(value=>{const resolved=resolveRoomMedia(value);return resolved?.video&&guestCatalogRequestAllowed(resolved.video,data.catalogRevision);}), from, peersRef.current.find(peer => peer.id === from)?.name || 'Guest', keys);
+          const admitted: Array<{media:RoomMediaDescriptor;evidence?:RoomSearchEvidence}> = [];
+          const guestName=peersRef.current.find(peer => peer.id === from)?.name || 'Guest';
+          let held=0, rejected=0;
+          for (const [index,value] of data.queueMedia.slice(0,48).entries()) {
+            const wire=resolveRoomMedia(value);
+            const rawEvidence=data.searchEvidence===undefined ? batchSearchEvidence(data.searchEvidenceBatch,data.queueMedia.length,index) : data.searchEvidence;
+            const evidence=readRoomSearchEvidence(rawEvidence);
+            if (!wire?.video || !guestCatalogRequestAllowed(wire.video,data.catalogRevision,rawEvidence)) {rejected++;continue;}
+            const known=catalogAccess.authority.current.index?.known.get(roomMediaKey(wire.video));
+            const media=evidence?.source==='host'&&known ? describeCatalogMedia(known) : wire.video.remote ? wire.descriptor : null;
+            if(!media){rejected++;continue;}
+            if(wire.video.remote&&keys.includes(roomMediaKey(wire.video))&&holdDuplicate(media,{peer:from,id:data.requestId+':'+index,source:guestName+' suggestion',evidence,catalogRevision:data.catalogRevision})) {held++;continue;}
+            admitted.push({media,evidence});
+          }
+          const result = addRoomSuggestions(suggestionsRef.current, admitted.map(row=>row.media), from, guestName, keys,
+            index=>({evidence:admitted[index]?.evidence,catalogRevision:data.catalogRevision}));
           if (result.added) { reviewRevision.current++; suggestionsRef.current = result.items; setSuggestions(result.items); }
-          const invalid = result.invalid + Math.min(48, Math.max(0, Number(data.skipped) || 0));
+          const invalid = rejected + result.invalid + Math.min(48, Math.max(0, Number(data.skipped) || 0));
           const duplicates = result.duplicates + Math.min(48, Math.max(0, Number(data.duplicates) || 0));
-          const text = [result.added + ' sent for host review', duplicates ? duplicates + ' already playing, queued or awaiting review' : '', invalid ? invalid + ' invalid public videos' : '', result.limited ? result.limited + ' held back · suggestion limit reached' : '', data.truncated ? 'Only the first 48 links were checked' : ''].filter(Boolean).join(' · ');
+          const text = [result.added + ' sent for host review', held ? held+' repeats awaiting duplicate review' : '', duplicates ? duplicates + ' already playing, queued or awaiting review' : '', invalid ? invalid + ' unavailable or sharing changed' : '', result.limited ? result.limited + ' held back · suggestion limit reached' : '', data.truncated ? 'Only the first 48 links were checked' : ''].filter(Boolean).join(' · ');
           confirmQueueChange(from, data.requestId, text,result.added?'applied':result.invalid?'rejected':'superseded');
         }
         if (data.type === 'queue-review-status' && joinedAsGuest && typeof data.text === 'string') setQueueNotice(data.text.slice(0,300));
@@ -1005,7 +1042,7 @@ export function WatchRoomSection() {
           noteRoom("state", "Sent a targeted state reconciliation to a guest.");
         }
       }),
-    [joinedAsGuest, guestQueueEnabled, guestPlaybackEnabled, guestSeekingEnabled, reviewQueue, localQueue, noteRoom, p2p.onMessage, p2p.send, playback.playing, playback.position, queue, sharedVideoId, videos, sharedRoomVideos, measuredDuration, acceptRoomMedia, roomMedia, roomQueueMedia, replayQueueReceipt, confirmQueueChange, acceptQueueReceipt, guardQueueIntent, observeQueueHost, receiveQueueDelivery],
+    [room, joinedAsGuest, guestQueueEnabled, guestPlaybackEnabled, guestSeekingEnabled, reviewQueue, localQueue, noteRoom, p2p.onMessage, p2p.send, playback.playing, playback.position, queue, sharedVideoId, videos, sharedRoomVideos, measuredDuration, acceptRoomMedia, roomMedia, roomQueueMedia, replayQueueReceipt, confirmQueueChange, acceptQueueReceipt, guardQueueIntent, observeQueueHost, receiveQueueDelivery],
   );
   const sync = (next: { playing: boolean; position: number }, seek = false, explicit = false) => {
     if(playerGenerationRef.current!==playerGeneration)return;
@@ -1284,10 +1321,10 @@ export function WatchRoomSection() {
     }
     sync({ ...playback, playing }, false, true);
   };
-  const chooseVideo = (video: LibraryVideo, startPlayback = false) => {
+  const chooseVideo = (video: LibraryVideo, startPlayback = false, searchEvidence?:RoomSearchEvidence) => {
     if (joinedAsGuest) {
       if (!queueWritable) { setQueueNotice(hostConnected ? 'The host has locked queue edits and video selection.' : 'Waiting for the host connection before selecting a video.'); return; }
-      requestQueueChange({ type: 'video-request', videoId: video.id, media: describeRoomMedia(video), action: startPlayback ? 'play' : 'stage' }, 'Video selection requested · waiting for host confirmation.');
+      requestQueueChange({ type: 'video-request', videoId: video.id, media: describeRoomMedia(video), searchEvidence, action: startPlayback ? 'play' : 'stage' }, 'Video selection requested · waiting for host confirmation.');
       setInviteNotice(`Requested ${video.name} from the host. The room changes only after host confirmation.`);
       noteRoom("request", "Requested a host video change.");
       return;
@@ -1313,7 +1350,7 @@ export function WatchRoomSection() {
     const selectedKey = roomMediaKey(video);
     const remaining = queueRef.current.filter(id => {
       const queued = roomVideoForId(id);
-      return queued && roomMediaKey(queued) !== selectedKey;
+      return queued && id !== video.id && (isRoomRepeat(id) || isRoomRepeat(video.id) || roomMediaKey(queued) !== selectedKey);
     });
     undoQueue.current = undefined; setUndoRevision(undefined);
     if (remaining.length !== queueRef.current.length) publishQueue(remaining, video.id, false);
@@ -1321,18 +1358,29 @@ export function WatchRoomSection() {
     youtubePlaybackStartedAt.current=startPlayback?Date.now():null;
     lastRoomPosition.current = 0;
     lastRoomHistoryId.current = "";
-    recordPlay(video.id, "watch-room");
+    recordPlay(catalogLocalSources.current.get(video.id)?.id ?? video.id, "watch-room");
     p2p.send({ type: "video", videoId: video.id, selectionRevision: selectionRevision.current, media: describeRoomMedia(video, share), sentAt: Date.now() });
     p2p.send({ type: "sync", playing: startPlayback, position: 0, videoId: video.id, selectionRevision: selectionRevision.current, seek: true, sentAt: Date.now() });
     noteRoom("state", "Host selected a new room video.");
   };
-  const guestCatalogRequestAllowed = (video:LibraryVideo, revision?:number) => {
-    return catalogAccess.allowsRequest(video,[currentVideoIdRef.current,...queueRef.current],roomVideoForId,revision??-1);
+  const guestCatalogRequestAllowed = (video:LibraryVideo, revision?:number, evidence?:unknown) => {
+    return roomSearchEvidenceAllows(catalogAccess.authority.current,video,evidence,revision??-1,
+      [currentVideoIdRef.current,...queueRef.current].flatMap(id=>{const active=roomVideoForId(id);return active?[roomMediaKey(active)]:[];}));
   };
-  const resolveGuestRoomVideo = (id: string, media: unknown, revision?:number) => {
-    const wire=resolveRoomMedia(media); if(!wire?.video||wire.descriptor.id!==id||!guestCatalogRequestAllowed(wire.video,revision))return undefined;
+  function batchSearchEvidence(value: unknown, length: number, index: number) {
+    return value === undefined ? undefined : Array.isArray(value) && value.length === length && length <= ROOM_QUEUE_LIMIT ? value[index] : null;
+  }
+  const resolveGuestRoomVideo = (id: string, media: unknown, revision?:number, evidence?:unknown) => {
+    const wire=resolveRoomMedia(media); if(!wire?.video||wire.descriptor.id!==id||!guestCatalogRequestAllowed(wire.video,revision,evidence))return undefined;
     const known=catalogAccess.authority.current.index?.known.get(roomMediaKey(wire.video));
-    const requested = !wire.video.remote && known && roomCatalogLocalId(known)===id && roomCatalogName(known)===wire.video.name ? known : resolveRoomRequest(id, media, roomVideoForId, [currentVideoIdRef.current, ...queueRef.current]);
+    if (!wire.video.remote && known && roomCatalogLocalId(known)===id && roomCatalogName(known)===wire.video.name && canStageRoomVideo(known)) {
+      // Keep only the active slot, current queue and its one undo revision.
+      if (!catalogLocalSources.current.has(id) && catalogLocalSources.current.size >= 2 * ROOM_QUEUE_LIMIT + 1) return undefined;
+      catalogLocalSources.current.set(id,known);
+      return catalogLocalVideo(id);
+    }
+    if (isRoomRepeat(id) && !queueRef.current.includes(id)) return undefined;
+    const requested = known?.remote && readRoomSearchEvidence(evidence)?.source==='host' ? known : resolveRoomRequest(id, media, roomVideoForId, [currentVideoIdRef.current, ...queueRef.current]);
     if (!requested || !canStageRoomVideo(requested)) return undefined;
     if (!requested.remote && requested.id.startsWith("local:") && !localFiles.current.has(requested.id)) return undefined;
     if (requested.remote) adoptRoomMedia([describeRoomMedia(requested)], [currentVideoIdRef.current, ...queueRef.current, requested.id]);
@@ -1368,8 +1416,8 @@ export function WatchRoomSection() {
     const current = roomVideoForId(currentId);
     const bounded = distinctRoomQueue(next, id => {
       const video = roomVideoForId(id);
-      return video && canStageRoomVideo(video) ? roomMediaKey(video) : undefined;
-    }, current ? roomMediaKey(current) : undefined);
+      return video && id !== currentId && canStageRoomVideo(video) ? video.remote && isRoomRepeat(id) ? 'slot:'+id : roomMediaKey(video) : undefined;
+    }, current && !isRoomRepeat(currentId) ? roomMediaKey(current) : undefined);
     if (bounded.length === queueRef.current.length && bounded.every((id, index) => id === queueRef.current[index])) return;
     const revision = Math.max(queueRevisionRef.current, lastAcceptedQueueRevision.current) + 1;
     if (recordUndo) undoQueue.current = { ids: [...queueRef.current], media: queueDescriptors(queueRef.current), revision };
@@ -1381,16 +1429,17 @@ export function WatchRoomSection() {
     setQueue(bounded);
     const media = queueDescriptors(bounded);
     p2p.send({ type: 'queue', queue: bounded, queueMedia: media, queueRevision: revision, sentAt: Date.now() });
-    pendingQueueDraft.current = roomQueueDraft(media);
+    pendingQueueDraft.current = roomQueueDraft(media,Date.now(),true);
     window.clearTimeout(queueDraftTimer.current);
     queueDraftTimer.current = window.setTimeout(() => flushDraftRef.current(), 300);
     setRoomHealth((health) => ({ ...health, queueAccepted: health.queueAccepted + 1, queueRevision: revision, lastQueueAt: Date.now() }));
     noteRoom("queue", `Published queue revision ${revision} with ${bounded.length} title${bounded.length === 1 ? "" : "s"}.`);
   };
-  const changeQueue = (operation: RoomQueueAction, video?: LibraryVideo) => {
+  const changeQueue = (operation: RoomQueueAction, video?: LibraryVideo, searchEvidence?:RoomSearchEvidence) => {
     if (joinedAsGuest) {
-      if (!queueWritable) { setQueueNotice(hostConnected ? 'The host has locked queue edits and video selection.' : 'Waiting for the host connection before changing the queue.'); return; }
-      requestQueueChange({type:'queue-action',operation,media:describeRoomMedia(video ?? roomVideoForId(operation.id)),queueRevision:lastAcceptedQueueRevision.current},'Queue change sent · waiting for host confirmation.');
+      const grant = queueWritable ? undefined : moderation.incoming();
+      if (!queueWritable && (!grant || !delegatedQueueOperation('queue-action',operation,queueRef.current))) { setQueueNotice(hostConnected ? 'The host has locked this queue action.' : 'Waiting for the host connection before changing the queue.'); return; }
+      requestQueueChange({type:'queue-action',operation,media:grant?undefined:describeRoomMedia(video ?? roomVideoForId(operation.id)),searchEvidence,delegationId:grant?.id,queueRevision:lastAcceptedQueueRevision.current},'Queue change sent · waiting for host confirmation.');
       setRoomHealth(health=>({...health,queueRequests:health.queueRequests+1}));
       return;
     }
@@ -1400,8 +1449,9 @@ export function WatchRoomSection() {
   };
   const shuffleQueue = () => {
     if (joinedAsGuest) {
-      if (!queueWritable) { setQueueNotice('Wait for an available host with guest queue editing enabled.'); return; }
-      requestQueueChange({type:"queue-shuffle"},"Shuffle requested · waiting for host confirmation.");
+      const grant=queueWritable?undefined:moderation.incoming();
+      if (!queueWritable && !grant) { setQueueNotice('Wait for an available host with guest queue editing enabled.'); return; }
+      requestQueueChange({type:"queue-shuffle",delegationId:grant?.id},"Shuffle requested · waiting for host confirmation.");
       return;
     }
     if (queueRef.current.length < 2) return;
@@ -1411,26 +1461,69 @@ export function WatchRoomSection() {
   const editQueue = (edit: RoomQueueEdit) => {
     if (!parseRoomQueueEdit(edit)) return false;
     if (joinedAsGuest) {
-      if (!queueWritable) { setQueueNotice('Wait for an available host with guest queue editing enabled.'); return false; }
-      return requestQueueChange({ type: 'queue-edit', operation: edit }, 'Selected-title change sent · waiting for host confirmation.');
+      const grant=queueWritable?undefined:moderation.incoming();
+      if (!queueWritable && (!grant || !delegatedQueueOperation('queue-edit',edit,queueRef.current))) { setQueueNotice('Wait for an available host with guest queue editing enabled.'); return false; }
+      return requestQueueChange({ type: 'queue-edit', operation: edit, delegationId:grant?.id }, 'Selected-title change sent · waiting for host confirmation.');
     }
     const count = queueRef.current.filter(id => edit.ids.includes(id)).length;
     publishQueue(applyRoomQueueEdit(queueRef.current, edit));
     setQueueNotice(count ? `${count} selected title${count === 1 ? '' : 's'} ${edit.kind === 'remove' ? 'removed' : edit.kind === 'next' ? 'moved to next' : 'moved to the end'}. The current video keeps playing.` : 'Those titles have already left the queue.');
     return true;
   };
-  const queueLinkBatch = (values: unknown[], revision?:number, guestRequest=false) => {
+  const holdDuplicate = (media:RoomMediaDescriptor, origin:{id:string;source:string;peer?:string;evidence?:RoomSearchEvidence;catalogRevision?:number}) => {
+    const next=holdRoomDuplicate(duplicateRef.current,{media,...origin});
+    if(next===duplicateRef.current)return false;
+    duplicateRef.current=next;setDuplicateGroups(next);return true;
+  };
+  const decideDuplicate = (key:string, requestId?:string) => {
+    if(joinedAsGuest)return;
+    const requests=duplicateRef.current[key]??[], request=requests.find(row=>row.id===requestId);
+    const slots=queueRef.current.filter(id=>{const video=roomVideoForId(id);return video?.remote&&roomMediaKey(video)===key;});
+    if(requestId) {
+      if(!request||queueRef.current.length>=ROOM_QUEUE_LIMIT)return;
+      const video=resolveRoomMedia(request.media)?.video;
+      if(!video?.remote||request.peer&&!guestCatalogRequestAllowed(video,request.catalogRevision,request.evidence)) {
+        setQueueNotice('That request no longer has current sharing access. The queue was kept.');return;
+      }
+      const id=createLocalId('room-repeat-'), next=[...queueRef.current,id];
+      adoptRoomMedia([{...request.media,id}],[currentVideoIdRef.current,...next]);
+      publishQueue(next);
+      setQueueNotice('Repeat kept as a separate upcoming slot. Playback is unchanged.');
+      if(request.peer)p2p.send({type:'queue-review-status',text:'The host kept your repeat as a separate queue slot.'},request.peer);
+    } else {
+      if(!requests.length&&slots.length<2)return;
+      publishQueue(queueRef.current.filter(id=>!slots.slice(1).includes(id)));
+      setQueueNotice('Duplicates consolidated. The current video is unchanged.');
+      for(const peer of new Set(requests.flatMap(row=>row.peer?[row.peer]:[])))
+        p2p.send({type:'queue-review-status',text:'The host consolidated matching queue requests. No repeat was added.'},peer);
+    }
+    const next={...duplicateRef.current}, remaining=requestId?requests.filter(row=>row.id!==requestId):[];
+    if(remaining.length)next[key]=remaining;else delete next[key];
+    duplicateRef.current=next;setDuplicateGroups(next);
+  };
+  const queueLinkBatch = (values: unknown[], revision?:number, guestRequest=false, evidenceAt?:(index:number)=>unknown,
+    origin?:{id:string;source:string;peer?:string}) => {
     const next=[...queueRef.current], media:RoomMediaDescriptor[]=[];
     const staged = new Map<string, LibraryVideo>();
     const seen=new Set([currentVideoIdRef.current,...next].flatMap(id=>{const video=roomVideoForId(id);return video?[roomMediaKey(video)]:[];}));
-    const result={added:0,duplicates:0,invalid:0,full:0};
-    for (const value of values.slice(0,ROOM_QUEUE_LIMIT)) {
-      const resolved=resolveRoomMedia(value);
-      if (!resolved?.video?.remote || guestRequest&&!guestCatalogRequestAllowed(resolved.video,revision)) {result.invalid++;continue;}
+    const result={added:0,duplicates:0,invalid:0,full:0,held:0};
+    for (const [index,value] of values.slice(0,ROOM_QUEUE_LIMIT).entries()) {
+      let resolved=resolveRoomMedia(value);
+      const evidence=evidenceAt?.(index);
+      if (!resolved?.video?.remote || isRoomRepeat(resolved.video.id) || guestRequest&&!guestCatalogRequestAllowed(resolved.video,revision,evidence)) {result.invalid++;continue;}
+      if (guestRequest && readRoomSearchEvidence(evidence)?.source==='host') {
+        const known=catalogAccess.authority.current.index?.known.get(roomMediaKey(resolved.video));
+        resolved=resolveRoomMedia(known && describeCatalogMedia(known));
+        if(!resolved?.video?.remote){result.invalid++;continue;}
+      }
       const key=roomMediaKey(resolved.video);
-      if (seen.has(key)) {result.duplicates++;continue;}
+      if (seen.has(key)) {
+        if(origin&&holdDuplicate(resolved.descriptor,{...origin,id:origin.id+':'+index,evidence:readRoomSearchEvidence(evidence),catalogRevision:revision}))result.held++;
+        else result.duplicates++;
+        continue;
+      }
       if (next.length>=ROOM_QUEUE_LIMIT) {result.full++;continue;}
-      const requested=resolveRoomRequest(resolved.video.id,value,id=>staged.get(id)??roomVideoForId(id),[currentVideoIdRef.current,...next]);
+      const requested=resolveRoomRequest(resolved.video.id,resolved.descriptor,id=>staged.get(id)??roomVideoForId(id),[currentVideoIdRef.current,...next]);
       if (!requested) {result.invalid++;continue;}
       staged.set(requested.id,requested);
       next.push(requested.id);seen.add(key);media.push(describeRoomMedia(requested)!);result.added++;
@@ -1438,8 +1531,8 @@ export function WatchRoomSection() {
     if (result.added) {adoptRoomMedia(media,[currentVideoIdRef.current,...next]);publishQueue(next);}
     return result;
   };
-  const batchQueueNotice = (result:{added:number;duplicates:number;invalid:number;full:number},truncated=false) => [
-    `${result.added} queued`,result.duplicates?`${result.duplicates} already playing/queued`:"",result.invalid?`${result.invalid} invalid or unavailable`:"",result.full?`${result.full} skipped · queue full`:"",truncated?"Only the first 48 links were checked":"",
+  const batchQueueNotice = (result:{added:number;duplicates:number;invalid:number;full:number;held?:number},truncated=false) => [
+    `${result.added} queued`,result.held?`${result.held} repeats awaiting duplicate review`:"",result.duplicates?`${result.duplicates} already playing/queued`:"",result.invalid?`${result.invalid} invalid or unavailable`:"",result.full?`${result.full} skipped · queue full`:"",truncated?"Only the first 48 links were checked":"",
   ].filter(Boolean).join(" · ");
   const decideSuggestion = (id: string, action: 'end' | 'next' | 'dismiss') => {
     if (joinedAsGuest) return;
@@ -1451,9 +1544,8 @@ export function WatchRoomSection() {
       else {
         if (queueRef.current.length >= ROOM_QUEUE_LIMIT) { setReviewNotice('The queue is full. This suggestion is still waiting for review.'); return; }
         const video = resolveRoomMedia(item.media)?.video;
-        const requested = video && resolveRoomRequest(video.id, item.media, roomVideoForId, [currentVideoIdRef.current, ...queueRef.current]);
-        if (!requested?.remote || !catalogAccess.allowsRequest(requested,[currentVideoIdRef.current,...queueRef.current],roomVideoForId)) { setReviewNotice('This public video could not be prepared. The suggestion was kept.'); return; }
-        adoptRoomMedia([describeRoomMedia(requested)], [currentVideoIdRef.current, ...queueRef.current, requested.id]);
+        const requested = video && resolveGuestRoomVideo(video.id,item.media,item.catalogRevision,item.evidence);
+        if (!requested) { setReviewNotice('This suggestion could not be prepared or sharing changed. The suggestion was kept for review.'); return; }
         publishQueue(applyRoomQueueAction(queueRef.current, { kind: action === 'next' ? 'next' : 'add', id: requested.id }));
         text = 'The host approved ' + item.media.name + (action === 'next' ? ' to play next.' : ' to the end of the queue.');
       }
@@ -1466,14 +1558,15 @@ export function WatchRoomSection() {
   const onReviewQueue = useCallback((value: boolean) => { updateRoomPermissions({review:value}); setReviewNotice(''); }, [updateRoomPermissions]);
   const queuePublicLinks = (value:string) => {
     const parsed=parseRoomLinks(value);
+    const rows=[...parsed.videos,...parsed.repeated].map(video=>describeRoomMedia(video));
     if (!parsed.videos.length) {setQueueNotice("Enter public YouTube or Twitch links, one per line.");return false;}
     if (joinedAsGuest) {
-      if (canSuggest) return requestQueueChange({type:'queue-suggest',queueMedia:parsed.videos.map(video=>describeRoomMedia(video)),skipped:parsed.invalid,duplicates:parsed.duplicates,truncated:parsed.truncated}, parsed.videos.length + ' suggestions sent · waiting for host review confirmation.');
+      if (canSuggest) return requestQueueChange({type:'queue-suggest',queueMedia:rows,skipped:parsed.invalid,truncated:parsed.truncated}, parsed.videos.length + ' suggestions sent · waiting for host review confirmation.');
       if (!queueWritable) { setQueueNotice('Wait for an available host with guest queue editing enabled.'); return false; }
-      return requestQueueChange({type:"queue-batch",queueMedia:parsed.videos.map(video=>describeRoomMedia(video)),skipped:parsed.invalid,duplicates:parsed.duplicates,truncated:parsed.truncated},`${parsed.videos.length} links sent · waiting for host confirmation.`);
+      return requestQueueChange({type:"queue-batch",queueMedia:rows,skipped:parsed.invalid,truncated:parsed.truncated},`${parsed.videos.length} links sent · waiting for host confirmation.`);
     } else {
-      const result=queueLinkBatch(parsed.videos.map(video=>describeRoomMedia(video)));
-      setQueueNotice(batchQueueNotice({...result,invalid:result.invalid+parsed.invalid,duplicates:result.duplicates+parsed.duplicates},parsed.truncated));
+      const result=queueLinkBatch(rows,undefined,false,undefined,{id:createLocalId('paste-'),source:'Host pasted link'});
+      setQueueNotice(batchQueueNotice({...result,invalid:result.invalid+parsed.invalid},parsed.truncated));
     }
     return true;
   };
@@ -1485,15 +1578,17 @@ export function WatchRoomSection() {
     setQueueNotice('Session file: '+batchQueueNotice(result)+'. The current video and playback settings are unchanged.');
     return result.added>0;
   };
-  const queueSavedList = (media: RoomMediaDescriptor[]) => {
+  const queueSavedList = (media: RoomMediaDescriptor[], evidence?:RoomSearchEvidence[]) => {
     // Revalidate stored descriptors; guests use the same acknowledged batch
     // path and current host policy as pasted links, preserving saved titles.
     const clean = roomQueueDraft(media).media;
     if (!clean.length) { setQueueNotice('This list has no available public links.'); return false; }
     if (joinedAsGuest) {
-      if (canSuggest) return requestQueueChange({ type: 'queue-suggest', queueMedia: clean }, 'Saved list sent · waiting for host review confirmation.');
+      const searchEvidenceBatch = evidence?.length===clean.length ? evidence : undefined;
+      if(evidence&&!searchEvidenceBatch){setQueueNotice('Draft sources changed. Review them before sending again.');return false;}
+      if (canSuggest) return requestQueueChange({ type: 'queue-suggest', queueMedia: clean, searchEvidenceBatch }, 'Saved list sent · waiting for host review confirmation.');
       if (!queueWritable) { setQueueNotice('Wait for an available host with guest queue editing enabled.'); return false; }
-      return requestQueueChange({ type: 'queue-batch', queueMedia: clean }, 'Saved list sent · waiting for host confirmation.');
+      return requestQueueChange({ type: 'queue-batch', queueMedia: clean, searchEvidenceBatch }, 'Saved list sent · waiting for host confirmation.');
     }
     setQueueNotice('Saved list: ' + batchQueueNotice(queueLinkBatch(clean)) + '. The current video keeps playing.');
     return true;
@@ -1595,12 +1690,12 @@ export function WatchRoomSection() {
     p2p.send({type:"share-ready",...pickedLocalShare});
     setInviteNotice("Local playback shared. Press Play to stream it to the room; guests do not need a local copy.");
   };
-  const queueVideo = (video: LibraryVideo) => {
+  const queueVideo = (video: LibraryVideo, searchEvidence?:RoomSearchEvidence) => {
     if (canSuggest) {
-      if (!video.remote) { setQueueNotice('Only public YouTube and Twitch videos can be suggested.'); return; }
-      requestQueueChange({type:'queue-suggest',queueMedia:[describeRoomMedia(video)]}, 'Suggestion sent · waiting for host review confirmation.'); return;
+      if (!video.remote && searchEvidence?.source!=='host') { setQueueNotice('Your local files cannot be opened by the host.'); return; }
+      requestQueueChange({type:'queue-suggest',queueMedia:[describeRoomMedia(video)],searchEvidence}, 'Suggestion sent · waiting for host review confirmation.'); return;
     }
-    if (video.id !== sharedVideoId && !queue.includes(video.id)) changeQueue({kind:'add',id:video.id},video);
+    if (video.id !== sharedVideoId && !queue.includes(video.id)) changeQueue({kind:'add',id:video.id},video,searchEvidence);
   };
   const queueImmediately = (video: LibraryVideo) => {
     if (video.id === sharedVideoId) return;
@@ -1631,21 +1726,31 @@ export function WatchRoomSection() {
   };
   const restoreSavedQueue = () => {
     if (joinedAsGuest || !savedQueue || queueRef.current.length) return;
-    const result = queueLinkBatch(savedQueue.media);
-    setQueueNotice(`Recovered saved queue: ${batchQueueNotice(result)}. Press Play next when you are ready.`);
+    const next:string[]=[], media:RoomMediaDescriptor[]=[], staged=new Map<string,LibraryVideo>();
+    for(const entry of savedQueue.media){
+      const row=resolveRoomMedia(entry), video=row?.video;
+      if(!row||!video?.remote)continue;
+      const restored=isRoomRepeat(video.id) && !roomVideoForId(video.id) ? video
+        : resolveRoomRequest(video.id,row.descriptor,id=>staged.get(id)??roomVideoForId(id),[currentVideoIdRef.current,...next]);
+      if(!restored?.remote||next.includes(restored.id))continue;
+      staged.set(restored.id,restored);next.push(restored.id);media.push(describeRoomMedia(restored)!);
+    }
+    adoptRoomMedia(media,[currentVideoIdRef.current,...next]);
+    publishQueue(next);
+    setQueueNotice(`Recovered ${queueRef.current.length} upcoming slots. Press Play next when you are ready.`);
   };
   const queuePanelActions = useRef({
-    autoAdvance: (_value: boolean) => {}, select: (_video: LibraryVideo) => {},
-    add: (_video: LibraryVideo) => {}, change: (_action: RoomQueueAction) => {}, clear: () => {},
+    autoAdvance: (_value: boolean) => {}, select: (_video: LibraryVideo,_evidence?:RoomSearchEvidence) => {},
+    add: (_video: LibraryVideo,_evidence?:RoomSearchEvidence) => {}, change: (_action: RoomQueueAction) => {}, clear: () => {},
     next: () => {}, shuffle: () => {}, link: (_value: string): boolean => false,
     undo: () => {}, restore: () => {},
     edit: (_edit: RoomQueueEdit): boolean => false,
-    loadList: (_media: RoomMediaDescriptor[]): boolean => false,
+    loadList: (_media: RoomMediaDescriptor[],_evidence?:RoomSearchEvidence[]): boolean => false,
     importSession: (_file:RoomSessionFile):boolean=>false,
   });
   queuePanelActions.current = {
     autoAdvance: setAutoAdvance,
-    select: video => chooseVideo(video, true),
+    select: (video,evidence) => chooseVideo(video, true,evidence),
     add: queueVideo,
     change: changeQueue,
     clear: () => updateQueue([]),
@@ -1659,8 +1764,8 @@ export function WatchRoomSection() {
     importSession: queueSessionFile,
   };
   const onQueueAutoAdvance = useCallback((value: boolean) => queuePanelActions.current.autoAdvance(value), []);
-  const onQueueSelect = useCallback((video: LibraryVideo) => queuePanelActions.current.select(video), []);
-  const onQueueAdd = useCallback((video: LibraryVideo) => queuePanelActions.current.add(video), []);
+  const onQueueSelect = useCallback((video: LibraryVideo,evidence?:RoomSearchEvidence) => queuePanelActions.current.select(video,evidence), []);
+  const onQueueAdd = useCallback((video: LibraryVideo,evidence?:RoomSearchEvidence) => queuePanelActions.current.add(video,evidence), []);
   const onQueueChange = useCallback((action: RoomQueueAction) => queuePanelActions.current.change(action), []);
   const onQueueClear = useCallback(() => queuePanelActions.current.clear(), []);
   const onQueueNext = useCallback(() => queuePanelActions.current.next(), []);
@@ -1669,7 +1774,10 @@ export function WatchRoomSection() {
   const onQueueUndo = useCallback(() => queuePanelActions.current.undo(), []);
   const onQueueRestore = useCallback(() => queuePanelActions.current.restore(), []);
   const onQueueEdit = useCallback((edit: RoomQueueEdit) => queuePanelActions.current.edit(edit), []);
-  const onQueueLoadList = useCallback((media: RoomMediaDescriptor[]) => queuePanelActions.current.loadList(media), []);
+  const onQueueLoadList = useCallback((media: RoomMediaDescriptor[],evidence?:RoomSearchEvidence[]) => queuePanelActions.current.loadList(media,evidence), []);
+  const duplicateDecision=useRef(decideDuplicate);duplicateDecision.current=decideDuplicate;
+  const onKeepDuplicate=useCallback((key:string,id:string)=>duplicateDecision.current(key,id),[]);
+  const onConsolidateDuplicate=useCallback((key:string)=>duplicateDecision.current(key),[]);
   const onImportSession = useCallback((file:RoomSessionFile)=>queuePanelActions.current.importSession(file),[]);
   const onGuestQueueEditing = useCallback((value: boolean) => {
     updateRoomPermissions({queue:value});
@@ -1682,7 +1790,7 @@ export function WatchRoomSection() {
   const queueCurrentMedia=useMemo(()=>describeRoomMedia(sharedVideo),[sharedVideo]);
   const queuePanelRows = useMemo(() => queue.map(id => ({
     id,
-    video: joinedAsGuest ? sharedRoomVideos[id] ?? lookupVideo(videos, id) : lookupVideo(videos, id) ?? sharedRoomVideos[id],
+    video: joinedAsGuest ? sharedRoomVideos[id] ?? lookupVideo(videos, id) : lookupVideo(videos, id) ?? catalogLocalVideo(id) ?? sharedRoomVideos[id],
   })), [joinedAsGuest, queue, sharedRoomVideos, videos]);
   const finishRoomTitle = () => {
     if(playerGenerationRef.current!==playerGeneration)return;
@@ -1928,6 +2036,7 @@ export function WatchRoomSection() {
             Timeline {Math.floor(playback.position / 60)}:
             {String(Math.floor(playback.position % 60)).padStart(2, "0")} · {timelineEvidence.source === "remote" ? "host-confirmed" : timelineEvidence.source === "local" ? "local player" : "provider estimate"} · checked {new Date(timelineEvidence.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}.
           </p>
+          {room && <RoomQueueDelegation key={room+":"+joinedAsGuest} guest={joinedAsGuest} control={moderation}/>}
           <RoomRolePresets permissions={{queue:guestQueueEnabled,review:reviewQueue,playback:guestPlaybackEnabled,seeking:guestSeekingEnabled}} revision={permissionVersion} guest={joinedAsGuest} onApply={updateRoomPermissions}/>
           <section aria-label="Room playback permissions" className="mt-3 rounded-md border border-border bg-bg/45 p-3">{joinedAsGuest?<p className="text-xs leading-5 text-muted">Your room controls · {guestPlaybackEnabled?'Play/pause allowed':'Host controls play/pause'} · {guestSeekingEnabled?'Seeking allowed for videos':'Host controls seeking'}. You can still start or reload your own device, join the ready check and vote for what’s next.</p>:<><p className="text-sm font-medium text-fg">Guest playback controls</p><label className="mt-2 flex min-h-11 items-center gap-2 text-xs text-muted"><input type="checkbox" aria-label="Allow guests to play and pause" checked={guestPlaybackEnabled} onChange={event=>{updateRoomPermissions({playback:event.target.checked});}}/>Allow guests to play and pause</label><label className="flex min-h-11 items-center gap-2 text-xs text-muted"><input type="checkbox" aria-label="Allow guests to seek videos" checked={guestSeekingEnabled} onChange={event=>{updateRoomPermissions({seeking:event.target.checked});}}/>Allow guests to seek videos</label><p className="text-xs leading-5 text-muted">Playback and seeking are independent from queue access. Live streams keep their own clocks. Ready checks and votes remain available when controls are locked.</p></>}</section>
           {joinedAsGuest && <RoomGuestTiming offset={guestOffset} position={adjustedTimerPosition} adjustsPlayback={timingAdjustsPlayback} onChange={changeGuestOffset}/>}
@@ -2256,7 +2365,7 @@ export function WatchRoomSection() {
         </div>
         <div className={stageSize==='cinema'?'grid min-w-0 items-start gap-4 lg:grid-cols-2':'min-w-0 space-y-4 self-start'}>
         {room && <div ref={roomParticipationAnchor} className="scroll-mt-36"><RoomParticipationPanel key={room + ':' + joinedAsGuest} localPlayer={localPlayerReadiness} playing={playback.playing} onWait={onWaitForPlayers} room={room} guest={joinedAsGuest} hostId={mediaHostId} selfId={p2p.selfId} peers={p2p.peers} readyRevision={p2p.readyRevision} send={p2p.send} onMessage={p2p.onMessage} queue={queuePanelRows} onPrioritize={onQueueChange} /></div>}
-        <div ref={roomQueueAnchor} className="scroll-mt-36"><RoomQueueDeliveryPanel guest={joinedAsGuest} rows={queueIntentRows} transport={p2p.transport} basis={{queueRevision:joinedAsGuest?lastAcceptedQueueRevision.current:queueRevisionRef.current,selectionRevision:joinedAsGuest?acceptedSelectionRevision.current:selectionRevision.current}} epoch={joinedAsGuest?guestDeliveryEpoch:queueDeliveryStamp().deliveryEpoch}/><RoomQueuePanel key={room} roomId={room} hostConnected={Boolean(connectionInput.transport||connectionInput.relay)} hostCatalog={joinedAsGuest?hostCatalog:undefined} preferHost={joinedAsGuest&&!videos.length} candidates={roomCandidates} queue={queuePanelRows} currentId={sharedVideoId} currentTitle={sharedVideo?.name} currentMediaKey={sharedVideo?roomMediaKey(sharedVideo):undefined} guest={joinedAsGuest} writable={queueWritable} suggesting={canSuggest} reviewMode={reviewQueue} onReviewMode={onReviewQueue} guestEditing={guestQueueEnabled} onGuestEditing={onGuestQueueEditing} canUndo={!joinedAsGuest && undoRevision === queueRevisionRef.current} onUndo={onQueueUndo} savedCount={savedQueue?.media.length ?? 0} onRestore={onQueueRestore} notice={queueNotice} pending={pendingQueueChanges} autoAdvance={autoAdvance} onAutoAdvance={onQueueAutoAdvance} onSelect={onQueueSelect} onAdd={onQueueAdd} onChange={onQueueChange} onEdit={onQueueEdit} onClear={onQueueClear} onNext={onQueueNext} onShuffle={onQueueShuffle} onLink={onQueueLink} onLoadList={onQueueLoadList} onImportSession={onImportSession} currentMedia={queueCurrentMedia} playedMedia={sessionPlayedMedia} catalogPending={roomCandidatesPending}/></div>
+        <div ref={roomQueueAnchor} className="scroll-mt-36"><RoomQueueDeliveryPanel guest={joinedAsGuest} rows={queueIntentRows} transport={p2p.transport} basis={{queueRevision:joinedAsGuest?lastAcceptedQueueRevision.current:queueRevisionRef.current,selectionRevision:joinedAsGuest?acceptedSelectionRevision.current:selectionRevision.current}} epoch={joinedAsGuest?guestDeliveryEpoch:queueDeliveryStamp().deliveryEpoch}/><RoomQueuePanel key={room} roomId={room} hostConnected={Boolean(connectionInput.transport||connectionInput.relay)} hostCatalog={joinedAsGuest?hostCatalog:undefined} preferHost={joinedAsGuest&&!videos.length} candidates={roomCandidates} queue={queuePanelRows} currentId={sharedVideoId} currentTitle={sharedVideo?.name} currentMediaKey={sharedVideo?roomMediaKey(sharedVideo):undefined} guest={joinedAsGuest} writable={queueWritable} moderation={Boolean(moderation.incoming())} duplicateGroups={joinedAsGuest?undefined:duplicateGroups} onKeepDuplicate={onKeepDuplicate} onConsolidateDuplicate={onConsolidateDuplicate} suggesting={canSuggest} reviewMode={reviewQueue} onReviewMode={onReviewQueue} guestEditing={guestQueueEnabled} onGuestEditing={onGuestQueueEditing} canUndo={!joinedAsGuest && undoRevision === queueRevisionRef.current} onUndo={onQueueUndo} savedCount={savedQueue?.media.length ?? 0} onRestore={onQueueRestore} notice={queueNotice} pending={pendingQueueChanges} autoAdvance={autoAdvance} onAutoAdvance={onQueueAutoAdvance} onSelect={onQueueSelect} onAdd={onQueueAdd} onChange={onQueueChange} onEdit={onQueueEdit} onClear={onQueueClear} onNext={onQueueNext} onShuffle={onQueueShuffle} onLink={onQueueLink} onLoadList={onQueueLoadList} onImportSession={onImportSession} currentMedia={queueCurrentMedia} playedMedia={sessionPlayedMedia} catalogPending={roomCandidatesPending}/></div>
         <section ref={roomChat} className="scroll-mt-36 rounded-lg bg-elevated p-4 shadow-border">
           <p className="flex items-center gap-2 text-sm font-medium text-fg">
             <MessageCircle className="size-4 text-accent" /> Room chat

@@ -1,4 +1,5 @@
 export const PROFILE_SELECTION_KEY = "realhub.active-local-profile.v1";
+export const PROFILE_ARRIVAL_KEY = "realhub.profile-arrival.v1";
 export const PROFILE_PREFIX = "realhub.profile.v1:";
 export const PROFILE_EVENT = "realhub:profile-context";
 export const validProfileId = (id: string) =>
@@ -25,7 +26,7 @@ export function profileDatabaseName(base: string, id = boundId) {
 export function profileChannelName(base: string) {
   return boundId === "default" ? base : base + ".profile." + boundId;
 }
-const reserved = (key: string) => key === PROFILE_SELECTION_KEY || key.startsWith(PROFILE_PREFIX);
+const reserved = (key: string) => key === PROFILE_SELECTION_KEY || key === PROFILE_ARRIVAL_KEY || key.startsWith(PROFILE_PREFIX);
 export function createProfileStorage(native: () => Storage, id: string): Storage {
   const prefix = id === "default" ? "" : PROFILE_PREFIX + id + ":";
   const physical = (key: string) => {
@@ -69,7 +70,7 @@ export const profileSessionStorage = createProfileStorage(() => globalThis.sessi
 /** Normalize only app storage events; authentication SDK transport stays global. */
 export function profileEventKey(key: string | null, id = boundId): string | null | undefined {
   if (key === null) return null;
-  if (key === PROFILE_SELECTION_KEY) return undefined;
+  if (key === PROFILE_SELECTION_KEY || key === PROFILE_ARRIVAL_KEY) return undefined;
   if (key.startsWith(PROFILE_PREFIX)) {
     const prefix = PROFILE_PREFIX + id + ":";
     return id !== "default" && key.startsWith(prefix) ? key.slice(prefix.length) : undefined;

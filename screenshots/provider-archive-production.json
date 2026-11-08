@@ -1,0 +1,18 @@
+[
+  {
+    "mobile": false,
+    "checks": [
+      "Resumed pull preserves historical cursor and newest-window evidence across reload.",
+      "Browser cancellation closed the HTTP request, released the upstream body and retained the last saved position."
+    ],
+    "errors": []
+  },
+  {
+    "mobile": true,
+    "checks": [
+      "Resumed pull preserves historical cursor and newest-window evidence across reload.",
+      "Browser cancellation closed the HTTP request, released the upstream body and retained the last saved position."
+    ],
+    "errors": []
+  }
+]

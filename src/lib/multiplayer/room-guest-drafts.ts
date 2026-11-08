@@ -3,7 +3,7 @@ import { roomQueueDraft } from "./room-queue-session.ts";
 import { resolveRoomMedia, roomMediaKey, type RoomMediaDescriptor } from "./room-media.ts";
 export type GuestDraftRow = {
   media: RoomMediaDescriptor;
-  origin: "public" | "host";
+  origin: "public" | "host" | "library";
   catalogRevision?: number;
   status: "draft" | "submitted";
 };
@@ -26,7 +26,7 @@ export function readGuestDrafts(raw: unknown): GuestDrafts {
       !row ||
       Object.keys(row).some((k) => !["media", "origin", "catalogRevision", "status"].includes(k)) ||
       !["draft", "submitted"].includes(row.status) ||
-      !["public", "host"].includes(row.origin) ||
+      !["public", "host", "library"].includes(row.origin) ||
       (row.catalogRevision !== undefined &&
         (!Number.isSafeInteger(row.catalogRevision) || row.catalogRevision < 0))
     )

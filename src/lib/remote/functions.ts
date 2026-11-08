@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { runPausablePull } from "@/lib/pull-control";
 import { getPullSettings } from '@/lib/pull-settings';
 import {
@@ -26,11 +27,11 @@ const input = (data: unknown) => data;
 
 const followRemoteRequest = createServerFn({ method: "POST" })
   .validator(input)
-  .handler(({ data }) => runFollowRemote(data));
+  .handler(({ data }) => runFollowRemote(data, getRequest().signal));
 
 const refreshRemotesRequest = createServerFn({ method: "POST" })
   .validator(input)
-  .handler(({ data }) => runRefreshRemotes(data));
+  .handler(({ data }) => runRefreshRemotes(data, getRequest().signal));
 
 const importChannelsRequest = createServerFn({ method: "POST" })
   .validator(input)

@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { companionFetch } from "@/lib/companion";
+import { profileSwitchWork } from "@/lib/profile-switch-work";
+import { useProfileCheckpoint } from "./use-profile-checkpoint";
 import {
   defaultPrintCopyName,
   validPrintCopyName,
@@ -36,12 +38,18 @@ export function PrintSavePanel({ modelKey, name, signature, exportModel, onSaved
     });
   const prepared = useRef<{ blob: Blob; signature: string } | null>(null),
     alive = useRef(true),
-    request = useRef<AbortController | null>(null);
+    request = useRef<AbortController | null>(null), running=useRef(false), committing=useRef(false),
+    pending=useRef(pendingId), recoverySaved=useRef(Boolean(pendingId));
+  useProfileCheckpoint(()=>{
+    if(running.current)return {label:"Print copy save",state:"wait",detail:"Wait for the print save or check to finish."};
+    if(!alive.current&&recoverySaved.current)try{pending.current=localStorage.getItem(printPendingKey(modelKey));}catch{}
+    if(pending.current)return {label:"Print copy save",state:"blocked",detail:"Reopen the print editor and check or cancel its pending save."};
+  });
   useEffect(() => {
     alive.current = true;
     return () => {
       alive.current = false;
-      request.current?.abort();
+      if(!committing.current)request.current?.abort();
       prepared.current = null;
     };
   }, []);
@@ -58,14 +66,17 @@ export function PrintSavePanel({ modelKey, name, signature, exportModel, onSaved
     return data;
   };
   const keepPending = (id: string | null) => {
-    setPendingId(id);
+    pending.current=id;
+    if(alive.current)setPendingId(id);
     try {
       if (id) localStorage.setItem(printPendingKey(modelKey), id);
       else {
         localStorage.removeItem(printPendingKey(modelKey));
         localStorage.removeItem(printPendingKey(modelKey) + ":signature");
       }
-    } catch {}
+      recoverySaved.current=Boolean(id);
+    } catch {recoverySaved.current=false;}
+    profileSwitchWork.notify();
   };
   const saved = (r: PrintSaveReceipt, snapshotSignature: string) => {
     if (r.status !== "done") return;
@@ -73,13 +84,16 @@ export function PrintSavePanel({ modelKey, name, signature, exportModel, onSaved
       signature: snapshotSignature,
       receipt: r,
     });
-    keepPending(null);
+    if(persisted)keepPending(null);
     prepared.current = null;
-    onSaved(snapshotSignature, r);
-    setNotice(persisted ? r.detail : r.detail + " The browser could not retain this save receipt.");
+    if(alive.current){
+      onSaved(snapshotSignature, r);
+      setNotice(persisted ? r.detail : r.detail + " The browser could not retain this save receipt.");
+    }
   };
-  const run = async (fn: () => Promise<void>) => {
-    if (busy) return;
+  const run = async (fn: () => Promise<void>, commit=false) => {
+    if (running.current) return;
+    running.current=true;committing.current=commit;profileSwitchWork.notify();
     setBusy(true);
     setNotice("");
     try {
@@ -91,6 +105,7 @@ export function PrintSavePanel({ modelKey, name, signature, exportModel, onSaved
             " Your editor draft is retained.",
         );
     } finally {
+      running.current=false;committing.current=false;profileSwitchWork.notify();
       if (alive.current) setBusy(false);
     }
   };
@@ -149,8 +164,7 @@ export function PrintSavePanel({ modelKey, name, signature, exportModel, onSaved
           headers: { "content-type": "model/gltf-binary" },
           body: payload.blob,
         });
-        if (!alive.current) return;
-        setReceipt(data.receipt);
+        if (alive.current)setReceipt(data.receipt);
         saved(data.receipt, payload.signature);
       } catch (error) {
         if (alive.current)
@@ -167,7 +181,7 @@ export function PrintSavePanel({ modelKey, name, signature, exportModel, onSaved
       } finally {
         prepared.current = null;
       }
-    });
+    },true);
   const check = () =>
     void run(async () => {
       if (!pendingId) return;

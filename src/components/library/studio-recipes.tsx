@@ -1,5 +1,5 @@
 import {previewRecipeConversion,readStudioParameterContract} from '@/lib/studio-recipe-migration';
-import {profileLocalStorage as localStorage} from "../../lib/local-profile-storage.ts";
+import {profileLocalStorage as localStorage, profileSessionStorage as sessionStorage} from "../../lib/local-profile-storage.ts";
 import { useEffect, useRef, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { BookmarkPlus, Download, Upload, Undo2, X } from 'lucide-react';
@@ -10,13 +10,23 @@ import { createLocalId } from '@/lib/local-id';
 import { MAX_RECIPE_BYTES, MAX_STUDIO_RECIPES, parseRecipe, recipeDocument, readStoredRecipesStrict, recipeLoadReview, type RecipeContent, type StudioRecipe } from '@/lib/studio-recipes';
 import type { ModelPreflight } from '@/lib/studio-model-notes';
 import type { StudioSettings } from '@/lib/studio-settings';
+import { useProfileCheckpoint } from "./use-profile-checkpoint";
+import { profileSwitchWork } from "@/lib/profile-switch-work";
 
 export function StudioRecipes({ contract,owner, result, disabled, onReuse, engine, models, review }: { contract?:unknown;owner: string; result?: RecipeContent; disabled: boolean; engine: "a1111"|"comfy"; models:string[]; review?:ModelPreflight; onReuse: (settings: StudioSettings) => void }) {
   const key = `reelcase.studio.recipes.v1:${encodeURIComponent(owner)}`;
+  const draftKey=key+":tab-draft";
+  const [draft]=useState(()=>{
+    try{
+      const stored=JSON.parse(sessionStorage.getItem(draftKey)??"null");
+      if(stored?.version===1&&typeof stored.name==="string"&&stored.name.length<=80&&typeof stored.newName==="string"&&stored.newName.length<=80&&(stored.editing===null||typeof stored.editing==="string"&&stored.editing.length<=100))return {version:1 as const,name:stored.name as string,editing:stored.editing as string|null,newName:stored.newName as string};
+    }catch{}
+    return {version:1 as const,name:"",editing:null as string|null,newName:""};
+  });
   const read = () => readStoredRecipesStrict(localStorage.getItem(key));
   const [initial]=useState(()=>{try{return {rows:read(),error:''};}catch(e){return {rows:[],error:e instanceof Error?e.message:'Saved recipes could not be read.'};}});
   const [recipes,setRecipes]=useState<StudioRecipe[]>(initial.rows);
-  const [name, setName] = useState(''), [note, setNote] = useState(''), [error, setError] = useState(initial.error), [importing, setImporting] = useState(false), [removed, setRemoved] = useState<StudioRecipe | null>(null);
+  const [name, setName] = useState(draft.name), [note, setNote] = useState(''), [error, setError] = useState(initial.error), [importing, setImporting] = useState(false), [removed, setRemoved] = useState<StudioRecipe | null>(null);
   const [preview,setPreview]=useState<RecipeContent|null>(null),[selection,setSelection]=useState<string|undefined>(),[acknowledged,setAcknowledged]=useState(false);
   const [conversion,setConversion]=useState<(ReturnType<typeof previewRecipeConversion>&{token:string})|null>(null),[conversionAck,setConversionAck]=useState(false);
   let advertised:ReturnType<typeof readStudioParameterContract>|undefined;try{if(contract){const parsed=readStudioParameterContract(contract);if(parsed.engine===engine)advertised=parsed;}}catch{}
@@ -28,8 +38,21 @@ export function StudioRecipes({ contract,owner, result, disabled, onReuse, engin
   const conversionToken=JSON.stringify([source,advertised,plan?.chosen]);
   const requiredConversion=proposal?.changes.some(c=>/^(Sampler|Scheduler|Guidance|Denoise|Square size|Steps):/.test(c)&&!c.includes('unrecorded'))??false;
   const schemaCompatible=!preview?.parameterSchema||advertised?.adapterId===preview.parameterSchema.adapterId&&advertised.engine===preview.parameterSchema.engine;
-  const [editing, setEditing] = useState<string | null>(null), [newName, setNewName] = useState('');
+  const [editing, setEditing] = useState<string | null>(()=>initial.rows.some(row=>row.id===draft.editing)?draft.editing:null), [newName, setNewName] = useState(draft.newName);
   const input = useRef<HTMLInputElement>(null), mounted = useRef(true);
+  const importBusy=useRef(false),savedDraft=useRef(JSON.stringify(draft)),latestDraft=useRef(savedDraft.current);
+  latestDraft.current=JSON.stringify({version:1,name,editing,newName:editing?newName:""});
+  const saveDraft=()=>{
+    const text=latestDraft.current;
+    if(text===savedDraft.current)return;
+    sessionStorage.setItem(draftKey,text);savedDraft.current=text;profileSwitchWork.notify();
+  };
+  useProfileCheckpoint(()=>importBusy.current
+    ? {label:"Image recipe import",state:"wait",detail:"Wait for the reviewed recipe import to finish."}
+    : latestDraft.current!==savedDraft.current?{label:"Image recipe draft",state:"save",detail:"Keep the unfinished recipe name or rename in this tab."}:undefined,
+    saveDraft);
+  useEffect(()=>{if(latestDraft.current!==savedDraft.current)profileSwitchWork.notify();},[name,editing,newName]);
+  useEffect(()=>()=>{try{saveDraft();}catch{/* The switch inventory retains this draft for retry. */}},[draftKey]);
   useEffect(() => { mounted.current = true; const update = (event: StorageEvent) => { if(event.key===key){try{setRecipes(read());setError('');}catch(e){setError(String(e));}} }; window.addEventListener('storage', update); return () => { mounted.current = false; window.removeEventListener('storage', update); }; }, [key]);
   const commit = (rows: StudioRecipe[]) => { localStorage.setItem(key, JSON.stringify(rows)); setRecipes(rows); };
   const save = (content: RecipeContent) => {
@@ -46,10 +69,12 @@ export function StudioRecipes({ contract,owner, result, disabled, onReuse, engin
   };
   const importRecipe = async (file?: File) => {
     if (!file) return;
+    if(importBusy.current)return;
+    importBusy.current=true;profileSwitchWork.notify();
     setError(''); setNote(''); setImporting(true);
-    try { if (file.size > MAX_RECIPE_BYTES) throw new Error('Choose a recipe JSON file smaller than 64 KB.'); const content = parseRecipe(await file.text()); if (mounted.current) { const row=save(content);openPreview(row??content); } }
+    try { if (file.size > MAX_RECIPE_BYTES) throw new Error('Choose a recipe JSON file smaller than 64 KB.'); const content = parseRecipe(await file.text()); const row=save(content);if(mounted.current)openPreview(row??content); }
     catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : 'Recipe could not be imported. Browser storage may be full.'); }
-    finally { if (mounted.current) { setImporting(false); if (input.current) input.current.value = ''; } }
+    finally { importBusy.current=false;profileSwitchWork.notify();if (mounted.current) { setImporting(false); if (input.current) input.current.value = ''; } }
   };
   const run = (action: () => void) => { setError(''); setNote(''); try { action(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Recipes could not be saved.'); } };
   const rename = (id: string) => run(() => {

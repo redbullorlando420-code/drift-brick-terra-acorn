@@ -19,7 +19,7 @@ test('all prerequisite references exist, are acyclic and precede dependent work'
  for(const [i,m]of NEXT_LEVEL_MISSIONS.entries())for(const id of m.brief.dependsOn){assert(positions.has(id),m.id+' unknown prerequisite '+id);assert(positions.get(id)<i,m.id+' cyclic/forward prerequisite '+id);}
 });
 test('roadmap migration appends briefs once without resetting prior manual choices or custom ideas',()=>{
- assert.equal(MISSION_PLAN_REVISION, 101);
+ assert.equal(MISSION_PLAN_REVISION, 105);
  const legacy=[{id:'old-complete',title:'Old complete',detail:'Keep complete',done:true,status:'complete'},{id:'old-reopened',title:'Old reopened',detail:'Keep reopened',done:false,status:'in-progress'}],custom={id:'custom-idea',title:'My idea',detail:'Preserve my words',done:false,status:'blocked'};
  const saved=[...legacy,custom],defaults=[...legacy,NEXT_LEVEL_MISSIONS[0],...NEXT_LEVEL_MISSIONS.slice(1)];
  const first=structuredClone(mergeMissionPlan(saved,defaults,25));assert.equal(first.length,103);assert.deepEqual(first.slice(0,3),saved);assert(first.slice(3).every(m=>m.done===NEXT_LEVEL_COMPLETED_IDS.includes(m.id)));assert.equal(first.slice(3).filter(m=>m.done).length,96);
